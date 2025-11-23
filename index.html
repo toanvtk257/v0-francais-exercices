@@ -4,6 +4,29 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Entraînement au français - espace numérique</title>
+
+<!-- Authentication check moved here to execute BEFORE page renders -->
+<script>
+(function checkAuth() {
+  const AUTH_KEY = 'fr_auth_user';
+  const loggedUser = localStorage.getItem(AUTH_KEY);
+  
+  if (!loggedUser) {
+    window.location.href = 'login.html';
+    return;
+  }
+  
+  try {
+    const userData = JSON.parse(loggedUser);
+    console.log('[v0] User authenticated:', userData.email);
+  } catch (e) {
+    localStorage.removeItem(AUTH_KEY);
+    window.location.href = 'login.html';
+    return;
+  }
+})();
+</script>
+
 <style>
 :root{--brand:#2b5;--ink:#222;--muted:#666;--bg:#f7f7f7;--card:#fff}
 html,body{margin:0;padding:0;background:var(--bg);color:var(--ink);font-family:system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif}
@@ -93,24 +116,6 @@ input[type="text"], textarea{width:100%;padding:10px;border:1px solid #ddd;borde
 <script src="data/questions.js"></script>
 
 <script>
-(function checkAuth() {
-  const AUTH_KEY = 'fr_auth_user';
-  const loggedUser = localStorage.getItem(AUTH_KEY);
-  
-  if (!loggedUser) {
-    window.location.href = 'login.html';
-    return;
-  }
-  
-  try {
-    const userData = JSON.parse(loggedUser);
-    console.log('[v0] User authenticated:', userData.email);
-  } catch (e) {
-    localStorage.removeItem(AUTH_KEY);
-    window.location.href = 'login.html';
-    return;
-  }
-})();
 
 let BANK=null; // {lecture:[], ecoute:[]}
 const $ = s=>document.querySelector(s);
