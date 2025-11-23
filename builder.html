@@ -162,9 +162,11 @@ hr{border:none;border-top:1px solid #e8e8e8;margin:16px 0}
   </div>
 
   <div id="linkQuestionsFileSection" style="margin-bottom: 2rem;">
-    <button onclick="linkToFile()" style="background: #f59e0b; padding: 0.75rem 1.5rem; color: white; border: none; border-radius: 0.5rem; cursor: pointer; font-size: 1rem; font-weight: 500;">
-      🔗 Lier au fichier data/questions.json
+    <!-- Replaced File System Access API with simple file upload -->
+    <button onclick="loadFromFile()" style="background: #3b82f6; padding: 0.75rem 1.5rem; color: white; border: none; border-radius: 0.5rem; cursor: pointer; font-size: 1rem; font-weight: 500; margin-right: 0.5rem;">
+      📂 Charger questions.json existant
     </button>
+    <input type="file" id="questionsFileInput" accept=".json" style="display: none;" onchange="handleFileUpload(event)">
     <div id="linkedFileStatus" style="margin-top: 0.5rem; display: none; color: #10b981; font-weight: 600;"></div>
   </div>
 
@@ -453,10 +455,6 @@ const CLOUDINARY_CONFIG = {
 
 const BANK_KEY = 'fr_bank_data';
 let BANK = {lecture:[], ecoute:[], grammaire:[], lexique:[]};
-let fileHandle = null;
-let fileHandleJs = null;
-let audioFolderHandle = null; // Not used with Cloudinary
-let imageFolderHandle = null; // Not used with Cloudinary
 const $ = s=>document.querySelector(s);
 const $$ = s=>[...document.querySelectorAll(s)];
 
@@ -464,179 +462,9 @@ console.log('[v0] Checking if buttons exist...');
 console.log('[v0] addQcmQuestion button:', $('#addQcmQuestion'));
 console.log('[v0] addVfQuestion button:', $('#addVfQuestion'));
 
-async function autoSaveToFile() {
-  if (!fileHandle) {
-    console.log('[v0] No file handle linked, skipping auto-save');
-    return;
-  }
-  
-  try {
-    const writable = await fileHandle.createWritable();
-    await writable.write(JSON.stringify(BANK, null, 2));
-    await writable.close();
-    console.log('[v0] Auto-saved to questions.json successfully');
-    
-    if (fileHandleJs) {
-      try {
-        const jsContent = generateQuestionsJS();
-        const writableJs = await fileHandleJs.createWritable();
-        await writableJs.write(jsContent);
-        await writableJs.close();
-        console.log('[v0] Auto-saved to questions.js successfully');
-      } catch (err) {
-        console.error('[v0] Auto-save error for questions.js:', err);
-      }
-    }
-    
-    // Show brief success indicator
-    const status = $('#autoSaveStatus');
-    status.textContent = '✓ Sauvegardé automatiquement';
-    status.style.color = '#16a34a';
-    setTimeout(() => {
-      status.textContent = '✓ Sauvegarde automatique activée';
-    }, 2000);
-  } catch (err) {
-    console.error('[v0] Auto-save error:', err);
-    $('#autoSaveStatus').textContent = '⚠️ Erreur de sauvegarde automatique';
-    $('#autoSaveStatus').style.color = '#dc2626';
-  }
-}
-
-async function linkToFile() {
-  try {
-    [fileHandle] = await window.showOpenFilePicker({
-      types: [{
-        description: 'JSON Files',
-        accept: {'application/json': ['.json']}
-      }],
-      multiple: false
-    });
-    
-    // Verify write permission
-    const permission = await fileHandle.queryPermission({ mode: 'readwrite' });
-    if (permission !== 'granted') {
-      const newPermission = await fileHandle.requestPermission({ mode: 'readwrite' });
-      if (newPermission !== 'granted') {
-        alert('Permission d\'écriture refusée. La sauvegarde automatique ne fonctionnera pas.');
-        return;
-      }
-    }
-    
-    const file = await fileHandle.getFile();
-    const text = await file.text();
-    
-    // Check if file is empty or contains invalid JSON
-    if (!text || text.trim() === '') {
-      console.log('[v0] File is empty, initializing with empty bank structure');
-      BANK = {lecture:[], ecoute:[], grammaire:[], lexique:[]};
-      
-      // Write the empty structure to the file
-      const writable = await fileHandle.createWritable();
-      await writable.write(JSON.stringify(BANK, null, 2));
-      await writable.close();
-      
-      saveBankToStorage();
-      refreshInfo();
-      $('#linkedFileStatus').textContent = `✓ Lié à: ${fileHandle.name}`;
-      $('#linkedFileStatus').style.display = 'block';
-      $('#fileStatus').textContent = `Fichier lié: ${fileHandle.name}`;
-    } else {
-      try {
-        BANK = JSON.parse(text);
-        
-        // Validate structure and add missing keys if needed
-        if (!BANK.lecture) BANK.lecture = [];
-        if (!BANK.ecoute) BANK.ecoute = [];
-        if (!BANK.grammaire) BANK.grammaire = [];
-        if (!BANK.lexique) BANK.lexique = [];
-        
-        saveBankToStorage();
-        refreshInfo();
-        $('#linkedFileStatus').textContent = `✓ Lié à: ${fileHandle.name}`;
-        $('#linkedFileStatus').style.display = 'block';
-        $('#fileStatus').textContent = `Fichier lié: ${fileHandle.name}`;
-      } catch (err) {
-        console.error('[v0] Error parsing existing file:', err);
-        
-        // Ask user if they want to reset the file
-        const resetFile = confirm('Le fichier questions.json contient des erreurs.\n\nVoulez-vous le réinitialiser avec une structure vide?\n\n(Cliquez sur "Annuler" pour garder le fichier tel quel)');
-        
-        if (resetFile) {
-          BANK = {lecture:[], ecoute:[], grammaire:[], lexique:[]};
-          
-          // Write the empty structure to the file
-          const writable = await fileHandle.createWritable();
-          await writable.write(JSON.stringify(BANK, null, 2));
-          await writable.close();
-          
-          saveBankToStorage();
-          refreshInfo();
-          $('#linkedFileStatus').textContent = `✓ Lié à: ${fileHandle.name} (Réinitialisé)`;
-          $('#linkedFileStatus').style.display = 'block';
-          $('#fileStatus').textContent = `Fichier lié: ${fileHandle.name}`;
-          
-          alert('✓ Le fichier a été réinitialisé avec succès!');
-        } else {
-          fileHandle = null;
-          $('#fileStatus').textContent = '';
-          return;
-        }
-      }
-    }
-    
-    const linkJsFile = confirm('Voulez-vous également lier le fichier questions.js pour la synchronisation automatique?\n\nCeci permet au site de fonctionner hors ligne sans serveur.');
-    
-    if (linkJsFile) {
-      try {
-        [fileHandleJs] = await window.showOpenFilePicker({
-          types: [{
-            description: 'JavaScript Files',
-            accept: {'text/javascript': ['.js']}
-          }],
-          multiple: false
-        });
-        
-        const permissionJs = await fileHandleJs.queryPermission({ mode: 'readwrite' });
-        if (permissionJs !== 'granted') {
-          await fileHandleJs.requestPermission({ mode: 'readwrite' });
-        }
-        
-        // Save current data to questions.js
-        const jsContent = generateQuestionsJS();
-        const writableJs = await fileHandleJs.createWritable();
-        await writableJs.write(jsContent);
-        await writableJs.close();
-        
-        localStorage.setItem('fileHandleJsLinked', 'true');
-        $('#autoSaveStatus').textContent = '✓ Sauvegarde automatique activée (JSON + JS)';
-        $('#autoSaveStatus').style.color = '#16a34a';
-      } catch (err) {
-        console.log('[v0] User cancelled JS file selection or error:', err);
-      }
-    } else {
-        localStorage.removeItem('fileHandleJsLinked');
-    }
-    
-    // Show success
-    $('#autoSaveStatus').style.display = 'block';
-    if (!fileHandleJs) {
-      $('#autoSaveStatus').textContent = '✓ Sauvegarde automatique activée (JSON seulement)';
-    }
-    $('#autoSaveStatus').style.color = '#16a34a';
-    
-    localStorage.setItem('fileHandleLinked', 'true');
-    
-    alert('✓ Fichier(s) lié(s) avec succès! Les modifications seront automatiquement sauvegardées.');
-  } catch (err) {
-    if (err.name === 'AbortError') {
-      console.log('[v0] User cancelled file selection');
-    } else {
-      console.error('[v0] Error linking file:', err);
-      alert('Erreur lors de la liaison du fichier. Votre navigateur supporte-t-il l\'API File System Access?');
-    }
-  }
-}
-
+// Removed autoSaveToFile and linkToFile functions that used File System Access API
+// Auto-save will now be handled by download functions if the user chooses to save locally.
+// For local development, localStorage remains the primary "auto-save" mechanism.
 
 function loadBankFromStorage() {
   const stored = localStorage.getItem(BANK_KEY);
@@ -650,26 +478,6 @@ function loadBankFromStorage() {
     }
   }
   
-  const wasLinked = localStorage.getItem('fileHandleLinked');
-  const wasJsLinked = localStorage.getItem('fileHandleJsLinked');
-  const wasAudioLinked = localStorage.getItem('audioFolderLinked'); // For backward compatibility
-  const wasImageLinked = localStorage.getItem('imageFolderLinked'); // For backward compatibility
-  
-  if (wasLinked === 'true') {
-    $('#autoSaveStatus').style.display = 'block';
-    $('#autoSaveStatus').textContent = '⚠️ Veuillez re-lier le fichier (sécurité navigateur)';
-    $('#autoSaveStatus').style.color = '#f59e0b';
-    $('#linkedFileStatus').style.display = 'none'; // Hide if re-linking is needed
-  }
-  if (wasJsLinked === 'true') {
-     $('#autoSaveStatus').style.display = 'block';
-     $('#autoSaveStatus').textContent = '⚠️ Veuillez re-lier les fichiers (sécurité navigateur)';
-     $('#autoSaveStatus').style.color = '#f59e0b';
-     if (wasLinked === 'true') {
-       $('#autoSaveStatus').textContent = '⚠️ Veuillez re-lier les fichiers (sécurité navigateur)';
-     }
-  }
-  
   // Update status based on current Cloudinary config, not folder linking
   $('#cloudinaryStatus').style.display = 'block';
   $('#cloudinaryStatus').textContent = '✓ Cloudinary configuré - Upload automatique activé';
@@ -680,7 +488,8 @@ function saveBankToStorage() {
   localStorage.setItem(BANK_KEY, JSON.stringify(BANK));
   console.log('[v0] Saved bank to localStorage');
   
-  autoSaveToFile();
+  // Removed autoSaveToFile() call here as it's no longer directly tied to File System Access API
+  // The user will now explicitly download files to save locally.
 }
 
 $$('.tab-btn').forEach(btn => {
@@ -1296,6 +1105,7 @@ function downloadJSON(){
   a.download = 'questions.json';
   a.click();
   URL.revokeObjectURL(a.href);
+  alert('✓ Fichier questions.json téléchargé!');
 }
 
 function downloadJS() {
@@ -1310,21 +1120,52 @@ function downloadJS() {
   alert('✓ Fichier questions.js téléchargé!\n\nPlacez ce fichier dans le dossier data/ pour que le site fonctionne hors ligne.');
 }
 
-function loadJSONFile(file){
-  const fr=new FileReader();
-  fr.onload = e=>{
-    try{ 
-      BANK = JSON.parse(e.target.result); 
-      saveBankToStorage(); // This will trigger auto-save if file is linked
-      refreshInfo(); 
+function loadFromFile() {
+  $('#questionsFileInput').click();
+}
+
+function handleFileUpload(event) {
+  const file = event.target.files[0];
+  if (!file) return;
+  
+  const reader = new FileReader();
+  reader.onload = function(e) {
+    try {
+      const text = e.target.result;
+      
+      if (!text || text.trim() === '') {
+        console.log('[v0] File is empty, using current bank structure');
+        $('#linkedFileStatus').textContent = '✓ Fichier vide chargé - Vous pouvez commencer à ajouter des exercices';
+        $('#linkedFileStatus').style.display = 'block';
+        return;
+      }
+      
+      BANK = JSON.parse(text);
+      
+      // Validate structure and add missing keys if needed
+      if (!BANK.lecture) BANK.lecture = [];
+      if (!BANK.ecoute) BANK.ecoute = [];
+      if (!BANK.grammaire) BANK.grammaire = [];
+      if (!BANK.lexique) BANK.lexique = [];
+      
+      saveBankToStorage();
+      refreshInfo();
+      $('#linkedFileStatus').textContent = `✓ Chargé: ${file.name} (${BANK.lecture.length + BANK.ecoute.length + BANK.grammaire.length + BANK.lexique.length} exercices)`;
+      $('#linkedFileStatus').style.display = 'block';
       $('#fileStatus').textContent = `Fichier chargé: ${file.name}`;
-    }
-    catch(err){ 
-      alert('JSON invalide'); 
-      $('#fileStatus').textContent = `Erreur: ${file.name} invalide`;
+      
+      alert('✓ Fichier chargé avec succès! N\'oubliez pas de télécharger questions.json et questions.js après vos modifications.');
+    } catch (err) {
+      console.error('[v0] Error parsing file:', err);
+      alert('Erreur: Le fichier questions.json contient des erreurs de syntaxe.\n\nVérifiez que c\'est un fichier JSON valide.');
     }
   };
-  fr.readAsText(file,'utf-8');
+  
+  reader.onerror = function() {
+    alert('Erreur lors de la lecture du fichier.');
+  };
+  
+  reader.readAsText(file);
 }
 
 function toggleBoxes(){
@@ -1618,19 +1459,20 @@ $('#addItem').addEventListener('click', addItem);
 $('#addBulkItem').addEventListener('click', addBulkItem);
 $('#downloadJson').addEventListener('click', downloadJSON);
 $('#downloadJs').addEventListener('click', downloadJS);
-$('#linkToFile').addEventListener('click', linkToFile);
-// Removed folder linking listeners
+// Removed $('#linkToFile').addEventListener('click', linkToFile);
+
+// Removed folder linking listeners as they are replaced by the file upload button
 $('#newBank').addEventListener('click', ()=>{ 
   BANK={lecture:[],ecoute:[], grammaire:[], lexique:[]}; 
   saveBankToStorage();
-  localStorage.removeItem('fileHandleLinked');
-  localStorage.removeItem('fileHandleJsLinked');
+  // Removed localStorage.removeItem('fileHandleLinked');
+  // Removed localStorage.removeItem('fileHandleJsLinked');
   // No need to remove audio/image folder items
-  fileHandle = null;
+  fileHandle = null; // Resetting these as they are no longer used
   fileHandleJs = null;
   // audioFolderHandle = null; // Not used
   // imageFolderHandle = null; // Not used
-  $('#autoSaveStatus').style.display = 'none';
+  // Removed '#autoSaveStatus'.style.display = 'none';
   $('#linkedFileStatus').style.display = 'none';
   $('#fileStatus').textContent = '';
   refreshInfo(); 
