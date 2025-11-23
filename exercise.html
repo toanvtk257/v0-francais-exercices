@@ -1,0 +1,582 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Exercice — Apprenant</title>
+<style>
+:root{--brand:#2b5;--ink:#222;--muted:#666;--bg:#f7f7f7;--card:#fff;--success:#4caf50;--error:#d32f2f}
+html,body{margin:0;padding:0;background:var(--bg);color:var(--ink);font-family:system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif}
+header{background:var(--brand);color:#fff;padding:16px 20px;display:flex;justify-content:space-between;align-items:center}
+h1{margin:0;font-size:1.2rem}
+.header-right{display:flex;gap:16px;align-items:center;font-size:.95rem}
+.timer{background:rgba(255,255,255,.2);padding:8px 12px;border-radius:8px;font-weight:600}
+.back-btn{background:rgba(255,255,255,.2);border:1px solid rgba(255,255,255,.3);color:#fff;padding:8px 12px;border-radius:8px;cursor:pointer;font-weight:600}
+main{max-width:900px;margin:24px auto;padding:0 16px 48px}
+.card{background:var(--card);border-radius:14px;box-shadow:0 6px 18px rgba(0,0,0,.05);padding:20px;margin-bottom:20px}
+h2{margin:0 0 16px;font-size:1.1rem}
+.passage{line-height:1.8;font-size:1.05rem;margin-bottom:20px;padding:16px;background:#f9f9f9;border-radius:10px;border-left:4px solid var(--brand)}
+.audio-player{margin:16px 0;width:100%}
+.question-section{margin:20px 0}
+.question-title{font-weight:600;margin-bottom:12px;font-size:1rem}
+.options{display:flex;flex-direction:column;gap:10px}
+.option{display:flex;align-items:center;padding:12px;border:1px solid #ddd;border-radius:10px;cursor:pointer;transition:all .2s}
+.option:hover{background:#f5f5f5;border-color:var(--brand)}
+.option input{margin-right:12px;cursor:pointer}
+.option label{flex:1;cursor:pointer;margin:0}
+.cloze-text{line-height:1.8;font-size:1.05rem;margin:16px 0}
+.cloze-input{min-width:100px;padding:6px 8px;border:1px solid #ddd;border-radius:6px;font-size:1rem;margin:0 4px}
+.justif-input{width:100%;padding:8px;border:1px solid #ddd;border-radius:6px;margin-top:8px;font-size:.95rem}
+.btns{display:flex;gap:12px;margin-top:20px;flex-wrap:wrap}
+button{border:0;padding:10px 16px;border-radius:8px;cursor:pointer;font-weight:600;font-size:.95rem;transition:all .2s}
+.btn-primary{background:var(--brand);color:#fff}
+.btn-primary:hover{opacity:.9}
+.btn-secondary{background:#e0e0e0;color:#111}
+.btn-secondary:hover{background:#d0d0d0}
+.feedback{margin-top:16px;padding:12px;border-radius:8px;font-weight:600}
+.feedback.success{background:#e8f5e9;color:var(--success);border:1px solid #c8e6c9}
+.feedback.error{background:#ffebee;color:var(--error);border:1px solid #ffcdd2}
+.transcription{margin-top:16px;padding:12px;background:#f0f8ff;border:1px solid #cde;border-radius:8px;display:none}
+.transcription.show{display:block}
+.draft-notice{background:#fff3cd;border:1px solid #ffc107;color:#856404;padding:12px;border-radius:8px;margin-bottom:16px;display:none}
+.draft-notice.show{display:block}
+.result-box{background:#f5f5f5;padding:16px;border-radius:8px;margin-top:16px;text-align:center}
+.result-score{font-size:2rem;font-weight:700;color:var(--brand);margin:8px 0}
+.result-details{color:var(--muted);font-size:.95rem}
+.reading-timer{background:#f0f8ff;border:1px solid #cde;border-radius:8px;padding:12px;margin-bottom:16px;display:none}
+.reading-timer.show{display:block}
+.timer-bar{background:#e0e0e0;height:8px;border-radius:4px;overflow:hidden;margin:8px 0}
+.timer-bar-fill{background:var(--brand);height:100%;transition:width .1s linear}
+.timer-info{display:flex;justify-content:space-between;align-items:center;font-size:.9rem;color:var(--muted)}
+.timer-info strong{color:var(--ink)}
+.correction-check { color: var(--success); font-weight: bold; margin-left: 8px; }
+.correction-x { color: var(--error); font-weight: bold; margin-left: 8px; }
+.text-green-600 { color: var(--success) !important; font-weight: 600; }
+.text-red-600 { color: var(--error) !important; text-decoration: line-through; }
+.correct-answer-display { color: var(--success); font-weight: 600; margin-top: 4px; font-size: 0.9rem; }
+.explanation-box { background: #e3f2fd; border-left: 4px solid #2196f3; padding: 10px; margin-top: 8px; border-radius: 4px; font-size: 0.9rem; color: #0d47a1; }
+</style>
+</head>
+<body>
+<header>
+  <h1 id="lessonTitle">Exercice</h1>
+  <div class="header-right">
+    <div class="timer" id="timer">00:00</div>
+    <button class="back-btn" onclick="goBack()">Retour</button>
+  </div>
+</header>
+
+<main>
+  <div class="draft-notice" id="draftNotice">
+    Vous avez une brouillon sauvegardé. <button onclick="loadDraft()" style="background:none;border:none;color:#856404;text-decoration:underline;cursor:pointer;font-weight:600">Charger</button>
+  </div>
+
+  <div class="reading-timer" id="readingTimer">
+    <div class="timer-info">
+      <span>Temps de lecture: <strong id="readingTime">0s</strong></span>
+      <span>Pas de limite de temps</span>
+    </div>
+    <div class="timer-bar">
+      <div class="timer-bar-fill" id="timerBarFill"></div>
+    </div>
+  </div>
+
+  <div class="card" id="contentCard">
+    <!-- Passage for lecture -->
+    <div id="passageBox" style="display:none">
+      <h2>Texte à lire</h2>
+      <article class="passage" id="passageContent"></article>
+    </div>
+
+    <!-- Audio for ecoute -->
+    <div id="audioBox" style="display:none">
+      <h2>Écoutez l'audio</h2>
+      <audio class="audio-player" id="audioPlayer" controls preload="metadata">
+        <source id="audioSrc" src="" type="audio/mpeg">
+      </audio>
+    </div>
+
+    <!-- QCM Questions -->
+    <form id="qcmForm" style="display:none">
+      <h2>Questions à choix multiples</h2>
+      <div id="qcmHost"></div>
+    </form>
+
+    <!-- Vrai/Faux Questions -->
+    <form id="vfForm" style="display:none">
+      <h2>Vrai ou Faux</h2>
+      <div id="vfHost"></div>
+    </form>
+
+    <!-- Cloze -->
+    <form id="clozeForm" style="display:none">
+      <h2>Complétez le texte</h2>
+      <div class="cloze-text" id="clozeHost"></div>
+    </form>
+
+    <!-- Buttons -->
+    <div class="btns">
+      <button type="button" class="btn-primary" id="submitBtn" onclick="submitExercise()">Soumettre</button>
+      <button type="button" class="btn-secondary" id="saveDraftBtn" onclick="saveDraftLocal()">Sauvegarder brouillon</button>
+      <button type="button" class="btn-primary" id="correctionBtn" onclick="showCorrection()" style="display:none">Voir le corrigé</button>
+      <button type="button" class="btn-secondary" id="resetBtn" onclick="resetForm()">Réinitialiser</button>
+    </div>
+
+    <!-- Feedback -->
+    <div id="feedback"></div>
+    <div id="resultBox" class="result-box" style="display:none"></div>
+
+    <!-- Transcription -->
+    <div class="transcription" id="transcription"></div>
+  </div>
+</main>
+
+<script src="lib/stats.js"></script>
+<script>
+const $ = s => document.querySelector(s);
+const $$ = s => [...document.querySelectorAll(s)];
+const AUTH_KEY = 'fr_auth_user';
+const BANK_KEY = 'fr_bank_data';
+
+let currentUser = null;
+let bank = null;
+let currentLesson = null;
+let currentType = null;
+let startTime = Date.now();
+let timerInterval = null;
+let submitted = false;
+let readingStartTime = null;
+
+function checkAuth() {
+  const auth = localStorage.getItem(AUTH_KEY);
+  if (!auth) {
+    window.location.href = 'login.html';
+    return;
+  }
+  currentUser = JSON.parse(auth);
+}
+
+function loadBank() {
+  const stored = localStorage.getItem(BANK_KEY);
+  if (stored) {
+    bank = JSON.parse(stored);
+  }
+}
+
+function loadLesson() {
+  const lessonData = localStorage.getItem('current_lesson');
+  if (!lessonData) {
+    window.location.href = 'dashboard.html';
+    return;
+  }
+
+  const { lessonId, type } = JSON.parse(lessonData);
+  currentType = type;
+
+  let lessons = [];
+  if (type === 'lecture') lessons = bank.lecture;
+  else if (type === 'ecoute') lessons = bank.ecoute;
+  else if (type === 'grammaire') lessons = bank.grammaire;
+  else if (type === 'lexique') lessons = bank.lexique;
+
+  currentLesson = lessons?.find(l => l.id === lessonId);
+
+  if (!currentLesson) {
+    window.location.href = 'dashboard.html';
+    return;
+  }
+
+  $('#lessonTitle').textContent = currentLesson.titre;
+  renderLesson();
+  checkForDraft();
+  startTimer();
+}
+
+function renderLesson() {
+  if (currentType === 'lecture') {
+    if (currentLesson.passage_image) {
+      // Display image instead of text
+      $('#passageBox').style.display = 'block';
+      $('#passageContent').innerHTML = `<img src="${currentLesson.passage_image}" style="max-width:100%;border-radius:8px;box-shadow:0 4px 12px rgba(0,0,0,.1)" alt="Document de lecture">`;
+      $('#readingTimer').classList.add('show');
+      readingStartTime = Date.now();
+    } else if (currentLesson.passage_html) {
+      $('#passageBox').style.display = 'block';
+      $('#passageContent').innerHTML = currentLesson.passage_html;
+      $('#readingTimer').classList.add('show');
+      readingStartTime = Date.now();
+    }
+  } else if (currentType === 'ecoute') {
+    if (currentLesson.audio) {
+      $('#audioBox').style.display = 'block';
+      $('#audioSrc').src = currentLesson.audio;
+      $('#audioPlayer').load();
+    }
+  }
+
+  if (currentLesson.qcm) {
+    renderQCM(currentLesson.qcm);
+    $('#qcmForm').style.display = 'block';
+  }
+
+  if (currentLesson.vf) {
+    renderVF(currentLesson.vf);
+    $('#vfForm').style.display = 'block';
+  }
+
+  if (currentLesson.cloze) {
+    renderCloze(currentLesson.cloze, currentLesson.cloze_points || []);
+    $('#clozeForm').style.display = 'block';
+  }
+}
+
+function renderQCM(questions) {
+  const host = $('#qcmHost');
+  host.innerHTML = '';
+  questions.forEach((q, idx) => {
+    const div = document.createElement('div');
+    div.className = 'question-section';
+    div.dataset.answer = (q.answer || '').toLowerCase();
+    div.dataset.points = q.points || 1;
+    if (q.explanation) div.dataset.explanation = q.explanation;
+    
+    const name = 'qcm_' + idx;
+    
+    // Get all option keys (a, b, c, d, e, etc.)
+    const optionKeys = Object.keys(q).filter(key => /^[a-z]$/.test(key) && q[key]);
+    
+    const optionsHTML = optionKeys.map(key => {
+      return `<label class="option" data-val="${key}"><input type="radio" name="${name}" value="${key}"> <span>${q[key]}</span></label>`;
+    }).join('');
+
+    div.innerHTML = `
+      <div class="question-title">${idx + 1}. ${q.question || ''} <span style="color:#666;font-size:.9rem">(${q.points || 1} pts)</span></div>
+      <div class="options">
+        ${optionsHTML}
+      </div>
+    `;
+    host.appendChild(div);
+  });
+}
+
+function renderVF(questions) {
+  const host = $('#vfHost');
+  host.innerHTML = '';
+  questions.forEach((q, idx) => {
+    const div = document.createElement('div');
+    div.className = 'question-section';
+    div.dataset.answer = (q.answer || '').toLowerCase();
+    div.dataset.points = q.points || 1;
+    const name = 'vf_' + idx;
+    const needsJustif = currentType === 'lecture';
+
+    div.innerHTML = `
+      <div class="question-title">${idx + 1}. ${q.statement || ''} <span style="color:#666;font-size:.9rem">(${q.points || 1} pts)</span></div>
+      <div class="options">
+        <label class="option"><input type="radio" name="${name}" value="vrai"> <span>Vrai</span></label>
+        <label class="option"><input type="radio" name="${name}" value="faux"> <span>Faux</span></label>
+      </div>
+      ${needsJustif ? `<input type="text" class="justif-input" placeholder="Justifiez votre réponse..." data-keywords="${(q.keywords || []).join('|')}">` : ''}
+    `;
+    host.appendChild(div);
+  });
+}
+
+function renderCloze(text, points) {
+  const host = $('#clozeHost');
+  host.innerHTML = '';
+  let buf = '';
+  let i = 0;
+  let blankIndex = 0;
+
+  while (i < text.length) {
+    if (text[i] === '[') {
+      const j = text.indexOf(']', i + 1);
+      if (j > i) {
+        const ans = text.slice(i + 1, j);
+        if (buf) {
+          host.appendChild(document.createTextNode(buf));
+          buf = '';
+        }
+        const span = document.createElement('span');
+        const pts = points[blankIndex] || 1;
+        span.innerHTML = `<input type="text" class="cloze-input" data-answer="${ans}" data-points="${pts}" placeholder="${pts}pts">`;
+        host.appendChild(span);
+        blankIndex++;
+        i = j + 1;
+        continue;
+      }
+    }
+    buf += text[i++];
+  }
+  if (buf) host.appendChild(document.createTextNode(buf));
+}
+
+function startTimer() {
+  startTime = Date.now();
+  timerInterval = setInterval(() => {
+    const elapsed = Math.floor((Date.now() - startTime) / 1000);
+    const mins = Math.floor(elapsed / 60);
+    const secs = elapsed % 60;
+    $('#timer').textContent = `${String(mins).padStart(2, '0')}:${String(secs).padStart(2, '0')}`;
+
+    if ($('#readingTimer').classList.contains('show')) {
+      const readingElapsed = Math.floor((Date.now() - readingStartTime) / 1000);
+      const readingMins = Math.floor(readingElapsed / 60);
+      const readingSecs = readingElapsed % 60;
+      const readingText = readingMins > 0 ? `${readingMins}m ${readingSecs}s` : `${readingSecs}s`;
+      $('#readingTime').textContent = readingText;
+      
+      const maxSeconds = 300;
+      const percentage = Math.min((readingElapsed / maxSeconds) * 100, 100);
+      $('#timerBarFill').style.width = percentage + '%';
+    }
+  }, 1000);
+}
+
+function submitExercise() {
+  if (submitted) return;
+  submitted = true;
+
+  const timeSpent = Math.floor((Date.now() - startTime) / 1000);
+  let totalPoints = 0;
+  let earnedPoints = 0;
+
+  // Grade QCM
+  const qcmQuestions = $$('#qcmForm .question-section');
+  qcmQuestions.forEach(q => {
+    const points = parseInt(q.dataset.points) || 1;
+    totalPoints += points;
+    const expected = (q.dataset.answer || '').toLowerCase();
+    const picked = q.querySelector('input[type="radio"]:checked');
+    if (picked && picked.value.toLowerCase() === expected) {
+      earnedPoints += points;
+    }
+  });
+
+  // Grade VF
+  const vfQuestions = $$('#vfForm .question-section');
+  vfQuestions.forEach(q => {
+    const points = parseInt(q.dataset.points) || 1;
+    totalPoints += points;
+    const expected = (q.dataset.answer || '').toLowerCase();
+    const picked = q.querySelector('input[type="radio"]:checked');
+    let correct = picked && picked.value.toLowerCase() === expected;
+
+    const justif = q.querySelector('.justif-input');
+    if (justif) {
+      const keywords = (justif.dataset.keywords || '').split('|').map(s => s.trim()).filter(Boolean);
+      const answer = justif.value || '';
+      const norm = s => s.normalize('NFD').replace(/\p{Diacritic}/gu, '').toLowerCase();
+      const hasKey = keywords.length ? keywords.some(k => norm(answer).includes(norm(k))) : true;
+      correct = correct && hasKey;
+    }
+
+    if (correct) earnedPoints += points;
+  });
+
+  // Grade Cloze
+  const clozeInputs = $$('#clozeHost input');
+  clozeInputs.forEach(inp => {
+    const points = parseInt(inp.dataset.points) || 1;
+    totalPoints += points;
+    const norm = s => s.normalize('NFD').replace(/\p{Diacritic}/gu, '').toLowerCase().trim();
+    if (norm(inp.value) === norm(inp.dataset.answer)) {
+      earnedPoints += points;
+    }
+  });
+
+  const percentage = totalPoints > 0 ? Math.round((earnedPoints / totalPoints) * 100) : 0;
+
+  recordAttempt(currentUser.id, currentLesson.id, currentType, earnedPoints, totalPoints, timeSpent);
+  deleteDraft(currentUser.id, currentLesson.id);
+
+  const resultHtml = `
+    <div class="result-score">${percentage}%</div>
+    <div class="result-details">
+      <div>Points obtenus: ${earnedPoints}/${totalPoints}</div>
+      <div>Temps: ${formatTime(timeSpent)}</div>
+    </div>
+  `;
+
+  $('#resultBox').innerHTML = resultHtml;
+  $('#resultBox').style.display = 'block';
+  $('#submitBtn').style.display = 'none';
+  $('#saveDraftBtn').style.display = 'none';
+  
+  $('#correctionBtn').style.display = 'inline-block';
+  
+  $('#resetBtn').textContent = 'Retour au tableau de bord';
+  $('#resetBtn').onclick = () => window.location.href = 'dashboard.html';
+
+  if (currentLesson.transcription) {
+    $('#transcription').innerHTML = `<h3>Transcription</h3><p>${currentLesson.transcription}</p>`;
+    $('#transcription').classList.add('show');
+  }
+}
+
+function showCorrection() {
+  $('#correctionBtn').style.display = 'none';
+  
+  // Correct QCM
+  $$('#qcmForm .question-section').forEach(q => {
+    const expected = (q.dataset.answer || '').toLowerCase();
+    const explanation = q.dataset.explanation;
+    const options = q.querySelectorAll('.option');
+    
+    options.forEach(opt => {
+      const val = opt.dataset.val;
+      const input = opt.querySelector('input');
+      const span = opt.querySelector('span');
+      
+      if (val === expected) {
+        // Correct answer
+        span.classList.add('text-green-600');
+        span.innerHTML += ' <span class="correction-check">✓</span>';
+      } else if (input.checked) {
+        // Wrong answer selected by user
+        span.classList.add('text-red-600');
+        span.innerHTML += ' <span class="correction-x">✗</span>';
+        
+        // Show correct answer below
+        const correctText = q.querySelector(`.option[data-val="${expected}"] span`).textContent.replace('✓', '').trim();
+        const correctDiv = document.createElement('div');
+        correctDiv.className = 'correct-answer-display';
+        correctDiv.textContent = `Bonne réponse : ${correctText}`;
+        q.appendChild(correctDiv);
+      }
+      input.disabled = true;
+    });
+
+    // Show explanation if exists (Grammaire)
+    if (explanation) {
+      const expDiv = document.createElement('div');
+      expDiv.className = 'explanation-box';
+      expDiv.innerHTML = `<strong>Explication :</strong> ${explanation}`;
+      q.appendChild(expDiv);
+    }
+  });
+
+  // Correct VF
+  $$('#vfForm .question-section').forEach(q => {
+    const expected = (q.dataset.answer || '').toLowerCase();
+    const options = q.querySelectorAll('.option');
+    
+    options.forEach(opt => {
+      const val = opt.querySelector('input').value;
+      const input = opt.querySelector('input');
+      const span = opt.querySelector('span');
+      
+      if (val === expected) {
+        span.classList.add('text-green-600');
+        span.innerHTML += ' <span class="correction-check">✓</span>';
+      } else if (input.checked) {
+        span.classList.add('text-red-600');
+        span.innerHTML += ' <span class="correction-x">✗</span>';
+      }
+      input.disabled = true;
+    });
+  });
+
+  // Correct Cloze
+  $$('#clozeHost input').forEach(inp => {
+    const expected = inp.dataset.answer;
+    const val = inp.value.trim();
+    const norm = s => s.normalize('NFD').replace(/\p{Diacritic}/gu, '').toLowerCase().trim();
+    
+    if (norm(val) === norm(expected)) {
+      inp.style.borderColor = 'var(--success)';
+      inp.style.background = '#e8f5e9';
+    } else {
+      inp.style.borderColor = 'var(--error)';
+      inp.style.background = '#ffebee';
+      const span = document.createElement('span');
+      span.className = 'correct-answer-display';
+      span.style.marginLeft = '4px';
+      span.textContent = `(${expected})`;
+      inp.parentNode.insertBefore(span, inp.nextSibling);
+    }
+    inp.disabled = true;
+  });
+}
+
+function saveDraftLocal() {
+  const formData = {};
+
+  $$('#qcmForm input[type="radio"]:checked').forEach(inp => {
+    formData[inp.name] = inp.value;
+  });
+
+  $$('#vfForm input[type="radio"]:checked').forEach(inp => {
+    formData[inp.name] = inp.value;
+  });
+
+  $$('#vfForm .justif-input').forEach((inp, idx) => {
+    formData['justif_' + idx] = inp.value;
+  });
+
+  $$('#clozeHost input').forEach((inp, idx) => {
+    formData['cloze_' + idx] = inp.value;
+  });
+
+  saveDraft(currentUser.id, currentLesson.id, formData);
+  alert('Brouillon sauvegardé !');
+}
+
+function checkForDraft() {
+  const draft = getDraft(currentUser.id, currentLesson.id);
+  if (draft) {
+    $('#draftNotice').classList.add('show');
+  }
+}
+
+function loadDraft() {
+  const draft = getDraft(currentUser.id, currentLesson.id);
+  if (!draft) return;
+
+  const data = draft.data;
+
+  $$('#qcmForm input[type="radio"]').forEach(inp => {
+    if (data[inp.name] === inp.value) {
+      inp.checked = true;
+    }
+  });
+
+  $$('#vfForm input[type="radio"]').forEach(inp => {
+    if (data[inp.name] === inp.value) {
+      inp.checked = true;
+    }
+  });
+
+  $$('#vfForm .justif-input').forEach((inp, idx) => {
+    if (data['justif_' + idx]) {
+      inp.value = data['justif_' + idx];
+    }
+  });
+
+  $$('#clozeHost input').forEach((inp, idx) => {
+    if (data['cloze_' + idx]) {
+      inp.value = data['cloze_' + idx];
+    }
+  });
+
+  $('#draftNotice').classList.remove('show');
+}
+
+function resetForm() {
+  if (submitted) return;
+  $$('form').forEach(f => f.reset());
+  submitted = false;
+}
+
+function goBack() {
+  if (timerInterval) clearInterval(timerInterval);
+  window.location.href = 'dashboard.html';
+}
+
+checkAuth();
+loadBank();
+loadLesson();
+</script>
+</body>
+</html>

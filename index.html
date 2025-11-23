@@ -1,0 +1,338 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Entraînement au français - espace numérique</title>
+<style>
+:root{--brand:#2b5;--ink:#222;--muted:#666;--bg:#f7f7f7;--card:#fff}
+html,body{margin:0;padding:0;background:var(--bg);color:var(--ink);font-family:system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif}
+header{background:var(--brand);color:#fff;padding:18px 20px}
+main{max-width:980px;margin:24px auto;padding:0 16px 48px}
+.card{background:var(--card);border-radius:14px;box-shadow:0 6px 18px rgba(0,0,0,.05);padding:18px;margin:16px 0}
+h1{margin:0;font-size:1.4rem}
+h2{margin:.25rem 0 10px}
+fieldset{border:1px solid #e5e5e5;border-radius:12px;padding:12px 14px;margin:12px 0}
+legend{padding:0 .5rem;color:var(--muted)}
+.q{margin:10px 0} .q b{display:block;margin-bottom:6px}
+label{display:block;margin:6px 0}
+.btns{display:flex;gap:10px;flex-wrap:wrap;margin-top:10px}
+button{border:0;background:var(--brand);color:#fff;padding:10px 14px;border-radius:12px;cursor:pointer;font-weight:600}
+button.secondary{background:#e0e0e0;color:#111}
+.small{color:var(--muted);font-size:.95rem}
+.hidden{display:none}
+audio{width:100%}
+article.passage{line-height:1.6}
+input[type="text"], textarea{width:100%;padding:10px;border:1px solid #ddd;border-radius:10px;font-size:1rem}
+.justif{margin-top:6px}
+.bad{background:#fff4f4;border:1px solid #f2c2c2}
+.good{background:#eefaf3;border:1px solid #cdeed9}
+</style>
+</head>
+<body>
+<header>
+  <h1>Entraînement au français - <em>espace numérique</em></h1>
+  <p class="small">Fonctionne hors ligne ! Ou utilisez "Choisir un JSON" pour charger un fichier personnalisé.</p>
+</header>
+<main>
+  <section class="card">
+    <h2>1) Charger la banque</h2>
+    <div class="btns">
+      <button id="loadDefault">Charger la banque par défaut</button>
+      <input type="file" id="pickJson" accept=".json">
+    </div>
+    <p id="loadStatus" class="small"></p>
+  </section>
+
+  <section class="card">
+    <h2>2) Choisir le cours (Niveau → Thème → Leçon)</h2>
+    <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">
+      <label><b>Niveau:</b> <select id="levelPick"></select></label>
+      <label><b>Thème:</b> <select id="topicPick"></select></label>
+      <label><b>Leçon:</b> <select id="lessonPick"></select></label>
+      <button id="loadLesson">Charger</button>
+      <span id="meta" class="small"></span>
+    </div>
+  </section>
+
+  <section class="card">
+    <h2>CE — Texte</h2>
+    <article id="passageHost" class="passage card" style="padding:14px"><em>(Pas de texte)</em></article>
+  </section>
+
+  <div class="card">
+    <h2>QCM</h2>
+    <form id="qcmForm" autocomplete="off">
+      <fieldset><legend>Questions</legend><div id="qcmHost"></div></fieldset>
+      <div class="btns"><button type="button" id="qcmGrade">Évaluer QCM</button><button type="button" id="qcmReset" class="secondary">Réinitialiser</button></div>
+      <div id="qcmFb" class="small"></div>
+    </form>
+  </div>
+
+  <div class="card">
+    <h2>Vrai/Faux (avec justification pour CE)</h2>
+    <form id="vfForm" autocomplete="off">
+      <fieldset><legend>Énoncés</legend><div id="vfHost"></div></fieldset>
+      <div class="btns"><button type="button" id="vfGrade">Évaluer V/F</button><button type="button" id="vfReset" class="secondary">Réinitialiser</button></div>
+      <div id="vfFb" class="small"></div>
+    </form>
+  </div>
+
+  <div class="card">
+    <h2>CO — Audio + Cloze</h2>
+    <audio id="audio" controls preload="none"><source id="audiosrc" src="" type="audio/mpeg"></audio>
+    <form id="clozeForm" autocomplete="off">
+      <fieldset><legend>Cloze</legend><div id="clozeHost"></div></fieldset>
+      <div class="btns"><button type="button" id="clozeGrade">Évaluer Cloze</button><button type="button" id="clozeReset" class="secondary">Réinitialiser</button></div>
+      <div id="clozeFb" class="small"></div>
+    </form>
+    <details id="transBox" class="hidden"><summary>Transcription</summary><article id="transHost" class="card" style="padding:14px"></article></details>
+  </div>
+</main>
+
+<script src="data/questions.js"></script>
+
+<script>
+(function checkAuth() {
+  const AUTH_KEY = 'fr_auth_user';
+  const loggedUser = localStorage.getItem(AUTH_KEY);
+  
+  if (!loggedUser) {
+    window.location.href = 'login.html';
+    return;
+  }
+  
+  try {
+    const userData = JSON.parse(loggedUser);
+    console.log('[v0] User authenticated:', userData.email);
+  } catch (e) {
+    localStorage.removeItem(AUTH_KEY);
+    window.location.href = 'login.html';
+    return;
+  }
+})();
+
+let BANK=null; // {lecture:[], ecoute:[]}
+const $ = s=>document.querySelector(s);
+const $$ = s=>[...document.querySelectorAll(s)];
+const normalize = s=>(s||'').toString().normalize('NFD').replace(/\p{Diacritic}/gu,'').toLowerCase().trim();
+
+async function fetchDefault(){
+  $('#loadStatus').textContent='Chargement de la banque...';
+  try{
+    // Try to load from embedded questions.js
+    if(window.questionsData){
+      BANK = window.questionsData;
+      $('#loadStatus').textContent='Chargé: ' + (BANK.lecture?.length||0) + ' CE, ' + (BANK.ecoute?.length||0) + ' CO.';
+      buildPickers();
+    } else {
+      // Fallback to fetch if questions.js is not loaded
+      const r = await fetch('data/questions.json');
+      if(!r.ok) throw new Error('Échec lecture');
+      BANK = await r.json();
+      $('#loadStatus').textContent='Chargé: ' + (BANK.lecture?.length||0) + ' CE, ' + (BANK.ecoute?.length||0) + ' CO.';
+      buildPickers();
+    }
+  }catch(e){
+    $('#loadStatus').textContent='Impossible de charger la banque. Utilisez "Choisir un JSON".';
+  }
+}
+function readPickedJson(file){
+  const fr = new FileReader();
+  fr.onload = e=>{
+    try{
+      BANK = JSON.parse(e.target.result);
+      $('#loadStatus').textContent='Chargé: ' + (BANK.lecture?.length||0) + ' CE, ' + (BANK.ecoute?.length||0) + ' CO.';
+      buildPickers();
+    }catch(err){ $('#loadStatus').textContent='JSON invalide.'; }
+  };
+  fr.readAsText(file,'utf-8');
+}
+
+function groupByPath(arr){
+  const tree={};
+  (arr||[]).forEach(it=>{
+    const L=it.niveau||'N/A', T=it.theme||'Divers', S=it.titre||it.id||'Sans titre';
+    tree[L]??={}; tree[L][T]??={}; tree[L][T][S]=it;
+  });
+  return tree;
+}
+function buildPickers(){
+  const tree = {lecture:groupByPath(BANK.lecture), ecoute:groupByPath(BANK.ecoute)};
+  const levels = new Set([...Object.keys(tree.lecture), ...Object.keys(tree.ecoute)]);
+  $('#levelPick').innerHTML = [...levels].sort().map(v=>`<option>${v}</option>`).join('');
+  fillTopics();
+  function getTree(){ return tree; }
+  window.__TREE__ = getTree();
+}
+function fillTopics(){
+  const T = window.__TREE__?.();
+  const L = $('#levelPick').value;
+  const topics = new Set([...(T?.lecture?.[L]?Object.keys(T.lecture[L]):[]), ...(T?.ecoute?.[L]?Object.keys(T.ecoute[L]):[])]);
+  $('#topicPick').innerHTML = [...topics].sort().map(v=>`<option>${v}</option>`).join('');
+  fillLessons();
+}
+function fillLessons(){
+  const T = window.__TREE__?.();
+  const L=$('#levelPick').value, P=$('#topicPick').value;
+  const lessons = new Set([...(T?.lecture?.[L]?.[P]?Object.keys(T.lecture[L][P]):[]), ...(T?.ecoute?.[L]?.[P]?Object.keys(T.ecoute[L][P]):[])]);
+  $('#lessonPick').innerHTML = [...lessons].sort().map(v=>`<option>${v}</option>`).join('');
+}
+
+function renderLesson(){
+  const T = window.__TREE__?.();
+  const L=$('#levelPick').value, P=$('#topicPick').value, S=$('#lessonPick').value;
+  const lec = T?.lecture?.[L]?.[P]?.[S];
+  const eco = T?.ecoute?.[L]?.[P]?.[S];
+  $('#meta').textContent = '';
+  // reset
+  $('#passageHost').innerHTML = '<em>(Pas de texte)</em>';
+  $('#qcmHost').innerHTML = '';
+  $('#vfHost').innerHTML = '';
+  $('#audiosrc').src=''; $('#audio').load();
+  $('#clozeHost').innerHTML=''; $('#transHost').innerHTML=''; $('#transBox').classList.add('hidden');
+
+  if(lec){
+    if(lec.passage_html){ $('#passageHost').innerHTML = lec.passage_html; }
+    if(lec.qcm){ buildQCM(lec.qcm); }
+    if(lec.vf){ buildVFWithJustif(lec.vf, true); }
+    $('#meta').textContent += ' [CE]';
+  }
+  if(eco){
+    if(eco.audio){ $('#audiosrc').src=eco.audio; $('#audio').load(); }
+    if(eco.qcm){ buildQCM(eco.qcm); }
+    if(eco.vf){ buildVFWithJustif(eco.vf, false); } // Sans justification obligatoire pour écoute
+    if(eco.cloze){ renderCloze(eco.cloze); }
+    if(eco.transcription){ $('#transHost').innerHTML = eco.transcription; }
+    $('#meta').textContent += ' [CO]';
+  }
+}
+
+function buildQCM(rows){
+  const host = $('#qcmHost'); host.innerHTML='';
+  rows.forEach((r,idx)=>{
+    const div=document.createElement('div'); div.className='q';
+    const map={a:r.a||r.choice_a||'', b:r.b||r.choice_b||'', c:r.c||r.choice_c||''};
+    let ans=(r.answer||r.ans||'').toString();
+    if(!['a','b','c'].includes(ans.toLowerCase())){
+      const n=normalize(ans); for(const k of ['a','b','c']) if(normalize(map[k])===n) ans=k;
+    }
+    div.dataset.answer=(ans||'').toLowerCase();
+    const name='qcm_'+idx;
+    div.innerHTML = `<b>${idx+1}. ${r.question||r.q||''}</b>
+      <label><input type="radio" name="${name}" value="a"> ${map.a}</label>
+      <label><input type="radio" name="${name}" value="b"> ${map.b}</label>
+      <label><input type="radio" name="${name}" value="c"> ${map.c}</label>`;
+    host.appendChild(div);
+  });
+}
+
+function buildVFWithJustif(rows, requireJustif){
+  const host = $('#vfHost'); host.innerHTML='';
+  rows.forEach((r,idx)=>{
+    const div=document.createElement('div'); div.className='q'; div.dataset.answer=(r.answer||r.ans||'').toLowerCase();
+    const name='vf_'+idx;
+    const just = requireJustif ? `<input class="justif" type="text" placeholder="Justifiez (mot(s) clé(s))" data-keywords="${(r.keywords||[]).join('|')}">` : '';
+    div.innerHTML = `<b>${idx+1}. ${r.statement||r.s||''}</b>
+      <label><input type="radio" name="${name}" value="vrai"> Vrai</label>
+      <label><input type="radio" name="${name}" value="faux"> Faux</label>
+      ${just}`;
+    host.appendChild(div);
+  });
+}
+
+function renderCloze(text){
+  const host = $('#clozeHost'); host.innerHTML='';
+  let buf=''; let i=0;
+  while(i<text.length){
+    if(text[i]=='['){
+      const j=text.indexOf(']', i+1);
+      if(j>i){ const ans=text.slice(i+1,j);
+        if(buf){ host.appendChild(document.createTextNode(buf)); buf=''; }
+        const span=document.createElement('span'); span.style.margin='0 4px';
+        span.innerHTML=`<input type="text" data-answer="${ans}" style="min-width:110px;padding:6px 8px;border:1px solid #ddd;border-radius:8px">`;
+        host.appendChild(span); i=j+1; continue;
+      }
+    }
+    buf+=text[i++];
+  }
+  if(buf) host.appendChild(document.createTextNode(buf));
+}
+
+// Grading
+function gradeRadios(formSel, fbSel){
+  const qs = document.querySelectorAll(formSel+' .q'); let bons=0,total=0;
+  qs.forEach(q=>{
+    total++; const attendu=(q.dataset.answer||'').toLowerCase();
+    const picked=[...q.querySelectorAll('input[type="radio"]')].find(r=>r.checked);
+    if(picked && picked.value.toLowerCase()===attendu) bons++;
+  });
+  const pct=Math.round(100*bons/Math.max(total,1));
+  document.querySelector(fbSel).textContent = `Score: ${bons}/${total} (${pct}%)`;
+}
+function gradeVF(formSel, fbSel){
+  const qs = document.querySelectorAll(formSel+' .q'); let bons=0,total=0;
+  qs.forEach(q=>{
+    total++;
+    const attendu=(q.dataset.answer||'').toLowerCase();
+    const picked=[...q.querySelectorAll('input[type="radio"]')].find(r=>r.checked);
+    let ok = (picked && picked.value.toLowerCase()===attendu);
+    // justification check if present
+    const just = q.querySelector('input.justif');
+    if(just){
+      const keys = (just.dataset.keywords||'').split('|').map(s=>s.trim()).filter(Boolean);
+      const ans = just.value||'';
+      const norm = (s)=>s.normalize('NFD').replace(/\p{Diacritic}/gu,'').toLowerCase();
+      const hasKey = keys.length ? keys.some(k=> norm(ans).includes(norm(k)) ) : true;
+      ok = ok && hasKey;
+      just.classList.remove('bad','good');
+      if(ans.trim().length>0){ just.classList.add(hasKey?'good':'bad'); }
+    }
+    if(ok) bons++;
+  });
+  const pct=Math.round(100*bons/Math.max(total,1));
+  document.querySelector(fbSel).textContent = `Score: ${bons}/${total} (${pct}%)`;
+}
+
+function gradeCloze(){
+  const inputs = $$('#clozeHost input'); let bons=0,total=0;
+  const norm = s=>s.normalize('NFD').replace(/\p{Diacritic}/gu,'').toLowerCase().trim();
+  inputs.forEach(inp=>{ total++; if(norm(inp.value)===norm(inp.dataset.answer)) bons++; });
+  const pct=Math.round(100*bons/Math.max(total,1));
+  $('#clozeFb').textContent = `Score: ${bons}/${total} (${pct}%)`;
+  updateTransVisibility();
+}
+
+function allAnswered(){
+  // for transcription visibility (écoute)
+  const q1 = document.querySelectorAll('#qcmHost .q').length;
+  const q1c = document.querySelectorAll('#qcmHost input[type="radio"]:checked').length;
+  const q2 = document.querySelectorAll('#vfHost .q').length;
+  const q2c = document.querySelectorAll('#vfHost input[type="radio"]:checked').length;
+  const cz = $$('#clozeHost input');
+  const cFilled = cz.length>0 ? cz.every(i=>i.value.trim().length>0) : true;
+  return (q1===0 || q1===q1c) && (q2===0 || q2===q2c) && cFilled;
+}
+function updateTransVisibility(){
+  if(allAnswered()) $('#transBox').classList.remove('hidden');
+  else $('#transBox').classList.add('hidden');
+}
+
+// wire
+document.getElementById('loadDefault').addEventListener('click', fetchDefault);
+document.getElementById('pickJson').addEventListener('change', e=>{ const f=e.target.files[0]; if(f) readPickedJson(f); });
+document.getElementById('levelPick').addEventListener('change', fillTopics);
+document.getElementById('topicPick').addEventListener('change', fillLessons);
+document.getElementById('loadLesson').addEventListener('click', renderLesson);
+document.getElementById('qcmGrade').addEventListener('click', ()=>gradeRadios('#qcmForm','#qcmFb'));
+document.getElementById('qcmReset').addEventListener('click', ()=>{ $('#qcmForm').reset(); $('#qcmFb').textContent=''; updateTransVisibility(); });
+document.getElementById('vfGrade').addEventListener('click', ()=>gradeVF('#vfForm','#vfFb'));
+document.getElementById('vfReset').addEventListener('click', ()=>{ $('#vfForm').reset(); $('#vfFb').textContent=''; updateTransVisibility(); });
+document.getElementById('clozeGrade').addEventListener('click', gradeCloze);
+document.getElementById('clozeReset').addEventListener('click', ()=>{ $$('#clozeHost input').forEach(i=>i.value=''); $('#clozeFb').textContent=''; updateTransVisibility(); });
+document.addEventListener('input', updateTransVisibility, true);
+
+window.addEventListener('DOMContentLoaded', fetchDefault);
+</script>
+</body>
+</html>

@@ -1,0 +1,223 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Guide d'utilisation - Plateforme d'exercices FR</title>
+<style>
+:root{--brand:#2b5;--ink:#222;--bg:#f7f7f7;--card:#fff}
+html,body{margin:0;padding:0;background:var(--bg);color:var(--ink);font-family:system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif;line-height:1.6}
+header{background:var(--brand);color:#fff;padding:24px 20px}
+main{max-width:900px;margin:24px auto;padding:0 16px 48px}
+.card{background:var(--card);border-radius:14px;box-shadow:0 6px 18px rgba(0,0,0,.05);padding:24px;margin:16px 0}
+h1{margin:0;font-size:1.8rem}
+h2{color:var(--brand);margin-top:32px}
+h3{margin-top:24px}
+.step{background:#f0f9f4;border-left:4px solid var(--brand);padding:16px;margin:16px 0;border-radius:8px}
+.step-number{display:inline-block;background:var(--brand);color:#fff;width:28px;height:28px;border-radius:50%;text-align:center;line-height:28px;font-weight:600;margin-right:8px}
+code{background:#e8e8e8;padding:2px 6px;border-radius:4px;font-size:0.9em}
+.highlight{background:#fff3cd;padding:12px;border-radius:8px;border-left:4px solid #ffc107;margin:16px 0}
+ul{margin:8px 0}
+li{margin:8px 0}
+.screenshot{border:2px solid #ddd;border-radius:8px;margin:16px 0;padding:12px;background:#fafafa}
+</style>
+</head>
+<body>
+<header>
+  <h1>📚 Guide d'utilisation</h1>
+  <p>Plateforme d'exercices de français - Système de points</p>
+</header>
+<main>
+  <div class="card">
+    <h2>🎯 Comment ajouter des points aux questions</h2>
+    
+    <div class="step">
+      <span class="step-number">1</span>
+      <strong>Ouvrez builder.html dans votre navigateur</strong>
+      <p>Double-cliquez sur le fichier <code>builder.html</code> pour l'ouvrir dans votre navigateur web.</p>
+    </div>
+
+    <div class="step">
+      <span class="step-number">2</span>
+      <strong>Utilisez l'onglet "Formulaire (Recommandé)"</strong>
+      <p>Cet onglet est actif par défaut. Il offre une interface simple pour créer des exercices.</p>
+    </div>
+
+    <div class="step">
+      <span class="step-number">3</span>
+      <strong>Remplissez les informations de base</strong>
+      <ul>
+        <li><strong>Discipline:</strong> Lecture ou Écoute</li>
+        <li><strong>Type d'exercice:</strong> QCM, Vrai/Faux, ou Cloze</li>
+        <li><strong>Niveau:</strong> A1, A2, B1, B2, C1, ou C2</li>
+        <li><strong>Thème:</strong> ex. "Salutations"</li>
+        <li><strong>Titre:</strong> ex. "Leçon 01 - Bonjour"</li>
+      </ul>
+    </div>
+
+    <div class="step">
+      <span class="step-number">4</span>
+      <strong>Ajoutez des questions</strong>
+      <p>Cliquez sur le bouton <code>+ Ajouter une question QCM</code> ou <code>+ Ajouter une question Vrai/Faux</code></p>
+      <p>Un formulaire apparaîtra pour chaque question.</p>
+    </div>
+
+    <div class="step">
+      <span class="step-number">5</span>
+      <strong>⭐ DÉFINISSEZ LES POINTS ⭐</strong>
+      <div class="highlight">
+        <strong>C'EST ICI QUE VOUS AJOUTEZ LES POINTS !</strong>
+        <p>Dans chaque formulaire de question, vous verrez un champ <strong>"Points"</strong> en bas à droite.</p>
+        <p>Par défaut, il est réglé sur <code>1</code>. Vous pouvez le changer à n'importe quel nombre (2, 3, 5, 10, etc.)</p>
+      </div>
+      <div class="screenshot">
+        <p><strong>Exemple de formulaire QCM:</strong></p>
+        <pre>Question: Quelle est la capitale de la France ?
+Choix A: Paris
+Choix B: Lyon  
+Choix C: Marseille
+Bonne réponse: A
+<strong>Points: [2]</strong> ← Changez ce nombre !</pre>
+      </div>
+    </div>
+
+    <div class="step">
+      <span class="step-number">6</span>
+      <strong>Ajoutez plus de questions</strong>
+      <p>Répétez l'étape 4-5 pour ajouter autant de questions que nécessaire. Chaque question peut avoir un nombre de points différent.</p>
+    </div>
+
+    <div class="step">
+      <span class="step-number">7</span>
+      <strong>Enregistrez dans la banque</strong>
+      <p>Cliquez sur <code>Ajouter à la banque</code> pour sauvegarder votre exercice.</p>
+    </div>
+
+    <div class="step">
+      <span class="step-number">8</span>
+      <strong>Téléchargez le fichier JSON</strong>
+      <p>Cliquez sur <code>Télécharger questions.json</code> pour obtenir votre fichier de questions.</p>
+    </div>
+
+    <h2>📊 Système de points - Comment ça marche</h2>
+    <div class="card" style="background:#f0f9f4">
+      <h3>Pour les étudiants:</h3>
+      <ul>
+        <li>Chaque question vaut un certain nombre de points (défini par vous)</li>
+        <li>Après avoir terminé un exercice, l'étudiant voit: <strong>"Score: 15/20 points (75%)"</strong></li>
+        <li>Les statistiques montrent les points gagnés pour chaque tentative</li>
+        <li>Le tableau de bord affiche le score moyen en pourcentage</li>
+      </ul>
+
+      <h3>Exemples de notation:</h3>
+      <ul>
+        <li><strong>Question facile:</strong> 1 point</li>
+        <li><strong>Question moyenne:</strong> 2-3 points</li>
+        <li><strong>Question difficile:</strong> 5-10 points</li>
+      </ul>
+    </div>
+
+    <h2>🔧 Méthode alternative: Importation en masse</h2>
+    <p>Si vous préférez copier-coller plusieurs questions à la fois:</p>
+    <ol>
+      <li>Cliquez sur l'onglet <strong>"Importation en masse"</strong></li>
+      <li>Format QCM: <code>Question ; choix A ; choix B ; choix C ; réponse ; points</code></li>
+      <li>Format VF: <code>Énoncé ; vrai|faux ; mots-clés ; points</code></li>
+      <li>Les points sont le <strong>dernier élément</strong> de chaque ligne</li>
+    </ol>
+
+    <div class="screenshot">
+      <p><strong>Exemple d'importation en masse:</strong></p>
+      <pre>Quelle est la capitale de la France ? ; Paris ; Lyon ; Marseille ; a ; 2
+La Tour Eiffel est à Paris. ; vrai ; tour eiffel|paris ; 3
+Le Louvre est un musée. ; vrai ; louvre|musée ; 1</pre>
+    </div>
+
+    <h2>❓ Problèmes courants</h2>
+    <div class="card" style="background:#fff3cd">
+      <h3>Je ne vois pas le champ "Points"</h3>
+      <p><strong>Solution:</strong> Assurez-vous d'avoir cliqué sur <code>+ Ajouter une question</code> d'abord. Le champ Points apparaît dans chaque formulaire de question.</p>
+
+      <h3>Le builder ne fonctionne pas</h3>
+      <p><strong>Solution:</strong> Ouvrez le fichier <code>builder.html</code> directement dans votre navigateur (Chrome, Firefox, Edge). Ne l'ouvrez pas dans un éditeur de texte.</p>
+
+      <h3>Mes points ne sont pas sauvegardés</h3>
+      <p><strong>Solution:</strong> Vérifiez que vous avez bien cliqué sur <code>Ajouter à la banque</code> avant de télécharger le JSON.</p>
+    </div>
+
+    <h2>📁 Structure des fichiers</h2>
+    <ul>
+      <li><code>login.html</code> - Page de connexion</li>
+      <li><code>dashboard.html</code> - Tableau de bord étudiant</li>
+      <li><code>exercise.html</code> - Interface d'exercice</li>
+      <li><code>admin.html</code> - Panneau d'administration</li>
+      <li><code>builder.html</code> - Créateur d'exercices (VOUS ÊTES ICI)</li>
+      <li><code>data/questions.json</code> - Banque de questions</li>
+    </ul>
+
+    <h2>🎵 Ajouter des fichiers audio</h2>
+    <div class="card" style="background:#e3f2fd">
+      <h3>Pour les exercices d'écoute:</h3>
+      
+      <div class="step">
+        <span class="step-number">1</span>
+        <strong>Créez un dossier "audio"</strong>
+        <p>Dans le même dossier que vos fichiers HTML, créez un nouveau dossier nommé <code>audio</code></p>
+      </div>
+
+      <div class="step">
+        <span class="step-number">2</span>
+        <strong>Placez vos fichiers MP3</strong>
+        <p>Copiez vos fichiers audio (format MP3) dans le dossier <code>audio/</code></p>
+        <p><strong>Exemple:</strong> <code>audio/a1_salutations_01.mp3</code></p>
+      </div>
+
+      <div class="step">
+        <span class="step-number">3</span>
+        <strong>Référencez l'audio dans le builder</strong>
+        <p>Quand vous créez un exercice d'écoute, entrez le chemin complet dans le champ "URL Audio":</p>
+        <div class="screenshot">
+          <pre>URL Audio: audio/a1_salutations_01.mp3</pre>
+        </div>
+      </div>
+
+      <div class="step">
+        <span class="step-number">4</span>
+        <strong>Dans le panneau d'administration</strong>
+        <p>Même principe: dans le champ "URL Audio", entrez <code>audio/nom_du_fichier.mp3</code></p>
+      </div>
+
+      <h3>Conseils pour les fichiers audio:</h3>
+      <ul>
+        <li>✅ Utilisez le format <strong>MP3</strong> (le plus compatible)</li>
+        <li>✅ Nommez vos fichiers de façon descriptive: <code>a1_salutations_01.mp3</code></li>
+        <li>✅ Gardez les fichiers courts (2-5 minutes maximum)</li>
+        <li>✅ Qualité recommandée: 128 kbps minimum</li>
+        <li>✅ Incluez le niveau CEFR dans le nom du fichier</li>
+      </ul>
+
+      <h3>Structure recommandée:</h3>
+      <div class="screenshot">
+        <pre>votre-projet/
+├── login.html
+├── dashboard.html
+├── builder.html
+├── admin.html
+├── data/
+│   └── questions.json
+└── audio/
+    ├── a1_salutations_01.mp3
+    ├── a1_salutations_02.mp3
+    ├── a2_voyages_01.mp3
+    ├── b1_actualites_01.mp3
+    └── ...</pre>
+      </div>
+    </div>
+
+    <div class="highlight">
+      <strong>💡 Astuce:</strong> Commencez par créer un exercice simple avec 2-3 questions pour vous familiariser avec l'interface. Vous pourrez ensuite créer des exercices plus complexes.
+    </div>
+  </div>
+</main>
+</body>
+</html>

@@ -1,0 +1,790 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Tableau de bord — Apprenant</title>
+<style>
+:root{--brand:#2b5;--ink:#222;--muted:#666;--bg:#f7f7f7;--card:#fff;--success:#4caf50;--warning:#ff9800}
+html,body{margin:0;padding:0;background:var(--bg);color:var(--ink);font-family:system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif}
+header{background:var(--brand);color:#fff;padding:16px 20px;display:flex;justify-content:space-between;align-items:center}
+h1{margin:0;font-size:1.3rem}
+.user-info{
+  display:flex;
+  flex-direction:column;
+  align-items:flex-end;
+  gap:4px;
+  background:#fff;
+  padding:12px 16px;
+  border-radius:8px;
+}
+#userName{
+  font-weight:600;
+  color:#22c55e;
+  font-size:.95rem;
+}
+.user-email{
+  font-size:.85rem;
+  color:#444;
+}
+.logout-btn{
+  background:#22c55e;
+  border:none;
+  color:#fff;
+  padding:6px 12px;
+  border-radius:6px;
+  cursor:pointer;
+  font-weight:600;
+  font-size:.85rem;
+  margin-top:4px;
+  transition:all .2s;
+}
+.logout-btn:hover{
+  background:#1ea34a;
+}
+main{max-width:1200px;margin:24px auto;padding:0 16px 48px}
+.card{background:var(--card);border-radius:14px;box-shadow:0 6px 18px rgba(0,0,0,.05);padding:20px;margin-bottom:20px}
+h2{margin:0 0 16px;font-size:1.2rem;color:var(--ink)}
+.stats-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:16px;margin-bottom:20px}
+.stat-box{background:linear-gradient(135deg,var(--brand),#1a9d4d);color:#fff;padding:20px;border-radius:12px;text-align:center}
+.stat-value{font-size:2rem;font-weight:700;margin:8px 0}
+.stat-label{font-size:.9rem;opacity:.9}
+.lessons-list{display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:16px}
+.lesson-card{background:var(--card);border:1px solid #e0e0e0;border-radius:12px;padding:16px;cursor:pointer;transition:all .2s}
+.lesson-card:hover{box-shadow:0 4px 12px rgba(0,0,0,.1);transform:translateY(-2px)}
+.lesson-header{display:flex;justify-content:space-between;align-items:start;margin-bottom:12px}
+.lesson-title{font-weight:600;color:var(--ink)}
+.lesson-level{background:var(--brand);color:#fff;padding:4px 8px;border-radius:6px;font-size:.8rem}
+.lesson-meta{font-size:.85rem;color:var(--muted);margin:8px 0}
+.lesson-progress{background:#e0e0e0;height:6px;border-radius:3px;overflow:hidden;margin:8px 0}
+.lesson-progress-bar{background:var(--success);height:100%;transition:width .3s}
+.lesson-actions{display:flex;gap:8px;margin-top:12px}
+button{border:0;padding:8px 12px;border-radius:8px;cursor:pointer;font-weight:600;font-size:.9rem;transition:all .2s}
+.btn-primary{background:var(--brand);color:#fff}
+.btn-primary:hover{opacity:.9}
+.btn-secondary{background:#e0e0e0;color:#111}
+.btn-secondary:hover{background:#d0d0d0}
+.empty-state{text-align:center;padding:40px 20px;color:var(--muted)}
+.empty-state-icon{font-size:3rem;margin-bottom:16px}
+.filter-bar{display:flex;gap:12px;margin-bottom:20px;flex-wrap:wrap}
+select{padding:8px 12px;border:1px solid #ddd;border-radius:8px;font-size:.95rem}
+.chart-container{margin-top:24px}
+.chart-title{font-size:1rem;font-weight:600;margin-bottom:12px;color:var(--ink)}
+.chart-canvas{width:100%;height:250px;border:1px solid #e0e0e0;border-radius:8px;background:#fff}
+.chart-legend{display:flex;gap:16px;margin-top:12px;flex-wrap:wrap;font-size:.85rem}
+.legend-item{display:flex;align-items:center;gap:6px}
+.legend-color{width:12px;height:12px;border-radius:2px}
+.badge{display:inline-block;padding:4px 8px;border-radius:4px;font-size:.75rem;font-weight:600}
+.badge-a1{background:#e53935}
+.badge-a2{background:#e91e63}
+.badge-b1{background:#f44336}
+.badge-b2{background:#ff5722}
+.badge-c1{background:#ff9800}
+.badge-c2{background:#8bc34a}
+</style>
+</head>
+<body>
+<header>
+  <h1>Entraînement au français - <em>espace numérique</em></h1>
+  <div class="user-info">
+    <span id="userName">Utilisateur</span>
+    <span class="user-email" id="userEmail"></span>
+    <button class="logout-btn" id="logoutBtn">Déconnexion</button>
+  </div>
+</header>
+
+<main>
+  <div class="card">
+    <h2>Votre progression</h2>
+    <div class="stats-grid">
+      <div class="stat-box">
+        <div class="stat-label">Leçons complétées</div>
+        <div class="stat-value" id="completedLessons">0</div>
+      </div>
+      <div class="stat-box">
+        <div class="stat-label">Tentatives totales</div>
+        <div class="stat-value" id="totalAttempts">0</div>
+      </div>
+      <div class="stat-box">
+        <div class="stat-label">Score moyen</div>
+        <div class="stat-value" id="avgScore">0%</div>
+      </div>
+      <div class="stat-box">
+        <div class="stat-label">Temps total</div>
+        <div class="stat-value" id="totalTime">0h</div>
+      </div>
+    </div>
+    <div class="chart-container">
+      <div class="chart-title">Progression au fil du temps</div>
+      <canvas id="progressChart" class="chart-canvas"></canvas>
+    </div>
+    <div class="chart-container">
+      <div class="chart-title">Scores par niveau CECRL</div>
+      <canvas id="levelChart" class="chart-canvas"></canvas>
+    </div>
+    <div class="chart-container">
+      <div class="chart-title">Répartition CE vs CO</div>
+      <canvas id="typeChart" class="chart-canvas"></canvas>
+    </div>
+  </div>
+
+  <div class="card">
+    <h2>Ressources externes recommandées</h2>
+    <div id="externalResourcesList"></div>
+  </div>
+
+  <div class="card">
+    <h2>Messages</h2>
+    <div style="display:flex;flex-direction:column;gap:16px">
+      <div id="chatMessagesArea" style="max-height:400px;overflow-y:auto;padding:16px;background:#f9f9f9;border-radius:8px">
+        <div class="empty-state">Aucun message</div>
+      </div>
+      <div>
+        <textarea id="studentMessageInput" placeholder="Envoyez un message à l'administrateur..." style="width:100%;padding:10px;border:1px solid #ddd;border-radius:8px;font-size:.95rem;box-sizing:border-box;min-height:80px;margin-bottom:8px"></textarea>
+        <div style="display:flex;gap:8px">
+          <button class="btn-primary" onclick="sendStudentMessage()">Envoyer message</button>
+          <button class="btn-secondary" onclick="deleteStudentChatHistory()">Supprimer l'historique</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="card">
+    <h2>Exercices disponibles</h2>
+    <div class="filter-bar">
+      <select id="levelFilter">
+        <option value="">Tous les niveaux</option>
+        <option value="A1">A1</option>
+        <option value="A2">A2</option>
+        <option value="B1">B1</option>
+        <option value="B2">B2</option>
+        <option value="C1">C1</option>
+        <option value="C2">C2</option>
+      </select>
+      <select id="typeFilter">
+        <option value="">Tous les types</option>
+        <option value="lecture">CE</option>
+        <option value="ecoute">CO</option>
+        <option value="grammaire">Grammaire</option>
+        <option value="lexique">Lexique</option>
+      </select>
+    </div>
+    <div class="lessons-list" id="lessonsList">
+      <div class="empty-state">
+        <div class="empty-state-icon">📂</div>
+        <p>Aucune banque de questions chargée.</p>
+      </div>
+    </div>
+  </div>
+</main>
+
+<script src="lib/stats.js"></script>
+<script>
+const $ = s => document.querySelector(s);
+const $$ = s => [...document.querySelectorAll(s)];
+const AUTH_KEY = 'fr_auth_user';
+const BANK_KEY = 'fr_bank_data';
+
+let currentUser = null;
+let bank = null;
+
+function checkAuth() {
+  const auth = localStorage.getItem(AUTH_KEY);
+  if (!auth) {
+    window.location.href = 'login.html';
+    return;
+  }
+  currentUser = JSON.parse(auth);
+  $('#userName').textContent = currentUser.name;
+  $('#userEmail').textContent = currentUser.email;
+}
+
+function loadBank() {
+  const stored = localStorage.getItem(BANK_KEY);
+  if (stored) {
+    bank = JSON.parse(stored);
+  }
+}
+
+function updateProgressStats() {
+  const progress = getUserProgress(currentUser.id);
+  $('#completedLessons').textContent = progress.completedLessons;
+  $('#totalAttempts').textContent = progress.totalAttempts;
+  $('#avgScore').textContent = progress.avgScore + '%';
+  
+  const hours = Math.floor(progress.totalTime / 3600);
+  const minutes = Math.floor((progress.totalTime % 3600) / 60);
+  $('#totalTime').textContent = hours > 0 ? `${hours}h ${minutes}m` : `${minutes}m`;
+}
+
+function renderLessons() {
+  if (!bank) {
+    $('#lessonsList').innerHTML = '<div class="empty-state"><div class="empty-state-icon">📂</div><p>Aucune banque de questions chargée.</p></div>';
+    return;
+  }
+
+  const levelFilter = $('#levelFilter').value;
+  const typeFilter = $('#typeFilter').value;
+  
+  let allLessons = [];
+  
+  if (!typeFilter || typeFilter === 'lecture') {
+    bank.lecture?.forEach(lesson => { allLessons.push({ ...lesson, type: 'lecture' }); });
+  }
+  if (!typeFilter || typeFilter === 'ecoute') {
+    bank.ecoute?.forEach(lesson => { allLessons.push({ ...lesson, type: 'ecoute' }); });
+  }
+  if (!typeFilter || typeFilter === 'grammaire') {
+    bank.grammaire?.forEach(lesson => { allLessons.push({ ...lesson, type: 'grammaire' }); });
+  }
+  if (!typeFilter || typeFilter === 'lexique') {
+    bank.lexique?.forEach(lesson => { allLessons.push({ ...lesson, type: 'lexique' }); });
+  }
+
+  if (levelFilter) {
+    allLessons = allLessons.filter(l => l.niveau === levelFilter);
+  }
+
+  if (allLessons.length === 0) {
+    $('#lessonsList').innerHTML = '<div class="empty-state"><div class="empty-state-icon">🔍</div><p>Aucun exercice ne correspond à vos filtres.</p></div>';
+    return;
+  }
+
+  const html = allLessons.map(lesson => {
+    const stats = getLessonStats(currentUser.id, lesson.id);
+    const progressPercent = stats ? stats.bestScore : 0;
+    let typeLabel = '📖 CE';
+    if (lesson.type === 'ecoute') typeLabel = '🎧 CO';
+    else if (lesson.type === 'grammaire') typeLabel = '📝 Grammaire';
+    else if (lesson.type === 'lexique') typeLabel = '📚 Lexique';
+    
+    return `
+      <div class="lesson-card" onclick="startLesson('${lesson.id}', '${lesson.type}')">
+        <div class="lesson-header">
+          <div class="lesson-title">${lesson.titre}</div>
+          <div class="lesson-level">${lesson.niveau}</div>
+        </div>
+        <div class="lesson-meta">
+          <div>${typeLabel}</div>
+          <div>Thème: ${lesson.theme}</div>
+        </div>
+        ${stats ? `
+          <div class="lesson-progress">
+            <div class="lesson-progress-bar" style="width:${progressPercent}%"></div>
+          </div>
+          <div class="lesson-meta">
+            <div>Meilleur score: ${stats.bestScore}% (${stats.lastAttempt.score}/${stats.lastAttempt.total} pts)</div>
+            <div>${stats.totalAttempts} tentative${stats.totalAttempts > 1 ? 's' : ''} • ${formatTime(stats.totalTime)}</div>
+          </div>
+        ` : `
+          <div class="lesson-meta" style="color:#999">Pas encore commencé</div>
+        `}
+        <div class="lesson-actions">
+          <button class="btn-primary" onclick="event.stopPropagation(); startLesson('${lesson.id}', '${lesson.type}')">Commencer</button>
+        </div>
+      </div>
+    `;
+  }).join('');
+
+  $('#lessonsList').innerHTML = html;
+}
+
+function startLesson(lessonId, type) {
+  localStorage.setItem('current_lesson', JSON.stringify({ lessonId, type }));
+  window.location.href = 'exercise.html';
+}
+
+$('#logoutBtn').addEventListener('click', () => {
+  localStorage.removeItem(AUTH_KEY);
+  localStorage.removeItem('fr_current_user');
+  window.location.href = 'login.html';
+});
+
+$('#levelFilter').addEventListener('change', renderLessons);
+$('#typeFilter').addEventListener('change', renderLessons);
+
+function drawProgressChart() {
+  const canvas = $('#progressChart');
+  if (!canvas) return;
+  const ctx = canvas.getContext('2d');
+  const width = canvas.offsetWidth;
+  const height = canvas.offsetHeight;
+  canvas.width = width;
+  canvas.height = height;
+
+  const attempts = getAllAttempts(currentUser.id);
+  if (attempts.length === 0) {
+    ctx.fillStyle = '#999';
+    ctx.font = '14px system-ui';
+    ctx.textAlign = 'center';
+    ctx.fillText('Aucune donnée disponible', width/2, height/2);
+    return;
+  }
+
+  // Group by date
+  const byDate = {};
+  attempts.forEach(att => {
+    const date = new Date(att.timestamp).toLocaleDateString('fr-FR');
+    if (!byDate[date]) byDate[date] = [];
+    byDate[date].push(att.score);
+  });
+
+  const dates = Object.keys(byDate).sort();
+  const avgScores = dates.map(d => {
+    const scores = byDate[d];
+    return scores.reduce((a,b) => a+b, 0) / scores.length;
+  });
+
+  // Draw chart
+  const padding = 40;
+  const chartWidth = width - padding * 2;
+  const chartHeight = height - padding * 2;
+  const maxScore = 100;
+  const step = chartWidth / (dates.length - 1 || 1);
+
+  // Grid lines
+  ctx.strokeStyle = '#e0e0e0';
+  ctx.lineWidth = 1;
+  for (let i = 0; i <= 4; i++) {
+    const y = padding + (chartHeight / 4) * i;
+    ctx.beginPath();
+    ctx.moveTo(padding, y);
+    ctx.lineTo(width - padding, y);
+    ctx.stroke();
+    
+    ctx.fillStyle = '#999';
+    ctx.font = '11px system-ui';
+    ctx.textAlign = 'right';
+    ctx.fillText((100 - i * 25) + '%', padding - 8, y + 4);
+  }
+
+  // Line
+  ctx.strokeStyle = '#22bb55';
+  ctx.lineWidth = 3;
+  ctx.beginPath();
+  avgScores.forEach((score, i) => {
+    const x = padding + step * i;
+    const y = padding + chartHeight - (score / maxScore) * chartHeight;
+    if (i === 0) ctx.moveTo(x, y);
+    else ctx.lineTo(x, y);
+  });
+  ctx.stroke();
+
+  // Points
+  ctx.fillStyle = '#22bb55';
+  avgScores.forEach((score, i) => {
+    const x = padding + step * i;
+    const y = padding + chartHeight - (score / maxScore) * chartHeight;
+    ctx.beginPath();
+    ctx.arc(x, y, 4, 0, Math.PI * 2);
+    ctx.fill();
+  });
+
+  // X-axis labels
+  ctx.fillStyle = '#666';
+  ctx.font = '10px system-ui';
+  ctx.textAlign = 'center';
+  dates.forEach((date, i) => {
+    if (dates.length > 10 && i % 2 !== 0) return; // Skip some labels if too many
+    const x = padding + step * i;
+    ctx.fillText(date.split('/').slice(0,2).join('/'), x, height - 10);
+  });
+}
+
+function drawLevelChart() {
+  const canvas = $('#levelChart');
+  if (!canvas) return;
+  const ctx = canvas.getContext('2d');
+  const width = canvas.offsetWidth;
+  const height = canvas.offsetHeight;
+  canvas.width = width;
+  canvas.height = height;
+
+  const attempts = getAllAttempts(currentUser.id);
+  if (attempts.length === 0) {
+    ctx.fillStyle = '#999';
+    ctx.font = '14px system-ui';
+    ctx.textAlign = 'center';
+    ctx.fillText('Aucune donnée disponible', width/2, height/2);
+    return;
+  }
+
+  // Group by level
+  const levels = ['A1', 'A2', 'B1', 'B2', 'C1', 'C2'];
+  const byLevel = {};
+  levels.forEach(l => byLevel[l] = []);
+  
+  attempts.forEach(att => {
+    const lesson = findLessonById(att.lessonId);
+    if (lesson && byLevel[lesson.niveau]) {
+      byLevel[lesson.niveau].push(att.score);
+    }
+  });
+
+  const avgByLevel = levels.map(l => {
+    const scores = byLevel[l];
+    return scores.length > 0 ? scores.reduce((a,b) => a+b, 0) / scores.length : 0;
+  });
+
+  // Draw bars
+  const padding = 40;
+  const chartWidth = width - padding * 2;
+  const chartHeight = height - padding * 2;
+  const barWidth = chartWidth / levels.length - 10;
+  const colors = ['#4caf50', '#8bc34a', '#ffc107', '#ff9800', '#ff5722', '#f44336'];
+
+  levels.forEach((level, i) => {
+    const avg = avgByLevel[i];
+    const x = padding + (chartWidth / levels.length) * i + 5;
+    const barHeight = (avg / 100) * chartHeight;
+    const y = padding + chartHeight - barHeight;
+
+    ctx.fillStyle = colors[i];
+    ctx.fillRect(x, y, barWidth, barHeight);
+
+    // Label
+    ctx.fillStyle = '#333';
+    ctx.font = '12px system-ui';
+    ctx.textAlign = 'center';
+    ctx.fillText(level, x + barWidth/2, height - 10);
+    
+    if (avg > 0) {
+      ctx.fillText(Math.round(avg) + '%', x + barWidth/2, y - 5);
+    }
+  });
+
+  // Y-axis
+  ctx.strokeStyle = '#e0e0e0';
+  ctx.lineWidth = 1;
+  for (let i = 0; i <= 4; i++) {
+    const y = padding + (chartHeight / 4) * i;
+    ctx.beginPath();
+    ctx.moveTo(padding, y);
+    ctx.lineTo(width - padding, y);
+    ctx.stroke();
+    
+    ctx.fillStyle = '#999';
+    ctx.font = '11px system-ui';
+    ctx.textAlign = 'right';
+    ctx.fillText((100 - i * 25) + '%', padding - 8, y + 4);
+  }
+}
+
+function drawTypeChart() {
+  const canvas = $('#typeChart');
+  if (!canvas) return;
+  const ctx = canvas.getContext('2d');
+  const width = canvas.offsetWidth;
+  const height = canvas.offsetHeight;
+  canvas.width = width;
+  canvas.height = height;
+
+  const attempts = getAllAttempts(currentUser.id);
+  if (attempts.length === 0) {
+    ctx.fillStyle = '#999';
+    ctx.font = '14px system-ui';
+    ctx.textAlign = 'center';
+    ctx.fillText('Aucune donnée disponible', width/2, height/2);
+    return;
+  }
+
+  // Count by type
+  let lectureCount = 0, ecouteCount = 0, grammaireCount = 0, lexiqueCount = 0;
+  attempts.forEach(att => {
+    const lesson = findLessonById(att.lessonId);
+    if (lesson) {
+      if (lesson.type === 'lecture') lectureCount++;
+      else if (lesson.type === 'ecoute') ecouteCount++;
+      else if (lesson.type === 'grammaire') grammaireCount++;
+      else if (lesson.type === 'lexique') lexiqueCount++;
+    }
+  });
+
+  const total = lectureCount + ecouteCount + grammaireCount + lexiqueCount;
+  if (total === 0) {
+    ctx.fillStyle = '#999';
+    ctx.font = '14px system-ui';
+    ctx.textAlign = 'center';
+    ctx.fillText('Aucune donnée disponible', width/2, height/2);
+    return;
+  }
+
+  // Draw pie chart
+  const centerX = width / 2;
+  const centerY = height / 2 - 20;
+  const radius = Math.min(width, height) / 3;
+
+  const lectureAngle = (lectureCount / total) * Math.PI * 2;
+  const ecouteAngle = (ecouteCount / total) * Math.PI * 2;
+  const grammaireAngle = (grammaireCount / total) * Math.PI * 2;
+  const lexiqueAngle = (lexiqueCount / total) * Math.PI * 2;
+
+  // Lecture slice
+  ctx.fillStyle = '#4caf50';
+  ctx.beginPath();
+  ctx.moveTo(centerX, centerY);
+  ctx.arc(centerX, centerY, radius, 0, lectureAngle);
+  ctx.closePath();
+  ctx.fill();
+
+  // Ecoute slice
+  ctx.fillStyle = '#2196f3';
+  ctx.beginPath();
+  ctx.moveTo(centerX, centerY);
+  ctx.arc(centerX, centerY, radius, lectureAngle, lectureAngle + ecouteAngle);
+  ctx.closePath();
+  ctx.fill();
+
+  // Grammaire slice
+  ctx.fillStyle = '#ff5722';
+  ctx.beginPath();
+  ctx.moveTo(centerX, centerY);
+  ctx.arc(centerX, centerY, radius, lectureAngle + ecouteAngle, lectureAngle + ecouteAngle + grammaireAngle);
+  ctx.closePath();
+  ctx.fill();
+
+  // Lexique slice
+  ctx.fillStyle = '#8bc34a';
+  ctx.beginPath();
+  ctx.moveTo(centerX, centerY);
+  ctx.arc(centerX, centerY, radius, lectureAngle + ecouteAngle + grammaireAngle, lectureAngle + ecouteAngle + grammaireAngle + lexiqueAngle);
+  ctx.closePath();
+  ctx.fill();
+
+  // Legend
+  const legendY = height - 30;
+  ctx.fillStyle = '#4caf50';
+  ctx.fillRect(width/2 - 100, legendY, 12, 12);
+  ctx.fillStyle = '#333';
+  ctx.font = '12px system-ui';
+  ctx.textAlign = 'left';
+  ctx.fillText(`CE: ${lectureCount} (${Math.round(lectureCount/total*100)}%)`, width/2 - 82, legendY + 10);
+
+  ctx.fillStyle = '#2196f3';
+  ctx.fillRect(width/2 + 20, legendY, 12, 12);
+  ctx.fillText(`CO: ${ecouteCount} (${Math.round(ecouteCount/total*100)}%)`, width/2 + 38, legendY + 10);
+
+  ctx.fillStyle = '#ff5722';
+  ctx.fillRect(width/2 - 40, legendY, 12, 12);
+  ctx.fillText(`Grammaire: ${grammaireCount} (${Math.round(grammaireCount/total*100)}%)`, width/2 - 22, legendY + 10);
+
+  ctx.fillStyle = '#8bc34a';
+  ctx.fillRect(width/2 + 60, legendY, 12, 12);
+  ctx.fillText(`Lexique: ${lexiqueCount} (${Math.round(lexiqueCount/total*100)}%)`, width/2 + 78, legendY + 10);
+}
+
+function findLessonById(lessonId) {
+  if (!bank) return null;
+  let found = null;
+  bank.lecture?.forEach(l => { if (l.id === lessonId) found = { ...l, type: 'lecture' }; });
+  bank.ecoute?.forEach(l => { if (l.id === lessonId) found = { ...l, type: 'ecoute' }; });
+  bank.grammaire?.forEach(l => { if (l.id === lessonId) found = { ...l, type: 'grammaire' }; });
+  bank.lexique?.forEach(l => { if (l.id === lessonId) found = { ...l, type: 'lexique' }; });
+  return found;
+}
+
+function getAllAttempts(userId) {
+  const key = `fr_stats_${userId}`;
+  const data = localStorage.getItem(key);
+  if (!data) return [];
+  
+  const allStats = JSON.parse(localStorage.getItem('fr_stats_db') || '{}');
+  const userStats = allStats[userId] || {};
+  
+  const attempts = [];
+  Object.entries(userStats).forEach(([lessonId, lessonData]) => {
+    if (lessonData.attempts) {
+      lessonData.attempts.forEach(att => {
+        attempts.push({
+          ...att,
+          lessonId: lessonId
+        });
+      });
+    }
+  });
+  
+  return attempts.sort((a, b) => a.timestamp - b.timestamp);
+}
+
+function getLessonStats(userId, lessonId) {
+  const allStats = JSON.parse(localStorage.getItem('fr_stats_db') || '{}');
+  const userStats = allStats[userId] || {};
+  const lessonData = userStats[lessonId];
+  
+  if (!lessonData || !lessonData.attempts || lessonData.attempts.length === 0) {
+    return null;
+  }
+  
+  const attempts = lessonData.attempts;
+  const bestScore = Math.max(...attempts.map(a => a.percentage));
+  const lastAttempt = attempts[attempts.length - 1];
+  
+  return {
+    bestScore,
+    totalAttempts: attempts.length,
+    totalTime: lessonData.totalTime || 0,
+    lastAttempt: {
+      score: lastAttempt.score,
+      total: lastAttempt.maxScore,
+      percentage: lastAttempt.percentage
+    }
+  };
+}
+
+function formatTime(seconds) {
+  const hours = Math.floor(seconds / 3600);
+  const minutes = Math.floor((seconds % 3600) / 60);
+  const secs = seconds % 60;
+  return `${hours}h ${minutes}m ${secs}s`;
+}
+
+function getUserProgress(userId) {
+  const allStats = JSON.parse(localStorage.getItem('fr_stats_db') || '{}');
+  const userStats = allStats[userId] || {};
+  
+  let completedLessons = 0;
+  let totalAttempts = 0;
+  let totalScore = 0;
+  let totalTime = 0;
+  
+  Object.values(userStats).forEach(lessonData => {
+    if (lessonData.attempts && lessonData.attempts.length > 0) {
+      completedLessons++;
+      totalAttempts += lessonData.attempts.length;
+      lessonData.attempts.forEach(att => {
+        totalScore += att.percentage;
+      });
+      totalTime += lessonData.totalTime || 0;
+    }
+  });
+  
+  return {
+    completedLessons,
+    totalAttempts,
+    avgScore: totalAttempts > 0 ? Math.round(totalScore / totalAttempts) : 0,
+    totalTime
+  };
+}
+
+function loadExternalResources() {
+  const resources = JSON.parse(localStorage.getItem('fr_resources') || '[]');
+  const container = $('#externalResourcesList');
+
+  if (resources.length === 0) {
+    container.innerHTML = '<div class="empty-state">Aucune ressource externe disponible</div>';
+    return;
+  }
+
+  const typeIcons = {
+    video: '🎥',
+    article: '📄',
+    exercice: '✏️',
+    audio: '🎧',
+    autre: '🔗'
+  };
+
+  const html = resources.map(res => {
+    const icon = typeIcons[res.type] || '🔗';
+    const levelClass = 'badge-' + res.level.toLowerCase();
+    
+    return `
+      <div style="border:1px solid #e0e0e0;border-radius:8px;padding:16px;margin-bottom:12px">
+        <div style="display:flex;justify-content:space-between;align-items:start;margin-bottom:8px">
+          <div>
+            <div style="font-weight:600;font-size:1.05rem;margin-bottom:4px">${icon} ${res.title}</div>
+            <div style="font-size:.85rem;color:#666">${res.description || 'Aucune description'}</div>
+          </div>
+          <span class="badge ${levelClass}" style="margin-left:12px">${res.level}</span>
+        </div>
+        <a href="${res.url}" target="_blank" class="btn-primary" style="display:inline-block;text-decoration:none;margin-top:8px">Accéder à la ressource →</a>
+      </div>
+    `;
+  }).join('');
+
+  container.innerHTML = html;
+}
+
+function loadStudentChat() {
+  const messages = JSON.parse(localStorage.getItem('fr_messages') || '{}');
+  const userMessages = messages[currentUser.id] || [];
+
+  if (userMessages.length === 0) {
+    $('#chatMessagesArea').innerHTML = '<div class="empty-state">Aucun message. Envoyez un message à l\'administrateur!</div>';
+    return;
+  }
+
+  // Mark admin messages as read
+  userMessages.forEach(m => {
+    if (m.from === 'admin') m.read = true;
+  });
+  messages[currentUser.id] = userMessages;
+  localStorage.setItem('fr_messages', JSON.stringify(messages));
+
+  const html = userMessages.map(msg => {
+    const isStudent = msg.from === currentUser.id;
+    const time = new Date(msg.timestamp).toLocaleString('fr-FR');
+    
+    return `
+      <div style="margin-bottom:16px;display:flex;justify-content:${isStudent ? 'flex-end' : 'flex-start'}">
+        <div style="max-width:70%;padding:12px;border-radius:12px;background:${isStudent ? 'var(--brand)' : '#fff'};color:${isStudent ? '#fff' : '#333'};box-shadow:0 2px 4px rgba(0,0,0,.1)">
+          <div style="font-weight:600;margin-bottom:4px;font-size:.85rem;opacity:.9">${isStudent ? 'Vous' : 'Admin'}</div>
+          <div>${msg.text}</div>
+          <div style="font-size:.75rem;margin-top:4px;opacity:.7">${time}</div>
+        </div>
+      </div>
+    `;
+  }).join('');
+
+  $('#chatMessagesArea').innerHTML = html;
+  $('#chatMessagesArea').scrollTop = $('#chatMessagesArea').scrollHeight;
+}
+
+function sendStudentMessage() {
+  const text = $('#studentMessageInput').value.trim();
+  if (!text) return;
+
+  const messages = JSON.parse(localStorage.getItem('fr_messages') || '{}');
+  if (!messages[currentUser.id]) messages[currentUser.id] = [];
+  
+  messages[currentUser.id].push({
+    from: currentUser.id,
+    to: 'admin',
+    text,
+    timestamp: Date.now(),
+    read: false
+  });
+
+  localStorage.setItem('fr_messages', JSON.stringify(messages));
+  $('#studentMessageInput').value = '';
+  loadStudentChat();
+}
+
+function deleteStudentChatHistory() {
+  if (!confirm('Êtes-vous sûr de vouloir supprimer tout l\'historique de conversation avec l\'administrateur?\n\nCette action est irréversible.')) {
+    return;
+  }
+  
+  const messages = JSON.parse(localStorage.getItem('fr_messages') || '{}');
+  delete messages[currentUser.id];
+  localStorage.setItem('fr_messages', JSON.stringify(messages));
+  
+  $('#chatMessagesArea').innerHTML = '<div class="empty-state">Historique supprimé. Envoyez un message à l\'administrateur!</div>';
+  $('#studentMessageInput').value = '';
+  
+  alert('Historique de conversation supprimé avec succès');
+}
+
+checkAuth();
+loadBank();
+updateProgressStats();
+renderLessons();
+loadExternalResources();
+loadStudentChat();
+setTimeout(() => {
+  drawProgressChart();
+  drawLevelChart();
+  drawTypeChart();
+}, 100);
+</script>
+</body>
+</html>

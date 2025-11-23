@@ -1,0 +1,1687 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>fr_exercices_pack_v2 — Générateur JSON (hors‑ligne)</title>
+<style>
+:root{--brand:#2b5;--ink:#222;--muted:#666;--bg:#f7f7f7;--card:#fff}
+html,body{margin:0;padding:0;background:var(--bg);color:var(--ink);font-family:system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif}
+header{background:var(--brand);color:#fff;padding:18px 20px}
+main{max-width:980px;margin:24px auto;padding:0 16px 48px}
+.card{background:var(--card);border-radius:14px;box-shadow:0 6px 18px rgba(0,0,0,.05);padding:18px;margin:16px 0}
+h1{margin:0;font-size:1.4rem}
+h2{margin:.25rem 0 10px}
+h3{margin:16px 0 8px;font-size:1.1rem}
+.grid{display:grid;grid-template-columns:1fr;gap:16px}
+@media(min-width:1000px){.grid{grid-template-columns:1fr 1fr}}
+label{display:block;margin:8px 0 4px;font-weight:600}
+input,select,textarea{width:100%;padding:10px;border:1px solid #ddd;border-radius:10px;font-size:1rem;box-sizing:border-box}
+textarea{min-height:120px}
+.btns{display:flex;gap:10px;flex-wrap:wrap;margin-top:10px}
+button{border:0;background:var(--brand);color:#fff;padding:10px 14px;border-radius:12px;cursor:pointer;font-weight:600}
+button.secondary{background:#e0e0e0;color:#111}
+button.danger{background:#e53e3e;color:#fff}
+.small{color:var(--muted);font-size:.95rem}
+hr{border:none;border-top:1px solid #e8e8e8;margin:16px 0}
+.badge{display:inline-block;padding:2px 8px;border-radius:999px;background:#eef;border:1px solid #cde;margin-right:6px;margin-top:6px}
+.hidden{display:none}
+.question-item{background:#f9f9f9;padding:12px;border-radius:8px;margin:8px 0;border:1px solid #e0e0e0}
+.question-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:8px}
+.question-number{font-weight:600;color:var(--brand)}
+.input-row{display:grid;grid-template-columns:1fr auto;gap:8px;align-items:end}
+.points-input{width:80px}
+.tab-buttons{display:flex;gap:8px;margin-bottom:16px}
+.tab-btn{background:#e0e0e0;color:#111;padding:8px 16px;border-radius:8px;cursor:pointer;border:none;font-weight:600}
+.tab-btn.active{background:var(--brand);color:#fff}
+
+/* New styles for header and container */
+.header-content {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+.header-content div {
+  display: flex;
+  flex-direction: column;
+}
+.back-link {
+  color: #fff;
+  text-decoration: none;
+  font-weight: 500;
+  margin-bottom: 0.5rem;
+  font-size: 0.9rem;
+}
+.subtitle {
+  font-size: 0.95rem;
+  opacity: 0.8;
+  margin-top: 0.25rem;
+}
+.container {
+  max-width: 1200px;
+  margin: 2rem auto;
+  padding: 0 1rem;
+}
+.info-box {
+  background: #fff;
+  border-radius: 0.75rem;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
+  padding: 1.5rem;
+  margin-bottom: 2rem;
+}
+.info-box h2 {
+  margin-top: 0;
+  font-size: 1.4rem;
+  color: #1e293b;
+}
+.form-group {
+  margin-bottom: 1.5rem;
+}
+.form-group label {
+  font-weight: 600;
+  margin-bottom: 0.5rem;
+  display: block;
+  color: #1e293b;
+}
+.form-group input[type="text"],
+.form-group input[type="number"],
+.form-group select,
+.form-group textarea {
+  border: 1px solid #ccc;
+  border-radius: 0.375rem;
+  padding: 0.75rem;
+  font-size: 1rem;
+  width: 100%;
+  box-sizing: border-box;
+}
+.form-group textarea {
+  min-height: 120px;
+}
+.form-group .subtitle {
+  font-size: 0.85rem;
+  color: #64748b;
+  margin-top: 0.25rem;
+}
+</style>
+</head>
+<body>
+<header>
+  <div class="header-content">
+    <div>
+      <a href="admin.html" class="back-link">← Panneau d'administration</a>
+      <h1>Entraînement au français - <em>espace numérique</em></h1>
+      <p class="subtitle">Créateur d'exercices interactifs</p>
+    </div>
+  </div>
+</header>
+
+<div class="container">
+  <div class="info-box">
+    <h2>Comment créer un exercice</h2>
+    <p>1. <strong>Sélectionnez la Discipline</strong> (CE, CO, Grammaire, Lexique).</p>
+    <p>2. Remplissez les informations de base : <strong>Niveau</strong>, <strong>Thème</strong>, et <strong>N° exercice</strong>.</p>
+    <p>3. Pour la compréhension écrite (CE) : Saisissez le texte principal, le titre et éventuellement la source.</p>
+    <p>4. Pour la compréhension orale (CO) : Chargez le fichier audio.</p>
+    <p>5. Ajoutez le type de questions souhaité : QCM, Vrai/Faux, ou Exercice Cloze (pour CO).</p>
+    <p>6. Cliquez sur <strong>"Ajouter à la banque"</strong>.</p>
+    <p>7. Téléchargez votre fichier <code>questions.json</code> ou <code>questions.js</code> pour l'utiliser hors ligne.</p>
+  </div>
+
+  <h2 style="margin-top: 3rem;">1) Banque actuelle</h2>
+  <p style="color: #64748b; margin-bottom: 1rem;">
+    Sélectionnez votre fichier questions.json existant
+  </p>
+  <div style="margin-bottom: 2rem;">
+    <input type="file" id="fileInput" accept=".json" style="display: none;">
+    <button onclick="$('#fileInput').click()" style="background: #64748b; padding: 0.75rem 1.5rem; color: white; border: none; border-radius: 0.5rem; cursor: pointer; font-size: 1rem; font-weight: 500;">
+      Choisir un fichier
+    </button>
+    <span id="fileStatus" style="margin-left: 1rem; color: #64748b;"></span>
+  </div>
+
+  <h3 style="color: #1e293b; margin-bottom: 1rem;">Nouvelle banque vide</h3>
+  <div style="display: flex; gap: 1rem; margin-bottom: 2rem;">
+    <button onclick="downloadEmptyQuestionsJson()" style="background: #22c55e; padding: 0.75rem 1.5rem; color: white; border: none; border-radius: 0.5rem; cursor: pointer; font-size: 1rem; font-weight: 500;">
+      Télécharger questions.json vide
+    </button>
+    <button onclick="downloadEmptyQuestionsJs()" style="background: #f59e0b; padding: 0.75rem 1.5rem; color: white; border: none; border-radius: 0.5rem; cursor: pointer; font-size: 1rem; font-weight: 500;">
+      Télécharger questions.js vide
+    </button>
+    
+    <!-- Replaced folder linking buttons with Cloudinary status -->
+    <div id="cloudinaryStatus" style="padding: 0.75rem 1.5rem; background: #10b981; color: white; border-radius: 0.5rem; font-weight: 500;">
+      ✓ Cloudinary configuré - Upload automatique activé
+    </div>
+  </div>
+
+  <div style="background: #f1f5f9; padding: 1rem; border-radius: 0.5rem; margin-bottom: 2rem;">
+    <p style="color: #475569; margin: 0; font-size: 0.95rem;">
+      <strong>💡 Sauvegarde automatique activée:</strong> Le fichier questions.json se met à jour automatiquement après chaque modification.
+    </p>
+    <div id="autoSaveStatus" style="margin-top: 0.5rem; font-weight: 600;"></div>
+  </div>
+
+  <div id="linkQuestionsFileSection" style="margin-bottom: 2rem;">
+    <button onclick="linkToFile()" style="background: #f59e0b; padding: 0.75rem 1.5rem; color: white; border: none; border-radius: 0.5rem; cursor: pointer; font-size: 1rem; font-weight: 500;">
+      🔗 Lier au fichier data/questions.json
+    </button>
+    <div id="linkedFileStatus" style="margin-top: 0.5rem; display: none; color: #10b981; font-weight: 600;"></div>
+  </div>
+
+  <div style="background: #e0f2fe; padding: 1rem; border-radius: 0.5rem; margin-bottom: 2rem; border-left: 4px solid #0ea5e9;">
+    <p style="margin: 0; font-size: 0.9rem; color: #0c4a6e;">
+      <strong>CE:</strong> <span id="countCE">0</span> • 
+      <strong>CO:</strong> <span id="countCO">0</span> • 
+      <strong>Grammaire:</strong> <span id="countGrammaire">0</span> • 
+      <strong>Lexique:</strong> <span id="countLexique">0</span>
+    </p>
+  </div>
+
+  <section class="card">
+    <h2>2) Ajouter un cours</h2>
+    <form id="exerciseForm">
+      <div class="grid">
+        <div class="form-group">
+          <label for="kind">Discipline</label>
+          <select id="kind">
+            <option value="lecture">CE (compréhension écrite)</option>
+            <option value="ecoute">CO (compréhension orale)</option>
+            <option value="grammaire">Grammaire</option>
+            <option value="lexique">Lexique</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label for="niveau">Niveau</label>
+          <select id="niveau">
+            <option>A1</option><option>A2</option><option>A2</option><option>B1</option><option>B2</option><option>C1</option><option>C2</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label for="theme">Thème</label>
+          <input type="text" id="theme" placeholder="ex. Salutations / Voyage">
+        </div>
+        <div class="form-group">
+          <label for="exerciseNumber">N° exercice</label>
+          <input type="number" id="exerciseNumber" min="1" placeholder="ex. 1">
+        </div>
+        <div class="form-group">
+          <label for="id">ID (facultatif)</label>
+          <input type="text" id="id" placeholder="ex. lec_a1_01">
+        </div>
+        <div class="form-group">
+          <label for="difficulty">Difficulté (facultatif)</label>
+          <input type="range" id="difficulty" min="1" max="5" value="1" style="width: calc(100% - 80px); margin-left: 10px; vertical-align: middle;">
+        </div>
+      </div>
+
+      <div class="form-group ecoute-only">
+        <label for="audio">Fichier audio (optionnel - uniquement pour CO)</label>
+        <p style="color: #64748b; font-size: 0.9rem; margin-bottom: 0.5rem;">Uniquement pour CO. Laissez vide si vous ne souhaitez pas ajouter de fichier audio.</p>
+        
+        <!-- Updated audio upload instructions for Cloudinary -->
+        <div 
+          id="audioDrop" 
+          style="border: 2px dashed #3b82f6; border-radius: 0.5rem; padding: 2rem; text-align: center; cursor: pointer; background: #eff6ff; transition: all 0.2s;"
+          ondrop="handleAudioDrop(event)"
+          ondragover="event.preventDefault(); this.style.background='#dbeafe';"
+          ondragleave="this.style.background='#eff6ff';"
+          onclick="$('#audioInput').click()"
+        >
+          <p style="margin: 0; color: #3b82f6; font-weight: 500;">🎵 Glissez-déposez un fichier audio ici ou cliquez pour sélectionner</p>
+          <p style="margin: 0.5rem 0 0 0; font-size: 0.85rem; color: #64748b;">Le fichier sera automatiquement uploadé vers Cloudinary</p>
+        </div>
+        <input type="file" id="audioInput" accept="audio/*" onchange="handleAudioSelect(event)" style="display: none;">
+        <input type="hidden" id="audio" name="audio">
+        
+        <div id="audioPreview" style="display: none; margin-top: 1rem; padding: 1rem; background: #f0f9ff; border-radius: 0.5rem; border: 1px solid #bae6fd;">
+          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.5rem;">
+            <strong id="audioFileName" style="color: #0c4a6e;"></strong>
+            <button type="button" onclick="removeAudio()" style="background: #ef4444; color: white; border: none; padding: 0.25rem 0.75rem; border-radius: 0.25rem; cursor: pointer; font-size: 0.85rem;">
+              Supprimer
+            </button>
+          </div>
+          <p id="audioFilePath" style="font-size: 0.85rem; color: #64748b; margin-bottom: 0.5rem;"></p>
+          <audio id="audioPlayer" controls style="width: 100%; margin-top: 0.5rem;"></audio>
+          <div id="audioUploadStatus" style="margin-top: 0.5rem; font-weight: 500;"></div>
+        </div>
+      </div>
+
+      <hr>
+
+      <div id="passageBox" class="hidden">
+        <h3 style="margin-bottom: 1rem;">Contenu du passage</h3>
+        <div style="display:flex;gap:16px;margin-bottom:20px;padding:16px;background:#f7fafc;border-radius:8px;border:1px solid #e2e8f0">
+          <label style="display:flex;align-items:center;gap:8px;cursor:pointer;padding:12px 20px;background:#fff;border:2px solid #e2e8f0;border-radius:8px;transition:all .2s;flex:1;justify-content:center" onmouseover="this.style.borderColor='var(--brand)'" onmouseout="if(!this.querySelector('input').checked) this.style.borderColor='#e2e8f0'">
+            <input type="radio" name="passageType" value="text" checked onchange="togglePassageType()" style="cursor:pointer;width:18px;height:18px">
+            <span style="font-weight:600;font-size:.95rem">📝 Texte</span>
+          </label>
+          <label style="display:flex;align-items:center;gap:8px;cursor:pointer;padding:12px 20px;background:#fff;border:2px solid #e2e8f0;border-radius:8px;transition:all .2s;flex:1;justify-content:center" onmouseover="this.style.borderColor='var(--brand)'" onmouseout="if(!this.querySelector('input').checked) this.style.borderColor='#e2e8f0'">
+            <input type="radio" name="passageType" value="image" onchange="togglePassageType()" style="cursor:pointer;width:18px;height:18px">
+            <span style="font-weight:600;font-size:.95rem">🖼️ Image / Capture d'écran</span>
+          </label>
+        </div>
+        
+        <div id="passageTextBox">
+          <div class="form-group">
+            <label>Titre du passage (affiché en gras)</label>
+            <input type="text" id="passageTitle" placeholder="ex. La Tour Eiffel">
+          </div>
+          <div class="form-group">
+            <label>Texte principal</label>
+            <textarea id="passageText" placeholder="Entrez le texte à lire..."></textarea>
+          </div>
+          <div class="form-group">
+            <label>Source (affichée en italique à droite)</label>
+            <input type="text" id="passageSource" placeholder="ex. Source: Le Monde, 2024">
+          </div>
+        </div>
+        
+        <div id="passageImageBox" style="display:none">
+          <div class="form-group">
+            <label for="passageImage">Image du passage (optionnel)</label>
+            <p style="color: #64748b; font-size: 0.9rem; margin-bottom: 0.5rem;">Image illustrant le texte du passage (affichée à gauche du texte)</p>
+            
+            <!-- Updated image upload instructions for Cloudinary -->
+            <div 
+              id="passageImageDrop" 
+              style="border: 2px dashed #8b5cf6; border-radius: 0.5rem; padding: 2rem; text-align: center; cursor: pointer; background: #faf5ff; transition: all 0.2s;"
+              ondrop="handlePassageImageDrop(event)"
+              ondragover="event.preventDefault(); this.style.background='#f3e8ff';"
+              ondragleave="this.style.background='#faf5ff';"
+              onclick="$('#passageImageInput').click()"
+            >
+              <p style="margin: 0; color: #8b5cf6; font-weight: 500;">🖼️ Glissez-déposez une image ici ou cliquez pour sélectionner</p>
+              <p style="margin: 0.5rem 0 0 0; font-size: 0.85rem; color: #64748b;">L'image sera automatiquement uploadée vers Cloudinary</p>
+            </div>
+            <input type="file" id="passageImageInput" accept="image/*" onchange="handlePassageImageSelect(event)" style="display: none;">
+            
+            <div id="passageImagePreview" style="display: none; margin-top: 1rem; padding: 1rem; background: #faf5ff; border-radius: 0.5rem; border: 1px solid #e9d5ff;">
+              <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.5rem;">
+                <strong style="color: #6b21a8;">Aperçu de l'image</strong>
+                <button type="button" onclick="removePassageImage()" style="background: #ef4444; color: white; border: none; padding: 0.25rem 0.75rem; border-radius: 0.25rem; cursor: pointer; font-size: 0.85rem;">
+                  Supprimer
+                </button>
+              </div>
+              <img id="passageImagePreviewImg" src="/placeholder.svg" alt="Aperçu" style="max-width: 100%; max-height: 300px; border-radius: 0.5rem; border: 1px solid #e9d5ff;">
+              <div id="imageUploadStatus" style="margin-top: 0.5rem; font-weight: 500;"></div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div id="qcmFormBox" style="margin-top:20px">
+        <h3>Questions QCM (optionnel)</h3>
+        <p class="small" style="margin-bottom:12px;color:#666">Laissez vide si vous ne souhaitez pas ajouter de questions QCM.</p>
+        <div id="qcmQuestions"></div>
+        <button id="addQcmQuestion" type="button" class="secondary">+ Ajouter une question QCM</button>
+      </div>
+
+      <div id="vfFormBox" style="margin-top:20px">
+        <h3>Questions Vrai/Faux (optionnel)</h3>
+        <p class="small" style="margin-bottom:12px;color:#666">Laissez vide si vous ne souhaitez pas ajouter de questions Vrai/Faux.</p>
+        <div id="vfQuestions"></div>
+        <button id="addVfQuestion" type="button" class="secondary">+ Ajouter une question Vrai/Faux</button>
+      </div>
+
+      <div id="clozeFormBox" style="margin-top:20px">
+        <h3>Exercice Cloze (optionnel)</h3>
+        <p class="small" style="margin-bottom:12px;color:#666">Uniquement pour CO. Laissez vide si vous ne souhaitez pas ajouter d'exercice Cloze.</p>
+        <div style="background:#f9f9f9;padding:16px;border-radius:8px;border:1px solid #e0e0e0">
+          <label>Texte avec trous (entourez les réponses avec [crochets])</label>
+          <textarea id="clozeText" placeholder="Exemple: Je vais au [marché] à [10h]." style="width:100%;padding:10px;border:1px solid #ddd;border-radius:10px;font-size:1rem;box-sizing:border-box;min-height:120px;margin-bottom:12px"></textarea>
+          
+          <button type="button" class="secondary" onclick="detectBuilderClozeBlanks()" style="margin-bottom:12px">🔍 Détecter les trous et configurer les points</button>
+          
+          <div id="builderClozeBlanksConfig" style="display:none;margin-top:12px">
+            <h4 style="margin:8px 0;font-size:1rem;color:var(--brand)">Configuration des points par trou</h4>
+            <div id="builderClozeBlankslist"></div>
+          </div>
+          
+          <div style="margin-top:16px;padding-top:16px;border-top:1px solid #e0e0e0">
+            <h4 style="margin:8px 0 12px;font-size:1rem;color:#2d3748">Transcription (affichée après soumission)</h4>
+            <p class="small" style="margin-bottom:8px;color:#666">La transcription apparaîtra avec un bouton "Voir la transcription" après que l'étudiant a répondu à toutes les questions.</p>
+            <textarea id="transText" placeholder="Entrez la transcription complète de l'audio..." style="width:100%;padding:10px;border:1px solid #ddd;border-radius:10px;font-size:1rem;box-sizing:border-box;min-height:120px"></textarea>
+          </div>
+        </div>
+      </div>
+
+      <div class="btns">
+        <button id="addItem" type="button">Ajouter à la banque</button>
+      </div>
+      <p id="addInfo" class="small"></p>
+    </form>
+
+    <details style="margin-top:20px">
+      <summary style="cursor:pointer;padding:12px;background:#f0f0f0;border-radius:8px;font-weight:600">Mode avancé: Importation en masse</summary>
+      <div id="bulkTab" style="margin-top:16px">
+        <div class="grid">
+          <div>
+            <label>Discipline</label>
+            <select id="bulkKind">
+              <option value="lecture">CE (compréhension écrite)</option>
+              <option value="ecoute">CO (compréhension orale)</option>
+              <option value="grammaire">Grammaire</option>
+              <option value="lexique">Lexique</option>
+            </select>
+          </div>
+          <div>
+            <label>Type d'exercice</label>
+            <select id="bulkMode">
+              <option value="qcm">QCM (3 choix)</option>
+              <option value="vf">Vrai/Faux</option>
+              <option value="cloze">Cloze (uniquement pour CO)</option>
+            </select>
+          </div>
+          <div>
+            <label>Niveau</label>
+            <select id="bulkNiveau">
+              <option>A1</option><option>A2</option><option>B1</option><option>B2</option><option>C1</option><option>C2</option>
+            </select>
+          </div>
+          <div>
+            <label>Thème</label>
+            <input id="bulkTheme" placeholder="ex. Salutations / Voyage">
+          </div>
+          <div>
+            <label>Titre</label>
+            <input id="bulkTitre" placeholder="ex. Leçon 01 — Bonjour !">
+          </div>
+          <div>
+            <label>ID (facultatif)</label>
+            <input id="bulkId" placeholder="ex. lec_a1_01">
+          </div>
+          <div class="bulk-ecoute-only">
+            <label>Chemin audio (CO)</label>
+            <input id="bulkAudio" placeholder="ex. audio/a1_lecon01.mp3">
+          </div>
+        </div>
+
+        <hr>
+        
+        <div id="bulkPassageBox" class="hidden">
+          <label>Titre (affiché en gras)</label>
+          <input id="bulkPassageTitle" placeholder="ex. La Tour Eiffel">
+          <label>Texte principal</label>
+          <textarea id="bulkPassageText" placeholder="Entrez le texte à lire..."></textarea>
+          <label>Source (affichée en italique à droite)</label>
+          <input id="bulkPassageSource" placeholder="ex. Source: Le Monde, 2024">
+        </div>
+
+        <div id="bulkQcmBox">
+          <label>QCM — Collez plusieurs lignes (format : <em>Question ; choix A ; choix B ; choix C ; bonne réponse ; points</em>)</label>
+          <textarea id="bulkQcmText" placeholder="Exemple:
+Quelle est la capitale de la France ? ; Paris ; Lyon ; Marseille ; a ; 2
+La Fête a lieu en ; juin ; juillet ; août ; juin ; 3"></textarea>
+          <p class="small">Si les points ne sont pas spécifiés, la valeur par défaut est 1.</p>
+        </div>
+
+        <div id="bulkVfBox" class="hidden">
+          <label>Vrai/Faux — Collez plusieurs lignes (format : <em>Énoncé ; vrai|faux ; mots‑clés (séparés par |) ; points</em>)</label>
+          <textarea id="bulkVfText" placeholder="Exemple:
+La Tour Eiffel est à Paris. ; vrai ; tour eiffel|paris ; 2
+Les concerts sont payants. ; faux ; gratuits|ouvert à tous ; 3"></textarea>
+          <p class="small">Pour CO, la justification n'est pas obligatoire ; les mots‑clés seront ignorés. Si les points ne sont pas spécifiés, la valeur par défaut est 1.</p>
+        </div>
+
+        <div id="bulkClozeBox" class="hidden">
+          <label>Cloze — Texte (entourez chaque réponse avec des crochets <em>[mot]</em>)</label>
+          <textarea id="bulkClozeText" placeholder="Exemple: Je vais au [marché] à [10h]."></textarea>
+          <label>Points par trou (séparés par des virgules, ex: 2,3,2)</label>
+          <input id="bulkClozePoints" placeholder="ex. 2,3,2">
+          <p class="small">Si non spécifié, chaque trou vaut 1 point.</p>
+          <label>Transcription (affichée après avoir tout répondu)</label>
+          <textarea id="bulkTransText" placeholder="Exemple: Bonjour, nous vous invitons..."></textarea>
+        </div>
+
+        <div class="btns">
+          <button id="addBulkItem" type="button">Ajouter à la banque</button>
+        </div>
+        <p id="bulkAddInfo" class="small"></p>
+      </div>
+    </details>
+  </section>
+</main>
+
+<!-- Added Cloudinary SDK -->
+<script src="https://upload-widget.cloudinary.com/global/all.js" type="text/javascript"></script>
+
+<script>
+const CLOUDINARY_CONFIG = {
+  cloudName: 'dvbsn45rk',
+  uploadPreset: 'francais_exercises'
+};
+
+const BANK_KEY = 'fr_bank_data';
+let BANK = {lecture:[], ecoute:[], grammaire:[], lexique:[]};
+let fileHandle = null;
+let fileHandleJs = null;
+let audioFolderHandle = null; // Not used with Cloudinary
+let imageFolderHandle = null; // Not used with Cloudinary
+const $ = s=>document.querySelector(s);
+const $$ = s=>[...document.querySelectorAll(s)];
+
+console.log('[v0] Checking if buttons exist...');
+console.log('[v0] addQcmQuestion button:', $('#addQcmQuestion'));
+console.log('[v0] addVfQuestion button:', $('#addVfQuestion'));
+
+async function autoSaveToFile() {
+  if (!fileHandle) {
+    console.log('[v0] No file handle linked, skipping auto-save');
+    return;
+  }
+  
+  try {
+    const writable = await fileHandle.createWritable();
+    await writable.write(JSON.stringify(BANK, null, 2));
+    await writable.close();
+    console.log('[v0] Auto-saved to questions.json successfully');
+    
+    if (fileHandleJs) {
+      try {
+        const jsContent = generateQuestionsJS();
+        const writableJs = await fileHandleJs.createWritable();
+        await writableJs.write(jsContent);
+        await writableJs.close();
+        console.log('[v0] Auto-saved to questions.js successfully');
+      } catch (err) {
+        console.error('[v0] Auto-save error for questions.js:', err);
+      }
+    }
+    
+    // Show brief success indicator
+    const status = $('#autoSaveStatus');
+    status.textContent = '✓ Sauvegardé automatiquement';
+    status.style.color = '#16a34a';
+    setTimeout(() => {
+      status.textContent = '✓ Sauvegarde automatique activée';
+    }, 2000);
+  } catch (err) {
+    console.error('[v0] Auto-save error:', err);
+    $('#autoSaveStatus').textContent = '⚠️ Erreur de sauvegarde automatique';
+    $('#autoSaveStatus').style.color = '#dc2626';
+  }
+}
+
+async function linkToFile() {
+  try {
+    [fileHandle] = await window.showOpenFilePicker({
+      types: [{
+        description: 'JSON Files',
+        accept: {'application/json': ['.json']}
+      }],
+      multiple: false
+    });
+    
+    // Verify write permission
+    const permission = await fileHandle.queryPermission({ mode: 'readwrite' });
+    if (permission !== 'granted') {
+      const newPermission = await fileHandle.requestPermission({ mode: 'readwrite' });
+      if (newPermission !== 'granted') {
+        alert('Permission d\'écriture refusée. La sauvegarde automatique ne fonctionnera pas.');
+        return;
+      }
+    }
+    
+    const file = await fileHandle.getFile();
+    const text = await file.text();
+    
+    // Check if file is empty or contains invalid JSON
+    if (!text || text.trim() === '') {
+      console.log('[v0] File is empty, initializing with empty bank structure');
+      BANK = {lecture:[], ecoute:[], grammaire:[], lexique:[]};
+      
+      // Write the empty structure to the file
+      const writable = await fileHandle.createWritable();
+      await writable.write(JSON.stringify(BANK, null, 2));
+      await writable.close();
+      
+      saveBankToStorage();
+      refreshInfo();
+      $('#linkedFileStatus').textContent = `✓ Lié à: ${fileHandle.name}`;
+      $('#linkedFileStatus').style.display = 'block';
+      $('#fileStatus').textContent = `Fichier lié: ${fileHandle.name}`;
+    } else {
+      try {
+        BANK = JSON.parse(text);
+        
+        // Validate structure and add missing keys if needed
+        if (!BANK.lecture) BANK.lecture = [];
+        if (!BANK.ecoute) BANK.ecoute = [];
+        if (!BANK.grammaire) BANK.grammaire = [];
+        if (!BANK.lexique) BANK.lexique = [];
+        
+        saveBankToStorage();
+        refreshInfo();
+        $('#linkedFileStatus').textContent = `✓ Lié à: ${fileHandle.name}`;
+        $('#linkedFileStatus').style.display = 'block';
+        $('#fileStatus').textContent = `Fichier lié: ${fileHandle.name}`;
+      } catch (err) {
+        console.error('[v0] Error parsing existing file:', err);
+        
+        // Ask user if they want to reset the file
+        const resetFile = confirm('Le fichier questions.json contient des erreurs.\n\nVoulez-vous le réinitialiser avec une structure vide?\n\n(Cliquez sur "Annuler" pour garder le fichier tel quel)');
+        
+        if (resetFile) {
+          BANK = {lecture:[], ecoute:[], grammaire:[], lexique:[]};
+          
+          // Write the empty structure to the file
+          const writable = await fileHandle.createWritable();
+          await writable.write(JSON.stringify(BANK, null, 2));
+          await writable.close();
+          
+          saveBankToStorage();
+          refreshInfo();
+          $('#linkedFileStatus').textContent = `✓ Lié à: ${fileHandle.name} (Réinitialisé)`;
+          $('#linkedFileStatus').style.display = 'block';
+          $('#fileStatus').textContent = `Fichier lié: ${fileHandle.name}`;
+          
+          alert('✓ Le fichier a été réinitialisé avec succès!');
+        } else {
+          fileHandle = null;
+          $('#fileStatus').textContent = '';
+          return;
+        }
+      }
+    }
+    
+    const linkJsFile = confirm('Voulez-vous également lier le fichier questions.js pour la synchronisation automatique?\n\nCeci permet au site de fonctionner hors ligne sans serveur.');
+    
+    if (linkJsFile) {
+      try {
+        [fileHandleJs] = await window.showOpenFilePicker({
+          types: [{
+            description: 'JavaScript Files',
+            accept: {'text/javascript': ['.js']}
+          }],
+          multiple: false
+        });
+        
+        const permissionJs = await fileHandleJs.queryPermission({ mode: 'readwrite' });
+        if (permissionJs !== 'granted') {
+          await fileHandleJs.requestPermission({ mode: 'readwrite' });
+        }
+        
+        // Save current data to questions.js
+        const jsContent = generateQuestionsJS();
+        const writableJs = await fileHandleJs.createWritable();
+        await writableJs.write(jsContent);
+        await writableJs.close();
+        
+        localStorage.setItem('fileHandleJsLinked', 'true');
+        $('#autoSaveStatus').textContent = '✓ Sauvegarde automatique activée (JSON + JS)';
+        $('#autoSaveStatus').style.color = '#16a34a';
+      } catch (err) {
+        console.log('[v0] User cancelled JS file selection or error:', err);
+      }
+    } else {
+        localStorage.removeItem('fileHandleJsLinked');
+    }
+    
+    // Show success
+    $('#autoSaveStatus').style.display = 'block';
+    if (!fileHandleJs) {
+      $('#autoSaveStatus').textContent = '✓ Sauvegarde automatique activée (JSON seulement)';
+    }
+    $('#autoSaveStatus').style.color = '#16a34a';
+    
+    localStorage.setItem('fileHandleLinked', 'true');
+    
+    alert('✓ Fichier(s) lié(s) avec succès! Les modifications seront automatiquement sauvegardées.');
+  } catch (err) {
+    if (err.name === 'AbortError') {
+      console.log('[v0] User cancelled file selection');
+    } else {
+      console.error('[v0] Error linking file:', err);
+      alert('Erreur lors de la liaison du fichier. Votre navigateur supporte-t-il l\'API File System Access?');
+    }
+  }
+}
+
+
+function loadBankFromStorage() {
+  const stored = localStorage.getItem(BANK_KEY);
+  if (stored) {
+    try {
+      BANK = JSON.parse(stored);
+      console.log('[v0] Loaded bank from localStorage:', BANK);
+    } catch (err) {
+      console.error('[v0] Error loading bank:', err);
+      BANK = {lecture:[], ecoute:[], grammaire:[], lexique:[]};
+    }
+  }
+  
+  const wasLinked = localStorage.getItem('fileHandleLinked');
+  const wasJsLinked = localStorage.getItem('fileHandleJsLinked');
+  const wasAudioLinked = localStorage.getItem('audioFolderLinked'); // For backward compatibility
+  const wasImageLinked = localStorage.getItem('imageFolderLinked'); // For backward compatibility
+  
+  if (wasLinked === 'true') {
+    $('#autoSaveStatus').style.display = 'block';
+    $('#autoSaveStatus').textContent = '⚠️ Veuillez re-lier le fichier (sécurité navigateur)';
+    $('#autoSaveStatus').style.color = '#f59e0b';
+    $('#linkedFileStatus').style.display = 'none'; // Hide if re-linking is needed
+  }
+  if (wasJsLinked === 'true') {
+     $('#autoSaveStatus').style.display = 'block';
+     $('#autoSaveStatus').textContent = '⚠️ Veuillez re-lier les fichiers (sécurité navigateur)';
+     $('#autoSaveStatus').style.color = '#f59e0b';
+     if (wasLinked === 'true') {
+       $('#autoSaveStatus').textContent = '⚠️ Veuillez re-lier les fichiers (sécurité navigateur)';
+     }
+  }
+  
+  // Update status based on current Cloudinary config, not folder linking
+  $('#cloudinaryStatus').style.display = 'block';
+  $('#cloudinaryStatus').textContent = '✓ Cloudinary configuré - Upload automatique activé';
+  $('#cloudinaryStatus').style.background = '#10b981';
+}
+
+function saveBankToStorage() {
+  localStorage.setItem(BANK_KEY, JSON.stringify(BANK));
+  console.log('[v0] Saved bank to localStorage');
+  
+  autoSaveToFile();
+}
+
+$$('.tab-btn').forEach(btn => {
+  btn.addEventListener('click', () => {
+    $$('.tab-btn').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    const tab = btn.dataset.tab;
+    $('#formTab').classList.toggle('hidden', tab !== 'form');
+    $('#bulkTab').classList.toggle('hidden', tab !== 'bulk');
+  });
+});
+
+function refreshInfo(){
+  const countCE = BANK.lecture.length;
+  const countCO = BANK.ecoute.length;
+  const countGrammaire = BANK.grammaire.length;
+  const countLexique = BANK.lexique.length;
+  
+  $('#countCE').textContent = countCE;
+  $('#countCO').textContent = countCO;
+  $('#countGrammaire').textContent = countGrammaire;
+  $('#countLexique').textContent = countLexique;
+  
+  $('#bankInfo').textContent = `CE: ${countCE} • CO: ${countCO} • Grammaire: ${countGrammaire} • Lexique: ${countLexique}`;
+  
+  const chips = [];
+  BANK.lecture.forEach(x=>chips.push(`<span class="badge">L | ${x.niveau}/${x.theme} — ${x.titre}</span>`));
+  BANK.ecoute.forEach(x=>chips.push(`<span class="badge">E | ${x.niveau}/${x.theme} — ${x.titre}</span>`));
+  BANK.grammaire.forEach(x=>chips.push(`<span class="badge">G | ${x.niveau}/${x.theme} — ${x.titre}</span>`));
+  BANK.lexique.forEach(x=>chips.push(`<span class="badge">X | ${x.niveau}/${x.theme} — ${x.titre}</span>`));
+  $('#chips').innerHTML = chips.join(' ');
+}
+
+let qcmCounter = 0;
+let optionCounters = {}; // Track options for each question
+
+function addQcmQuestionForm() {
+  console.log('[v0] addQcmQuestionForm called');
+  qcmCounter++;
+  optionCounters[qcmCounter] = 0; // Initialize option counter for this question
+  
+  const div = document.createElement('div');
+  div.className = 'question-item';
+  div.dataset.qcmId = qcmCounter;
+  div.innerHTML = `
+    <div class="question-header">
+      <span class="question-number">Question ${qcmCounter}</span>
+      <button class="danger" type="button" onclick="removeQcmQuestion(${qcmCounter})">Supprimer</button>
+    </div>
+    <label>Question</label>
+    <input class="qcm-question" placeholder="Quelle est la capitale de la France ?">
+    
+    <div class="qcm-options-container" style="margin:12px 0"></div>
+    
+    <button type="button" class="secondary" onclick="addQcmOption(${qcmCounter})" style="margin-bottom:12px;font-size:.9rem">+ Ajouter une réponse</button>
+    
+    <div class="grid">
+      <div>
+        <label>Bonne réponse</label>
+        <select class="qcm-answer" style="width:100%">
+        </select>
+      </div>
+      <div>
+        <label>Points</label>
+        <input type="number" class="qcm-points" value="1" min="1">
+      </div>
+    </div>
+  `;
+  $('#qcmQuestions').appendChild(div);
+  
+  // Add default 3 options
+  addQcmOption(qcmCounter);
+  addQcmOption(qcmCounter);
+  addQcmOption(qcmCounter);
+  
+  console.log('[v0] Question added, total questions:', $('#qcmQuestions').children.length);
+}
+
+window.addQcmOption = function(questionId) {
+  const questionDiv = document.querySelector(`[data-qcm-id="${questionId}"]`);
+  if (!questionDiv) {
+    console.log('[v0] ERROR: Question div not found for ID:', questionId);
+    return;
+  }
+  
+  const container = questionDiv.querySelector('.qcm-options-container');
+  const existingOptions = container.querySelectorAll(':scope > div[data-option-letter]');
+  const optionIndex = existingOptions.length; // 0, 1, 2, 3...
+  const optionLetter = String.fromCharCode(97 + optionIndex); // a, b, c, d, etc.
+  
+  console.log('[v0] ===== ADD OPTION DEBUG =====');
+  console.log('[v0] Question ID:', questionId);
+  console.log('[v0] Existing options count:', existingOptions.length);
+  console.log('[v0] Generated option letter:', optionLetter);
+  console.log('[v0] =============================');
+  
+  const optionDiv = document.createElement('div');
+  optionDiv.dataset.optionLetter = optionLetter;
+  optionDiv.style.cssText = 'display:flex;gap:8px;margin-bottom:8px;align-items:center';
+  
+  optionDiv.innerHTML = `
+    <label style="margin:0;font-weight:600;min-width:70px;font-size:.95rem">Choix ${optionLetter.toUpperCase()}</label>
+    <input class="qcm-option" placeholder="Réponse ${optionLetter.toUpperCase()}" style="flex:1;padding:10px;border:1px solid #ddd;border-radius:8px;font-size:.95rem">
+    <button type="button" onclick="removeQcmOption(${questionId}, '${optionLetter}')" style="background:#e53e3e;color:#fff;border:none;padding:8px 12px;border-radius:6px;cursor:pointer;font-size:.85rem;font-weight:600">✕</button>
+  `;
+  container.appendChild(optionDiv);
+  
+  console.log('[v0] Option added, now total:', container.querySelectorAll(':scope > div[data-option-letter]').length);
+
+  // Add to the input element's dataset for later retrieval
+  const inputElement = optionDiv.querySelector('.qcm-option');
+  if (inputElement) {
+    inputElement.dataset.optionLetter = optionLetter;
+  }
+  
+  // Update answer dropdown
+  updateQcmAnswerDropdown(questionId);
+};
+
+window.removeQcmOption = function(questionId, optionLetter) {
+  const questionDiv = document.querySelector(`[data-qcm-id="${questionId}"]`);
+  if (!questionDiv) return;
+  
+  const container = questionDiv.querySelector('.qcm-options-container');
+  const options = container.querySelectorAll(':scope > div[data-option-letter]');
+  
+  // Don't allow removing if only 2 options left
+  if (options.length <= 2) {
+    alert('Vous devez avoir au moins 2 choix de réponse.');
+    return;
+  }
+  
+  const optionDiv = container.querySelector(`[data-option-letter="${optionLetter}"]`);
+  if (optionDiv) optionDiv.remove();
+  
+  relabelQcmOptions(questionId);
+  
+  // Update answer dropdown
+  updateQcmAnswerDropdown(questionId);
+};
+
+function relabelQcmOptions(questionId) {
+  const questionDiv = document.querySelector(`[data-qcm-id="${questionId}"]`);
+  if (!questionDiv) return;
+  
+  const container = questionDiv.querySelector('.qcm-options-container');
+  const optionDivs = container.querySelectorAll(':scope > div[data-option-letter]');
+  
+  optionDivs.forEach((optionDiv, index) => {
+    const newLetter = String.fromCharCode(97 + index); // a, b, c, d...
+    
+    // Update all references to the new letter
+    optionDiv.dataset.optionLetter = newLetter;
+    
+    // Update label
+    const label = optionDiv.querySelector('label');
+    if (label) label.textContent = `Choix ${newLetter.toUpperCase()}`;
+    
+    // Update input
+    const input = optionDiv.querySelector('.qcm-option');
+    if (input) {
+      input.placeholder = `Réponse ${newLetter.toUpperCase()}`;
+      input.dataset.optionLetter = newLetter; // Ensure dataset is updated
+    }
+    
+    const button = optionDiv.querySelector('button');
+    if (button) {
+      button.setAttribute('onclick', `removeQcmOption(${questionId}, '${newLetter}')`);
+    }
+  });
+  
+  // Update the answer dropdown after relabeling
+  updateQcmAnswerDropdown(questionId);
+}
+
+window.removeQcmQuestion = function(id) {
+  const item = document.querySelector(`[data-qcm-id="${id}"]`);
+  if (item) {
+    item.remove();
+    delete optionCounters[id]; // Clean up counter
+  }
+};
+
+let vfCounter = 0;
+function addVfQuestionForm() {
+  console.log('[v0] addVfQuestionForm called');
+  vfCounter++;
+  const div = document.createElement('div');
+  div.className = 'question-item';
+  div.dataset.vfId = vfCounter;
+  
+  const isLecture = $('#kind').value === 'lecture';
+  
+  div.innerHTML = `
+    <div class="question-header">
+      <span class="question-number">Question ${vfCounter}</span>
+      <button class="danger" type="button" onclick="removeVfQuestion(${vfCounter})">Supprimer</button>
+    </div>
+    <label>Énoncé</label>
+    <input class="vf-statement" placeholder="La Tour Eiffel est à Paris.">
+    <div class="grid">
+      <div>
+        <label>Réponse</label>
+        <select class="vf-answer">
+          <option value="vrai">Vrai</option>
+          <option value="faux">Faux</option>
+        </select>
+      </div>
+      ${isLecture ? `
+      <div>
+        <label>Mots-clés (séparés par |)</label>
+        <input class="vf-keywords" placeholder="tour eiffel|paris">
+      </div>
+      ` : ''}
+      <div>
+        <label>Points</label>
+        <input type="number" class="vf-points" value="1" min="1">
+      </div>
+    </div>
+  `;
+  $('#vfQuestions').appendChild(div);
+  console.log('[v0] VF question added, total questions:', $('#vfQuestions').children.length);
+}
+
+window.removeVfQuestion = function(id) {
+  const item = document.querySelector(`[data-vf-id="${id}"]`);
+  if (item) item.remove();
+};
+
+function collectQcmQuestions() {
+  const questions = [];
+  $$('#qcmQuestions .question-item').forEach(item => {
+    const q = item.querySelector('.qcm-question').value.trim();
+    const answer = item.querySelector('.qcm-answer').value;
+    const points = parseInt(item.querySelector('.qcm-points').value) || 1;
+    
+    // Collect all options dynamically
+    const options = {};
+    const optionInputs = item.querySelectorAll('.qcm-option');
+    optionInputs.forEach(input => {
+      const letter = input.dataset.optionLetter; // Use dataset to get the letter
+      const value = input.value.trim();
+      if (value) {
+        options[letter] = value;
+      }
+    });
+    
+    // Only add question if we have question text and at least 2 options
+    if (q && Object.keys(options).length >= 2) {
+      questions.push({
+        question: q,
+        ...options,
+        answer,
+        points
+      });
+    }
+  });
+  return questions;
+}
+
+function collectVfQuestions() {
+  const questions = [];
+  const isLecture = $('#kind').value === 'lecture';
+  $$('#vfQuestions .question-item').forEach(item => {
+    const statement = item.querySelector('.vf-statement').value.trim();
+    const answer = item.querySelector('.vf-answer').value;
+    const points = parseInt(item.querySelector('.vf-points').value) || 1;
+    
+    if (statement) {
+      if (isLecture) {
+        const keywordsInput = item.querySelector('.vf-keywords');
+        const keywords = keywordsInput ? keywordsInput.value.split('|').map(s=>s.trim()).filter(Boolean) : [];
+        questions.push({statement, answer, keywords, points});
+      } else {
+        questions.push({statement, answer, points});
+      }
+    }
+  });
+  return questions;
+}
+
+function updateFilenameSuggestions() {
+  const niveau = $('#niveau').value;
+  const theme = $('#theme').value.trim();
+  const exerciseNum = $('#exerciseNumber').value;
+  
+  if (!niveau || !theme || !exerciseNum) {
+    $('#audioSuggestion').textContent = '';
+    $('#imageSuggestion').textContent = '';
+    return;
+  }
+  
+  // Clean theme name for filename (remove special characters)
+  const cleanTheme = theme.replace(/[^a-zA-Z0-9À-ÿ\s]/g, '').replace(/\s+/g, '_');
+  const suggestedName = `${niveau}_${cleanTheme}_Exo${exerciseNum}`;
+  
+  $('#audioSuggestion').textContent = `${suggestedName}.mp3`;
+  $('#imageSuggestion').textContent = `${suggestedName}.jpg (ou .png)`;
+  
+  // Auto-update audio path if empty
+  const audioInput = $('#audio');
+  if (audioInput.value.trim() === '') {
+    // audioInput.value = `audio/${suggestedName}.mp3`; // Deprecated for Cloudinary
+  }
+}
+
+async function uploadToCloudinary(file, resourceType = 'auto') {
+  const formData = new FormData();
+  formData.append('file', file);
+  formData.append('upload_preset', CLOUDINARY_CONFIG.uploadPreset);
+  formData.append('folder', 'entrainement-francais');
+  
+  const uploadUrl = `https://api.cloudinary.com/v1_1/${CLOUDINARY_CONFIG.cloudName}/${resourceType}/upload`;
+  
+  try {
+    const response = await fetch(uploadUrl, {
+      method: 'POST',
+      body: formData
+    });
+    
+    if (!response.ok) {
+      const errorData = await response.json();
+      console.error('[v0] Cloudinary error details:', errorData);
+      throw new Error(`Upload failed: ${response.status} - ${errorData.error ? errorData.error.message : response.statusText}`);
+    }
+    
+    const data = await response.json();
+    return data.secure_url;
+  } catch (error) {
+    console.error('[v0] Cloudinary upload error:', error);
+    throw error;
+  }
+}
+
+async function addItem(){
+  const kind = $('#kind').value;
+  const niveau = $('#niveau').value;
+  const theme = $('#theme').value.trim();
+  const exerciseNum = $('#exerciseNumber').value.trim();
+  const titre = exerciseNum ? `Exercice ${exerciseNum}` : '';
+  const id = ($('#id').value.trim()) || `${kind}_${niveau}_${Date.now()}`;
+  
+  if(!theme || !exerciseNum){ 
+    $('#addInfo').textContent='Veuillez saisir le Thème et le N° exercice.'; 
+    return; 
+  }
+
+  const qcmQuestions = collectQcmQuestions();
+  const vfQuestions = collectVfQuestions();
+  const clozeText = $('#clozeText').value.trim();
+  const transText = $('#transText').value.trim();
+
+  const audioCloudinaryUrl = $('#audio').value; // Cloudinary URL from hidden input
+  const passageImageCloudinaryUrl = $('#passageImagePreviewImg').dataset.cloudinaryUrl; // Cloudinary URL from data attribute
+
+  if(kind==='lecture'){
+    const passageTitle = $('#passageTitle').value.trim();
+    const passageText = $('#passageText').value.trim();
+    const passageSource = $('#passageSource').value.trim();
+    
+    let passageHtmlContent = '';
+    if (passageTitle) passageHtmlContent += `<h3 style="font-weight:700;margin-bottom:12px">${passageTitle}</h3>`;
+    if (passageText) passageHtmlContent += `<p>${passageText}</p>`;
+    if (passageSource) passageHtmlContent += `<p style="font-style:italic;text-align:right;color:#666;margin-top:12px">${passageSource}</p>`;
+    // Image will be added in the final exercise generation if needed
+
+    const exercise = {
+      id, 
+      niveau, 
+      theme, 
+      titre, 
+      passage_html: passageHtmlContent,
+      passageImage: passageImageCloudinaryUrl // Store Cloudinary URL
+    };
+    
+    if (qcmQuestions.length > 0) {
+      exercise.qcm = qcmQuestions;
+    }
+    if (vfQuestions.length > 0) {
+      exercise.vf = vfQuestions;
+    }
+    
+    // Require at least one exercise type for CE
+    if (!exercise.qcm && !exercise.vf) {
+      $('#addInfo').textContent='Veuillez ajouter au moins des questions QCM ou Vrai/Faux.';
+      return;
+    }
+    
+    BANK.lecture.push(exercise);
+    
+  }else if(kind==='ecoute'){
+    const exercise = {id, niveau, theme, titre, audio: audioCloudinaryUrl}; // Use Cloudinary URL
+    
+    if (qcmQuestions.length > 0) {
+      exercise.qcm = qcmQuestions;
+    }
+    if (vfQuestions.length > 0) {
+      exercise.vf = vfQuestions;
+    }
+    if (clozeText) {
+      const pointsInputs = $$('.builder-cloze-blank-points');
+      const clozePoints = Array.from(pointsInputs).map(input => parseInt(input.value) || 1);
+      exercise.cloze = clozeText;
+      if (clozePoints.length > 0) exercise.cloze_points = clozePoints;
+    }
+    if (transText) {
+      exercise.transcription = transText;
+    }
+    
+    // Require at least one exercise type for CO
+    if (!exercise.qcm && !exercise.vf && !exercise.cloze) {
+      $('#addInfo').textContent='Veuillez ajouter au moins des questions QCM, Vrai/Faux, ou un exercice Cloze.';
+      return;
+    }
+    
+    BANK.ecoute.push(exercise);
+    
+  }else if(kind==='grammaire'){
+    if (qcmQuestions.length === 0) {
+      $('#addInfo').textContent='Veuillez ajouter au moins une question QCM pour Grammaire.';
+      return;
+    }
+    BANK.grammaire.push({id, niveau, theme, titre, questions: qcmQuestions});
+    
+  }else if(kind==='lexique'){
+    if (vfQuestions.length === 0) {
+      $('#addInfo').textContent='Veuillez ajouter au moins une question Vrai/Faux pour Lexique.';
+      return;
+    }
+    BANK.lexique.push({id, niveau, theme, titre, questions: vfQuestions});
+  }
+  
+  saveBankToStorage(); // This will trigger auto-save
+  
+  $('#addInfo').textContent='✓ Ajouté à la banque avec succès ! ' + (fileHandle ? '(Sauvegardé automatiquement)' : '(Pensez à télécharger questions.json)');
+  $('#addInfo').style.color = 'green';
+  setTimeout(() => {
+    $('#addInfo').textContent = '';
+    $('#addInfo').style.color = '';
+  }, 3000);
+  
+  $('#clozeText').value = '';
+  $('#transText').value = '';
+  $('#builderClozeBlanksConfig').style.display = 'none';
+  $('#qcmQuestions').innerHTML = '';
+  $('#vfQuestions').innerHTML = '';
+  qcmCounter = 0;
+  vfCounter = 0;
+  $('#passageTitle').value = '';
+  $('#passageText').value = '';
+  $('#passageSource').value = '';
+  $('#passageImagePreview').style.display = 'none';
+  $('#passageImagePreviewImg').src = '';
+  delete $('#passageImagePreviewImg').dataset.cloudinaryUrl; // Clear Cloudinary URL
+  $('#audio').value = ''; // Clear hidden audio input
+  $('#audioPreview').style.display = 'none';
+  $('#audioFileName').textContent = '';
+  $('#audioFilePath').textContent = '';
+  $('#audioUploadStatus').textContent = '';
+  $('#exerciseNumber').value = '';
+  $('#id').value = ''; // Clear ID field
+  
+  refreshInfo();
+}
+
+// Bulk import functions (original)
+function parseQCM(text){
+  const lines = text.split(/\r?\n/).map(s=>s.trim()).filter(Boolean);
+  return lines.map(line=>{
+    const parts = line.split(/\s*;\s*/);
+    return {
+      question:parts[0]||'', 
+      a:parts[1]||'', 
+      b:parts[2]||'', 
+      c:parts[3]||'', 
+      answer:(parts[4]||'').toLowerCase(),
+      points: parseInt(parts[5]) || 1
+    };
+  });
+}
+
+function parseVF(text){
+  const lines = text.split(/\r?\n/).map(s=>s.trim()).filter(Boolean);
+  return lines.map(line=>{
+    const parts = line.split(/\s*;\s*/);
+    const keywords = (parts[2]||'').split('|').map(s=>s.trim()).filter(Boolean);
+    return {
+      statement:parts[0]||'', 
+      answer:(parts[1]||'').toLowerCase(), 
+      keywords,
+      points: parseInt(parts[3]) || 1
+    };
+  });
+}
+
+function addBulkItem(){
+  const kind = $('#bulkKind').value;
+  const mode = $('#bulkMode').value;
+  const niveau = $('#bulkNiveau').value;
+  const theme = $('#bulkTheme').value.trim();
+  const titre = $('#bulkTitre').value.trim();
+  const id = ($('#bulkId').value.trim()) || `${kind}_${niveau}_${Date.now()}`;
+  if(!theme || !titre){ $('#bulkAddInfo').textContent='Veuillez saisir le Thème et le Titre.'; return; }
+
+  if(kind==='lecture'){
+    const title = $('#bulkPassageTitle').value.trim();
+    const text = $('#bulkPassageText').value.trim();
+    const source = $('#bulkPassageSource').value.trim();
+    
+    let passage = '';
+    if (title) passage += `<h3 style="font-weight:700;margin-bottom:12px">${title}</h3>`;
+    if (text) passage += `<p>${text}</p>`;
+    if (source) passage += `<p style="font-style:italic;text-align:right;color:#666;margin-top:12px">${source}</p>`;
+    
+    if(mode==='qcm'){
+      const qs = parseQCM($('#bulkQcmText').value);
+      BANK.lecture.push({id,niveau,theme,titre, passage_html:passage, qcm:qs});
+    }else if(mode==='vf'){
+      const qs = parseVF($('#bulkVfText').value);
+      BANK.lecture.push({id,niveau,theme,titre, passage_html:passage, vf:qs});
+    }else{
+      $('#bulkAddInfo').textContent='CE n\'admet pas Cloze.'; return;
+    }
+  }else if(kind==='ecoute'){
+    const audio = $('#bulkAudio').value.trim() || 'audio/ex1.mp3'; // This path might not be used if Cloudinary is active
+    if(mode==='qcm'){
+      const qs = parseQCM($('#bulkQcmText').value);
+      BANK.ecoute.push({id,niveau,theme,titre, audio, qcm:qs, transcription:''});
+    }else if(mode==='vf'){
+      const qs = parseVF($('#bulkVfText').value).map(x=>({statement:x.statement, answer:x.answer, points:x.points}));
+      BANK.ecoute.push({id,niveau,theme,titre, audio, vf:qs, transcription:''});
+    }else if(mode==='cloze'){
+      const cloze = $('#bulkClozeText').value;
+      const trans = $('#bulkTransText').value;
+      const pointsStr = $('#bulkClozePoints').value.trim();
+      const clozePoints = pointsStr ? pointsStr.split(',').map(p => parseInt(p.trim()) || 1) : [];
+      BANK.ecoute.push({id,niveau,theme,titre, audio, cloze:cloze, cloze_points:clozePoints, transcription:trans});
+    }
+  }else if(kind==='grammaire'){
+    const qs = parseQCM($('#bulkQcmText').value);
+    BANK.grammaire.push({id,niveau,theme,titre, questions:qs});
+  }else if(kind==='lexique'){
+    const qs = parseVF($('#bulkVfText').value);
+    BANK.lexique.push({id,niveau,theme,titre, questions:qs});
+  }
+  
+  saveBankToStorage(); // This will trigger auto-save
+  
+  $('#bulkAddInfo').textContent='✓ Ajouté à la banque. ' + (fileHandle ? '(Sauvegardé automatiquement)' : '(Pensez à télécharger questions.json)');
+  $('#bulkAddInfo').style.color = 'green';
+  setTimeout(() => {
+    $('#bulkAddInfo').textContent = '';
+    $('#bulkAddInfo').style.color = '';
+  }, 3000);
+  
+  // Reset bulk form fields
+  $('#bulkPassageTitle').value = '';
+  $('#bulkPassageText').value = '';
+  $('#bulkPassageSource').value = '';
+  $('#bulkQcmText').value = '';
+  $('#bulkVfText').value = '';
+  $('#bulkClozeText').value = '';
+  $('#bulkClozePoints').value = '';
+  $('#bulkTransText').value = '';
+  $('#bulkAudio').value = '';
+  $('#bulkId').value = '';
+  
+  refreshInfo();
+}
+
+function generateQuestionsJS() {
+  return `// Banque de questions - Version JavaScript pour fonctionnement sans serveur
+// Ce fichier est automatiquement généré par builder.html
+// Dernière mise à jour: ${new Date().toLocaleString('fr-FR')}
+
+window.questionsData = ${JSON.stringify(BANK, null, 2)};
+`;
+}
+
+function downloadEmptyQuestionsJson() {
+  const blob = new Blob([JSON.stringify({lecture:[], ecoute:[], grammaire:[], lexique:[]}, null, 2)], {type:'application/json'});
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = 'questions.json';
+  a.click();
+  URL.revokeObjectURL(a.href);
+}
+
+function downloadEmptyQuestionsJs() {
+  const jsContent = `// Banque de questions - Version JavaScript pour fonctionnement sans serveur
+// Ce fichier est automatiquement généré par builder.html
+// Dernière mise à jour: ${new Date().toLocaleString('fr-FR')}
+
+window.questionsData = {
+  "lecture": [],
+  "ecoute": [],
+  "grammaire": [],
+  "lexique": []
+};
+`;
+  const blob = new Blob([jsContent], {type:'text/javascript'});
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = 'questions.js';
+  a.click();
+  URL.revokeObjectURL(a.href);
+}
+
+function downloadJSON(){
+  const blob = new Blob([JSON.stringify(BANK, null, 2)], {type:'application/json'});
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = 'questions.json';
+  a.click();
+  URL.revokeObjectURL(a.href);
+}
+
+function downloadJS() {
+  const jsContent = generateQuestionsJS();
+  const blob = new Blob([jsContent], {type:'text/javascript'});
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = 'questions.js';
+  a.click();
+  URL.revokeObjectURL(a.href);
+  
+  alert('✓ Fichier questions.js téléchargé!\n\nPlacez ce fichier dans le dossier data/ pour que le site fonctionne hors ligne.');
+}
+
+function loadJSONFile(file){
+  const fr=new FileReader();
+  fr.onload = e=>{
+    try{ 
+      BANK = JSON.parse(e.target.result); 
+      saveBankToStorage(); // This will trigger auto-save if file is linked
+      refreshInfo(); 
+      $('#fileStatus').textContent = `Fichier chargé: ${file.name}`;
+    }
+    catch(err){ 
+      alert('JSON invalide'); 
+      $('#fileStatus').textContent = `Erreur: ${file.name} invalide`;
+    }
+  };
+  fr.readAsText(file,'utf-8');
+}
+
+function toggleBoxes(){
+  const kind=$('#kind').value;
+  $('#passageBox').classList.toggle('hidden', kind !== 'lecture');
+  $$('.ecoute-only').forEach(el=> el.style.display = (kind==='ecoute')?'block':'none');
+  
+  const clozeNote = $('#clozeFormBox').querySelector('.small');
+  if (clozeNote) {
+    clozeNote.style.display = kind === 'ecoute' ? 'block' : 'none';
+  }
+}
+
+function toggleBulkBoxes(){
+  const kind=$('#bulkKind').value, mode=$('#bulkMode').value;
+  $('#bulkQcmBox').classList.add('hidden'); 
+  $('#bulkVfBox').classList.add('hidden'); 
+  $('#bulkClozeBox').classList.add('hidden'); 
+  $('#bulkPassageBox').classList.add('hidden');
+  
+  if(kind==='lecture') $('#bulkPassageBox').classList.remove('hidden');
+  if(mode==='qcm') $('#bulkQcmBox').classList.remove('hidden');
+  if(mode==='vf') $('#bulkVfBox').classList.remove('hidden');
+  if(mode==='cloze') $('#bulkClozeBox').classList.remove('hidden');
+  $$('.bulk-ecoute-only').forEach(el=> el.style.display = (kind==='ecoute')?'block':'none');
+}
+
+
+function detectBuilderClozeBlanks() {
+  const clozeText = $('#clozeText').value;
+  const blanks = clozeText.match(/\[([^\]]+)\]/g);
+  
+  if (!blanks || blanks.length === 0) {
+    alert('Aucun trou détecté. Utilisez des [crochets] pour marquer les réponses.');
+    return;
+  }
+  
+  const config = $('#builderClozeBlanksConfig');
+  const list = $('#builderClozeBlankslist');
+  
+  list.innerHTML = blanks.map((blank, index) => {
+    const word = blank.replace(/[\[\]]/g, '');
+    return `
+      <div style="display:flex;align-items:center;gap:12px;padding:8px;background:#fff;border-radius:6px;margin-bottom:8px">
+        <span style="flex:1;font-weight:600">Trou ${index + 1}: <span style="color:var(--brand)">${word}</span></span>
+        <label style="margin:0;font-weight:600">Points:</label>
+        <input type="number" class="builder-cloze-blank-points" data-blank-index="${index}" value="1" min="1" style="width:80px;padding:8px;border:1px solid #ddd;border-radius:6px">
+      </div>
+    `;
+  }).join('');
+  
+  config.style.display = 'block';
+}
+
+function togglePassageType() {
+  const passageType = $('input[name="passageType"]:checked').value;
+  $('#passageTextBox').style.display = passageType === 'text' ? 'block' : 'none';
+  $('#passageImageBox').style.display = passageType === 'image' ? 'block' : 'none';
+}
+
+function handlePassageImageDrop(event) {
+  event.preventDefault();
+  const file = event.dataTransfer.files[0];
+  if (file && file.type.startsWith('image/')) {
+    handlePassageImageSelect({ target: { files: [file] } });
+  }
+}
+
+function handlePassageImageSelect(event) {
+  const file = event.target.files[0];
+  if (file && file.type.startsWith('image/')) {
+    const niveau = $('#niveau').value;
+    const theme = $('#theme').value.trim();
+    const exerciseNum = $('#exerciseNumber').value;
+    
+    if (!niveau || !theme || !exerciseNum) {
+      alert('Veuillez d\'abord remplir le Niveau, le Thème et le N° exercice avant d\'importer une image.');
+      return;
+    }
+    
+    const cleanTheme = theme.replace(/[^a-zA-Z0-9À-ÿ\s]/g, '').replace(/\s+/g, '_');
+    const originalExt = file.name.split('.').pop().toLowerCase();
+    const newFileName = `${niveau}_${cleanTheme}_Exo${exerciseNum}.${originalExt}`;
+    
+    const reader = new FileReader();
+    reader.onload = async e => {
+      $('#passageImagePreviewImg').src = e.target.result;
+      $('#passageImagePreview').style.display = 'block';
+      $('#imageUploadStatus').textContent = '⏳ Upload vers Cloudinary en cours...';
+      $('#imageUploadStatus').style.color = '#f59e0b';
+      
+      console.log('[v0] Uploading image to Cloudinary:', newFileName);
+      
+      try {
+        // Create a new file with the custom name
+        const renamedFile = new File([file], newFileName, { type: file.type });
+        const cloudinaryUrl = await uploadToCloudinary(renamedFile, 'image');
+        
+        console.log('[v0] Image uploaded to Cloudinary:', cloudinaryUrl);
+        
+        // Store the Cloudinary URL (it will be used when generating the exercise)
+        $('#passageImagePreviewImg').dataset.cloudinaryUrl = cloudinaryUrl;
+        
+        $('#imageUploadStatus').textContent = `✓ Image uploadée avec succès sur Cloudinary!`;
+        $('#imageUploadStatus').style.color = '#10b981';
+      } catch (err) {
+        console.error('[v0] Error uploading image to Cloudinary:', err);
+        $('#imageUploadStatus').textContent = '❌ Erreur lors de l\'upload vers Cloudinary';
+        $('#imageUploadStatus').style.color = '#ef4444';
+        alert('Erreur lors de l\'upload de l\'image vers Cloudinary. Vérifiez votre connexion internet.');
+      }
+    };
+    reader.readAsDataURL(file);
+  }
+}
+
+function removePassageImage() {
+  $('#passageImagePreview').style.display = 'none';
+  $('#passageImagePreviewImg').src = '';
+  delete $('#passageImagePreviewImg').dataset.cloudinaryUrl;
+}
+
+function handleAudioDrop(event) {
+  event.preventDefault();
+  const file = event.dataTransfer.files[0];
+  if (file && file.type.startsWith('audio/')) {
+    processAudioFile(file);
+  } else {
+    alert('Veuillez sélectionner un fichier audio valide (MP3, WAV, OGG)');
+  }
+}
+
+function handlePassageImageDrop(event) {
+  event.preventDefault();
+  const file = event.dataTransfer.files[0];
+  if (file && file.type.startsWith('image/')) {
+    handlePassageImageSelect({ target: { files: [file] } });
+  }
+}
+
+function handleAudioSelect(event) {
+  const file = event.target.files[0];
+  if (file && file.type.startsWith('audio/')) {
+    processAudioFile(file);
+  } else {
+    alert('Veuillez sélectionner un fichier audio valide (MP3, WAV, OGG)');
+  }
+}
+
+function processAudioFile(file) {
+  const niveau = $('#niveau').value;
+  const theme = $('#theme').value.trim();
+  const exerciseNum = $('#exerciseNumber').value;
+  
+  if (!niveau || !theme || !exerciseNum) {
+    alert('Veuillez d\'abord remplir le Niveau, le Thème et le N° exercice avant d\'importer un fichier audio.');
+    return;
+  }
+  
+  const cleanTheme = theme.replace(/[^a-zA-Z0-9À-ÿ\s]/g, '').replace(/\s+/g, '_');
+  const originalExt = file.name.split('.').pop().toLowerCase();
+  const newFileName = `${niveau}_${cleanTheme}_Exo${exerciseNum}.${originalExt}`;
+  
+  const reader = new FileReader();
+  reader.onload = async e => {
+    $('#audioPlayer').src = e.target.result;
+    $('#audioFileName').textContent = newFileName;
+    $('#audioFilePath').textContent = 'Chemin: Upload vers Cloudinary...';
+    $('#audioPreview').style.display = 'block';
+    $('#audioUploadStatus').textContent = '⏳ Upload vers Cloudinary en cours...';
+    $('#audioUploadStatus').style.color = '#f59e0b';
+    
+    console.log('[v0] Uploading audio to Cloudinary:', newFileName);
+    
+    try {
+      // Create a new file with the custom name
+      const renamedFile = new File([file], newFileName, { type: file.type });
+      const cloudinaryUrl = await uploadToCloudinary(renamedFile, 'video'); // 'video' for audio files
+      
+      console.log('[v0] Audio uploaded to Cloudinary:', cloudinaryUrl);
+      
+      // Store the Cloudinary URL in the hidden input
+      $('#audio').value = cloudinaryUrl;
+      $('#audioFilePath').textContent = `URL Cloudinary: ${cloudinaryUrl}`;
+      $('#audioUploadStatus').textContent = `✓ Fichier audio uploadé avec succès sur Cloudinary!`;
+      $('#audioUploadStatus').style.color = '#10b981';
+    } catch (err) {
+      console.error('[v0] Error uploading audio to Cloudinary:', err);
+      $('#audioUploadStatus').textContent = '❌ Erreur lors de l\'upload vers Cloudinary';
+      $('#audioUploadStatus').style.color = '#ef4444';
+      alert('Erreur lors de l\'upload du fichier audio vers Cloudinary. Vérifiez votre connexion internet.');
+    }
+  };
+  reader.readAsDataURL(file);
+}
+
+function removeAudio() {
+  $('#audioPreview').style.display = 'none';
+  $('#audioPlayer').src = '';
+  $('#audio').value = '';
+  $('#audioInput').value = '';
+}
+
+async function generateExercise() {
+  const niveau = $('#niveau').value;
+  const theme = $('#theme').value.trim();
+  const type = $('#kind').value; // Use 'kind' for discipline type
+  const difficulty = parseInt($('#difficulty').value);
+  const audio = $('#audio').value; // Cloudinary URL
+  const passageTitle = $('#passageTitle').value.trim();
+  const passageText = $('#passageText').value.trim();
+  const passageSource = $('#passageSource').value.trim();
+  const passageImage = $('#passageImagePreviewImg').dataset.cloudinaryUrl; // Cloudinary URL
+  const exerciseNum = $('#exerciseNumber').value;
+  const id = ($('#id').value.trim()) || `${type}_${niveau.toLowerCase()}_${theme.toLowerCase()}_${exerciseNum}_${Date.now()}`;
+  
+  if (!niveau || !theme || !type || !exerciseNum) {
+    alert('Veuillez remplir au moins le Niveau, le Thème, la Discipline et le N° exercice.');
+    return;
+  }
+
+  const cleanTheme = theme.replace(/[^a-zA-Z0-9À-ÿ\s]/g, '').replace(/\s+/g, '_');
+  
+  const exercise = {
+    id,
+    type,
+    niveau,
+    theme: cleanTheme, // Use cleaned theme
+    difficulty: difficulty || 1, // Default difficulty to 1
+    titre: `Exercice ${exerciseNum}`, // Default titre
+    audio: audio || undefined,
+    passage_html: '',
+    passageImage: passageImage || undefined
+  };
+
+  if (passageTitle || passageText || passageSource) {
+    let passageHtmlContent = '';
+    if (passageTitle) passageHtmlContent += `<h3 style="font-weight:700;margin-bottom:12px">${passageTitle}</h3>`;
+    if (passageText) passageHtmlContent += `<p>${passageText}</p>`;
+    if (passageSource) passageHtmlContent += `<p style="font-style:italic;text-align:right;color:#666;margin-top:12px">${passageSource}</p>`;
+    exercise.passage_html = passageHtmlContent;
+  }
+  
+  const qcmQuestions = collectQcmQuestions();
+  const vfQuestions = collectVfQuestions();
+  const clozeText = $('#clozeText').value.trim();
+  const transText = $('#transText').value.trim();
+
+  if (type === 'lecture') {
+    if (qcmQuestions.length > 0) exercise.qcm = qcmQuestions;
+    if (vfQuestions.length > 0) exercise.vf = vfQuestions;
+    if (!exercise.qcm && !exercise.vf) {
+      alert('Pour CE, veuillez ajouter au moins des questions QCM ou Vrai/Faux.');
+      return;
+    }
+  } else if (type === 'ecoute') {
+    if (qcmQuestions.length > 0) exercise.qcm = qcmQuestions;
+    if (vfQuestions.length > 0) exercise.vf = vfQuestions;
+    if (clozeText) {
+      exercise.cloze = clozeText;
+      const pointsInputs = $$('.builder-cloze-blank-points');
+      const clozePoints = Array.from(pointsInputs).map(input => parseInt(input.value) || 1);
+      if (clozePoints.length > 0) exercise.cloze_points = clozePoints;
+    }
+    if (transText) exercise.transcription = transText;
+    
+    if (!exercise.qcm && !exercise.vf && !exercise.cloze) {
+      alert('Pour CO, veuillez ajouter au moins des questions QCM, Vrai/Faux, ou un exercice Cloze.');
+      return;
+    }
+  } else if (type === 'grammaire') {
+    if (qcmQuestions.length === 0) {
+      alert('Pour Grammaire, veuillez ajouter au moins une question QCM.');
+      return;
+    }
+    exercise.questions = qcmQuestions;
+  } else if (type === 'lexique') {
+    if (vfQuestions.length === 0) {
+      alert('Pour Lexique, veuillez ajouter au moins une question Vrai/Faux.');
+      return;
+    }
+    exercise.questions = vfQuestions;
+  }
+
+  return exercise;
+}
+
+
+// Event listeners
+$('#addItem').addEventListener('click', addItem);
+$('#addBulkItem').addEventListener('click', addBulkItem);
+$('#downloadJson').addEventListener('click', downloadJSON);
+$('#downloadJs').addEventListener('click', downloadJS);
+$('#linkToFile').addEventListener('click', linkToFile);
+// Removed folder linking listeners
+$('#newBank').addEventListener('click', ()=>{ 
+  BANK={lecture:[],ecoute:[], grammaire:[], lexique:[]}; 
+  saveBankToStorage();
+  localStorage.removeItem('fileHandleLinked');
+  localStorage.removeItem('fileHandleJsLinked');
+  // No need to remove audio/image folder items
+  fileHandle = null;
+  fileHandleJs = null;
+  // audioFolderHandle = null; // Not used
+  // imageFolderHandle = null; // Not used
+  $('#autoSaveStatus').style.display = 'none';
+  $('#linkedFileStatus').style.display = 'none';
+  $('#fileStatus').textContent = '';
+  refreshInfo(); 
+});
+$('#pickJson').addEventListener('change', e=>{ const f=e.target.files[0]; if(f) loadJSONFile(f); });
+$('#kind').addEventListener('change', toggleBoxes);
+$('#bulkKind').addEventListener('change', toggleBulkBoxes);
+$('#bulkMode').addEventListener('change', toggleBulkBoxes);
+
+$('#addQcmQuestion').addEventListener('click', addQcmQuestionForm);
+$('#addVfQuestion').addEventListener('click', addVfQuestionForm);
+
+// Listen for changes to update filename suggestions
+$('#niveau').addEventListener('input', updateFilenameSuggestions);
+$('#theme').addEventListener('input', updateFilenameSuggestions);
+$('#exerciseNumber').addEventListener('input', updateFilenameSuggestions);
+
+// Initial load and setup
+loadBankFromStorage();
+toggleBoxes(); // Only toggle discipline-specific boxes
+toggleBulkBoxes();
+refreshInfo();
+
+function updateQcmAnswerDropdown(questionId) {
+  const questionDiv = document.querySelector(`[data-qcm-id="${questionId}"]`);
+  if (!questionDiv) return;
+  
+  const container = questionDiv.querySelector('.qcm-options-container');
+  const options = container.querySelectorAll(':scope > div[data-option-letter]');
+  const dropdown = questionDiv.querySelector('.qcm-answer');
+  
+  if (!dropdown) return;
+  
+  // Store current selection
+  const currentValue = dropdown.value;
+  
+  // Clear and rebuild dropdown
+  dropdown.innerHTML = '';
+  options.forEach(optionDiv => {
+    const letter = optionDiv.dataset.optionLetter;
+    const option = document.createElement('option');
+    option.value = letter;
+    option.textContent = letter.toUpperCase();
+    dropdown.appendChild(option);
+  });
+  
+  // Restore selection if still valid
+  if (currentValue && dropdown.querySelector(`option[value="${currentValue}"]`)) {
+    dropdown.value = currentValue;
+  }
+}
+</script>
+</body>
+</html>

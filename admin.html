@@ -1,0 +1,2423 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Panneau d'administration</title>
+<style>
+:root{--brand:#2b5;--ink:#222;--muted:#666;--bg:#f7f7f7;--card:#fff;--success:#4caf50;--warning:#ff9800;--error:#d32f2f}
+html,body{margin:0;padding:0;background:var(--bg);color:var(--ink);font-family:system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif}
+header{background:var(--brand);color:#fff;padding:16px 20px;display:flex;justify-content:space-between;align-items:center}
+h1{margin:0;font-size:1.3rem}
+.logout-btn{background:rgba(255,255,255,.2);border:1px solid rgba(255,255,255,.3);color:#fff;padding:8px 12px;border-radius:8px;cursor:pointer;font-weight:600}
+main{max-width:1200px;margin:24px auto;padding:0 16px 48px}
+.tabs{display:flex;gap:8px;margin-bottom:20px;border-bottom:2px solid #e0e0e0}
+.tab-btn{background:none;border:none;padding:12px 16px;cursor:pointer;font-weight:600;color:var(--muted);border-bottom:3px solid transparent;transition:all .2s}
+.tab-btn.active{color:var(--brand);border-bottom-color:var(--brand)}
+.tab-content{display:none}
+.tab-content.active{display:block}
+.card{background:var(--card);border-radius:14px;box-shadow:0 6px 18px rgba(0,0,0,.05);padding:20px;margin-bottom:20px}
+h2{margin:0 0 16px;font-size:1.1rem}
+.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(250px,1fr));gap:16px;margin-bottom:20px}
+.stat-box{background:linear-gradient(135deg,var(--brand),#1a9d4d);color:#fff;padding:20px;border-radius:12px;text-align:center}
+.stat-value{font-size:1.8rem;font-weight:700;margin:8px 0}
+.stat-label{font-size:.9rem;opacity:.9}
+.form-group{margin-bottom:16px}
+label{display:block;margin-bottom:6px;font-weight:600}
+input,select,textarea{width:100%;padding:10px;border:1px solid #ddd;border-radius:8px;font-size:.95rem;box-sizing:border-box}
+textarea{min-height:100px}
+.btns{display:flex;gap:10px;flex-wrap:wrap;margin-top:16px}
+button{border:0;padding:10px 16px;border-radius:8px;cursor:pointer;font-weight:600;font-size:.95rem;transition:all .2s}
+.btn-primary{background:var(--brand);color:#fff}
+.btn-primary:hover{opacity:.9}
+.btn-secondary{background:#e0e0e0;color:#111}
+.btn-secondary:hover{background:#d0d0d0}
+.btn-danger{background:var(--error);color:#fff}
+.btn-danger:hover{opacity:.9}
+.table-container{overflow-x:auto}
+table{width:100%;border-collapse:collapse;margin-top:16px}
+th,td{padding:12px;text-align:left;border-bottom:1px solid #e0e0e0}
+th{background:#f5f5f5;font-weight:600}
+tr:hover{background:#f9f9f9}
+.badge{display:inline-block;padding:4px 8px;border-radius:6px;font-size:.85rem;font-weight:600}
+.badge-lecture{background:#e3f2fd;color:#1976d2}
+.badge-ecoute{background:#f3e5f5;color:#7b1fa2}
+.badge-a1{background:#c8e6c9;color:#2e7d32}
+.badge-a2{background:#bbdefb;color:#1565c0}
+.badge-b1{background:#ffe0b2;color:#e65100}
+.badge-b2{background:#ffccbc;color:#d84315}
+.badge-c1{background:#f8bbd0;color:#c2185b}
+.badge-c2{background:#e1bee7;color:#6a1b9a}
+.action-btns{display:flex;gap:6px}
+.action-btns button{padding:6px 10px;font-size:.85rem}
+.empty-state{text-align:center;padding:40px 20px;color:var(--muted)}
+.success-msg{background:#e8f5e9;color:var(--success);padding:12px;border-radius:8px;margin-bottom:16px;display:none}
+.error-msg{background:#ffebee;color:var(--error);padding:12px;border-radius:8px;margin-bottom:16px;display:none}
+.chart-container{margin-top:24px}
+.chart-title{font-size:1rem;font-weight:600;margin-bottom:12px;color:var(--ink)}
+.chart-canvas{width:100%;height:250px;border:1px solid #e0e0e0;border-radius:8px;background:#fff}
+.modal{display:none;position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,.5);z-index:1000;overflow-y:auto}
+.modal.active{display:flex;align-items:center;justify-content:center;padding:20px}
+.modal-content{background:#fff;border-radius:16px;max-width:900px;width:100%;max-height:90vh;overflow-y:auto;box-shadow:0 10px 40px rgba(0,0,0,.2)}
+.modal-header{padding:20px;border-bottom:2px solid #e0e0e0;display:flex;justify-content:space-between;align-items:center}
+.modal-header h2{margin:0;font-size:1.3rem}
+.modal-close{background:none;border:none;font-size:1.5rem;cursor:pointer;color:#666;padding:0;width:32px;height:32px;border-radius:50%;display:flex;align-items:center;justify-content:center}
+.modal-close:hover{background:#f0f0f0}
+.modal-body{padding:20px}
+.user-info{background:#f5f5f5;padding:16px;border-radius:8px;margin-bottom:20px}
+.user-info p{margin:6px 0}
+.attempts-list{margin-top:20px}
+.attempt-item{background:#f9f9f9;padding:12px;border-radius:8px;margin-bottom:10px;display:flex;justify-content:space-between;align-items:center}
+.attempt-date{font-size:.85rem;color:#666}
+.attempt-score{font-weight:700;color:var(--brand)}
+/* Added styles for creator tabs */
+.tab-btn-creator.active {
+  color: var(--brand);
+  border-bottom-color: var(--brand);
+}
+/* START NEW STYLES */
+:root {
+  --brand: #22bb55;
+  --brand-dark: #1a9d4d;
+  --danger: #e74c3c;
+  --warning: #f39c12;
+  --info: #3498db;
+  --bg: #f4f6f9;
+  --card: #fff;
+  --text: #2c3e50;
+  --muted: #7f8c8d;
+  --border: #dfe6e9;
+  --success: #27ae60;
+}
+* { box-sizing: border-box; }
+body {
+  margin: 0;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  background: var(--bg);
+  color: var(--text);
+}
+header {
+  background: var(--brand);
+  color: #fff;
+  padding: 16px 24px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+}
+h1 {
+  margin: 0;
+  font-size: 1.5rem;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+/* Updated user-info and logout button styles for better visibility */
+.user-info{
+  display:flex;
+  flex-direction:column;
+  align-items:flex-end;
+  gap:4px;
+  background:#fff;
+  padding:12px 16px;
+  border-radius:8px;
+}
+.user-name{
+  font-weight:600;
+  color:#22c55e;
+  font-size:.95rem;
+}
+.user-email{
+  font-size:.85rem;
+  color:#444;
+}
+.logout-btn{
+  background:#22c55e;
+  border:none;
+  color:#fff;
+  padding:6px 12px;
+  border-radius:6px;
+  cursor:pointer;
+  font-weight:600;
+  font-size:.85rem;
+  margin-top:4px;
+  transition:all .2s;
+}
+.logout-btn:hover{
+  background:#1ea34a;
+}
+/* END NEW STYLES */
+</style>
+</head>
+<body>
+<header>
+  <h1>
+    <span>🎓</span>
+    Entraînement au français - <em>espace numérique</em> | Admin
+  </h1>
+  <div class="user-info">
+    <span class="user-name" id="adminUserName">Admin</span>
+    <span class="user-email" id="adminUserEmail"></span>
+    <button class="logout-btn" id="logoutBtn">Déconnexion</button>
+  </div>
+</header>
+
+<main>
+  <div class="tabs">
+    <button class="tab-btn active" onclick="switchTab('dashboard')">Tableau de bord</button>
+    <button class="tab-btn" onclick="switchTab('exercises')">Exercices</button>
+    <button class="tab-btn" onclick="switchTab('users')">Utilisateurs</button>
+    <button class="tab-btn" onclick="switchTab('builder')">Créateur</button>
+    <!-- Added new tabs for resources and chat -->
+    <button class="tab-btn" onclick="switchTab('resources')">Ressources externes</button>
+    <button class="tab-btn" onclick="switchTab('chat')">Messages</button>
+  </div>
+
+  <!-- Dashboard Tab -->
+  <div id="dashboard" class="tab-content active">
+    <div class="card">
+      <h2>Statistiques globales</h2>
+      <div class="grid">
+        <div class="stat-box">
+          <div class="stat-label">Utilisateurs</div>
+          <div class="stat-value" id="totalUsers">0</div>
+        </div>
+        <div class="stat-box">
+          <div class="stat-label">Exercices</div>
+          <div class="stat-value" id="totalExercises">0</div>
+        </div>
+        <div class="stat-box">
+          <div class="stat-label">Tentatives</div>
+          <div class="stat-value" id="totalAttempts">0</div>
+        </div>
+        <div class="stat-box">
+          <div class="stat-label">Score moyen</div>
+          <div class="stat-value" id="avgScore">0%</div>
+        </div>
+      </div>
+      <!-- Added progress charts for admin dashboard -->
+      <div class="chart-container">
+        <div class="chart-title">Activité des étudiants (derniers 30 jours)</div>
+        <canvas id="adminActivityChart" class="chart-canvas"></canvas>
+      </div>
+      <div class="chart-container">
+        <div class="chart-title">Performance par niveau CECRL</div>
+        <canvas id="adminLevelChart" class="chart-canvas"></canvas>
+      </div>
+    </div>
+
+    <div class="card">
+      <h2>Activité récente</h2>
+      <div id="recentActivity" class="empty-state">Aucune activité</div>
+    </div>
+  </div>
+
+  <!-- Exercises Tab -->
+  <div id="exercises" class="tab-content">
+    <div class="card">
+      <h2>Gestion des exercices</h2>
+      <div class="table-container">
+        <table id="exercisesTable">
+          <thead>
+            <tr>
+              <th>Titre</th>
+              <th>Type</th>
+              <th>Niveau</th>
+              <th>Thème</th>
+              <th>Questions</th>
+              <th>Actions</th>
+            </tr>
+          </thead>
+          <tbody id="exercisesBody">
+            <tr><td colspan="6" class="empty-state">Aucun exercice</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <!-- Users Tab -->
+  <div id="users" class="tab-content">
+    <div class="card">
+      <h2>Gestion des utilisateurs</h2>
+      <div class="table-container">
+        <table id="usersTable">
+          <thead>
+            <tr>
+              <th>Nom</th>
+              <th>Email</th>
+              <th>Rôle</th>
+              <th>Leçons complétées</th>
+              <th>Score moyen</th>
+              <th>Actions</th>
+            </tr>
+          </thead>
+          <tbody id="usersBody">
+            <tr><td colspan="6" class="empty-state">Aucun utilisateur</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <!-- Builder Tab -->
+  <div id="builder" class="tab-content">
+    <div class="card">
+      <h2>Importer/Exporter la banque</h2>
+      <div class="btns">
+        <input type="file" id="importBank" accept=".json" style="display:none">
+        <button class="btn-primary" onclick="document.getElementById('importBank').click()">Importer JSON</button>
+        <button class="btn-secondary" onclick="exportBank()">Exporter JSON</button>
+        <button class="btn-secondary" onclick="loadDefaultBank()">Charger exemple</button>
+      </div>
+      <div id="importMsg" class="success-msg"></div>
+      <div id="importError" class="error-msg"></div>
+    </div>
+
+    <div class="card">
+      <h2>Ajouter un exercice</h2>
+      
+      <!-- Added tab interface like builder.html -->
+      <div style="display:flex;gap:8px;margin-bottom:16px;border-bottom:2px solid #e0e0e0">
+        <button class="tab-btn-creator active" onclick="switchCreatorTab('form')" style="background:none;border:none;padding:12px 16px;cursor:pointer;font-weight:600;color:#666;border-bottom:3px solid transparent;transition:all .2s">Formulaire (Recommandé)</button>
+        <button class="tab-btn-creator" onclick="switchCreatorTab('bulk')" style="background:none;border:none;padding:12px 16px;cursor:pointer;font-weight:600;color:#666;border-bottom:3px solid transparent;transition:all .2s">Importation en masse</button>
+      </div>
+
+      <!-- Form-based interface (new) -->
+      <div id="creatorFormTab">
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px">
+          <div>
+            <label>Type</label>
+            <select id="addType" onchange="updateAddForm()">
+              <!-- Changed display text from Lecture to CE and Écoute to CO -->
+              <option value="lecture">CE</option>
+              <option value="ecoute">CO</option>
+              <!-- Added new types -->
+              <option value="grammaire">Grammaire</option>
+              <option value="lexique">Lexique</option>
+            </select>
+          </div>
+          <div>
+            <label>Niveau</label>
+            <select id="addLevel">
+              <option>A1</option><option>A2</option><option>B1</option><option>B2</option><option>C1</option><option>C2</option>
+            </select>
+          </div>
+          <div>
+            <label>Thème</label>
+            <input id="addTheme" placeholder="ex. Salutations">
+          </div>
+          <div>
+            <label>Titre</label>
+            <input id="addTitle" placeholder="ex. Leçon 01">
+          </div>
+        </div>
+
+        <div id="addFormContent"></div>
+
+        <!-- Added question containers for form interface -->
+        <div id="formQcmBox" style="display:none">
+          <h3 style="margin:16px 0 8px;font-size:1.1rem">Questions QCM</h3>
+          <div id="formQcmQuestions"></div>
+          <button class="btn-secondary" onclick="addFormQcmQuestion()">+ Ajouter une question QCM</button>
+        </div>
+
+        <div id="formVfBox" style="display:none">
+          <h3 style="margin:16px 0 8px;font-size:1.1rem">Questions Vrai/Faux</h3>
+          <div id="formVfQuestions"></div>
+          <button class="btn-secondary" onclick="addFormVfQuestion()">+ Ajouter une question Vrai/Faux</button>
+        </div>
+        
+        <!-- CHANGE: Added interactive Cloze builder with automatic blank detection -->
+        <div id="formClozeBox" style="display:none">
+          <h3 style="margin:16px 0 8px;font-size:1.1rem">Exercice Cloze</h3>
+          
+          <div style="background:#f9f9f9;padding:16px;border-radius:8px;border:1px solid #e0e0e0">
+            <label>Texte avec trous (entourez les réponses avec [crochets])</label>
+            <textarea id="formClozeText" placeholder="Exemple: Je vais au [marché] à [10h]." style="width:100%;padding:10px;border:1px solid #ddd;border-radius:8px;font-size:.95rem;box-sizing:border-box;min-height:100px;margin-bottom:12px"></textarea>
+            
+            <button class="btn-secondary" onclick="detectClozeBlanks()" style="margin-bottom:12px">🔍 Détecter les trous et configurer les points</button>
+            
+            <div id="clozeBlanksConfig" style="display:none;margin-top:12px">
+              <h4 style="margin:8px 0;font-size:1rem;color:var(--brand)">Configuration des points par trou</h4>
+              <div id="clozeBlankslist"></div>
+            </div>
+            
+            <div style="margin-top:12px">
+              <label>Transcription (affichée après soumission)</label>
+              <textarea id="formClozeTranscription" placeholder="Entrez la transcription complète..." style="width:100%;padding:10px;border:1px solid #ddd;border-radius:8px;font-size:.95rem;box-sizing:border-box;min-height:80px"></textarea>
+            </div>
+          </div>
+        </div>
+
+        <div class="btns">
+          <button class="btn-primary" onclick="addExercise()">Ajouter exercice</button>
+          <button class="btn-secondary" id="cancelEditBtn" onclick="cancelEdit()" style="display:none">Annuler</button>
+        </div>
+      </div>
+
+      <!-- Bulk import interface (original, now in separate tab) -->
+      <div id="creatorBulkTab" style="display:none">
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px">
+          <div>
+            <label>Type</label>
+            <select id="bulkType" onchange="updateBulkForm()">
+              <!-- Changed display text from Lecture to CE and Écoute to CO -->
+              <option value="lecture">CE</option>
+              <option value="ecoute">CO</option>
+              <!-- Added new types -->
+              <option value="grammaire">Grammaire</option>
+              <option value="lexique">Lexique</option>
+            </select>
+          </div>
+          <div>
+            <label>Niveau</label>
+            <select id="bulkLevel">
+              <option>A1</option><option>A2</option><option>B1</option><option>B2</option><option>C1</option><option>C2</option>
+            </select>
+          </div>
+          <div>
+            <label>Thème</label>
+            <input id="bulkTheme" placeholder="ex. Salutations">
+          </div>
+          <div>
+            <label>Titre</label>
+            <input id="bulkTitle" placeholder="ex. Leçon 01">
+          </div>
+        </div>
+
+        <div id="bulkFormContent"></div>
+
+        <div class="btns">
+          <button class="btn-primary" onclick="addBulkExercise()">Ajouter exercice</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Resources Tab -->
+  <div id="resources" class="tab-content">
+    <div class="card">
+      <h2>Ajouter une ressource externe</h2>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px">
+        <div>
+          <label>Titre</label>
+          <input id="resourceTitle" placeholder="ex. Vidéo YouTube - Les salutations">
+        </div>
+        <div>
+          <label>Niveau</label>
+          <select id="resourceLevel">
+            <option>A1</option><option>A2</option><option>B1</option><option>B2</option><option>C1</option><option>C2</option>
+          </select>
+        </div>
+      </div>
+      <div class="form-group">
+        <label>URL</label>
+        <input id="resourceUrl" placeholder="https://www.youtube.com/watch?v=...">
+      </div>
+      <div class="form-group">
+        <label>Description</label>
+        <textarea id="resourceDescription" placeholder="Courte description de la ressource..."></textarea>
+      </div>
+      <div class="form-group">
+        <label>Type</label>
+        <select id="resourceType">
+          <option value="video">Vidéo</option>
+          <option value="article">Article</option>
+          <option value="exercice">Exercice interactif</option>
+          <option value="audio">Audio/Podcast</option>
+          <option value="autre">Autre</option>
+        </select>
+      </div>
+      <div class="btns">
+        <button class="btn-primary" onclick="addResource()">Ajouter ressource</button>
+        <button class="btn-secondary" id="cancelResourceBtn" onclick="cancelResourceEdit()" style="display:none">Annuler</button>
+      </div>
+    </div>
+
+    <div class="card">
+      <h2>Ressources externes disponibles</h2>
+      <div class="table-container">
+        <table id="resourcesTable">
+          <thead>
+            <tr>
+              <th>Titre</th>
+              <th>Type</th>
+              <th>Niveau</th>
+              <th>URL</th>
+              <th>Actions</th>
+            </tr>
+          </thead>
+          <tbody id="resourcesBody">
+            <tr><td colspan="5" class="empty-state">Aucune ressource</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <!-- Chat Tab -->
+  <div id="chat" class="tab-content">
+    <div class="card">
+      <h2>Messages des étudiants</h2>
+      <div style="display:flex;gap:16px;height:500px">
+        <div style="flex:1;border:1px solid #e0e0e0;border-radius:8px;overflow-y:auto;padding:16px" id="chatUsersList">
+          <div class="empty-state">Aucun message</div>
+        </div>
+        <div style="flex:2;border:1px solid #e0e0e0;border-radius:8px;display:flex;flex-direction:column">
+          <div id="chatMessagesArea" style="flex:1;overflow-y:auto;padding:16px;background:#f9f9f9">
+            <div class="empty-state">Sélectionnez un étudiant pour voir la conversation</div>
+          </div>
+          <div style="padding:16px;border-top:1px solid #e0e0e0;background:#fff">
+            <textarea id="adminMessageInput" placeholder="Tapez votre message..." style="width:100%;padding:10px;border:1px solid #ddd;border-radius:8px;font-size:.95rem;box-sizing:border-box;min-height:60px;margin-bottom:8px" disabled></textarea>
+            <div style="display:flex;gap:8px">
+              <button class="btn-primary" onclick="sendAdminMessage()" disabled id="sendMessageBtn">Envoyer</button>
+              <!-- Added delete chat history button for admin -->
+              <button class="btn-danger" onclick="deleteAdminChatHistory()" disabled id="deleteChatBtn">Supprimer l'historique</button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</main>
+
+<!-- Added modal for viewing user statistics -->
+<div id="userStatsModal" class="modal">
+  <div class="modal-content">
+    <div class="modal-header">
+      <h2>Statistiques de l'étudiant</h2>
+      <button class="modal-close" onclick="closeUserStatsModal()">×</button>
+    </div>
+    <div class="modal-body">
+      <div class="user-info" id="modalUserInfo"></div>
+      
+      <div class="card">
+        <h2>Résumé des performances</h2>
+        <div class="grid">
+          <div class="stat-box">
+            <div class="stat-label">Leçons complétées</div>
+            <div class="stat-value" id="modalCompletedLessons">0</div>
+          </div>
+          <div class="stat-box">
+            <div class="stat-label">Score moyen</div>
+            <div class="stat-value" id="modalAvgScore">0%</div>
+          </div>
+          <div class="stat-box">
+            <div class="stat-label">Total tentatives</div>
+            <div class="stat-value" id="modalTotalAttempts">0</div>
+          </div>
+          <div class="stat-box">
+            <div class="stat-label">Points totaux</div>
+            <div class="stat-value" id="modalTotalPoints">0</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="card">
+        <h2>Historique des tentatives</h2>
+        <div id="modalAttemptsList" class="attempts-list"></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script src="lib/stats.js"></script>
+<script>
+const $ = s => document.querySelector(s);
+const $$ = s => [...document.querySelectorAll(s)];
+const AUTH_KEY = 'fr_auth_user';
+const BANK_KEY = 'fr_bank_data';
+const USERS_KEY = 'fr_users_db';
+
+let currentUser = null;
+let bank = null;
+let editingExerciseId = null;
+
+// Added counters and reset for form questions
+let formQcmCounter = 0;
+let formVfCounter = 0;
+
+// Added variables for resource and chat management
+let editingResourceId = null;
+let selectedChatUserId = null;
+
+// Added variables for new QCM and passage features
+let passageImageData = null;
+let optionCounter = {};
+
+function checkAuth() {
+  const auth = localStorage.getItem(AUTH_KEY);
+  if (!auth) {
+    window.location.href = 'login.html';
+    return;
+  }
+  currentUser = JSON.parse(auth);
+  if (currentUser.role !== 'admin') {
+    alert('Accès refusé');
+    window.location.href = 'dashboard.html';
+    return;
+  }
+  $('#adminUserName').textContent = currentUser.name + ' (Admin)';
+  $('#adminUserEmail').textContent = currentUser.email;
+}
+
+function loadBank() {
+  const stored = localStorage.getItem(BANK_KEY);
+  if (stored) {
+    bank = JSON.parse(stored);
+  } else {
+    bank = { lecture: [], ecoute: [], grammaire: [], lexique: [] }; // Initialize all types
+  }
+}
+
+function switchTab(tabName) {
+  $$('.tab-content').forEach(t => t.classList.remove('active'));
+  $$('.tab-btn').forEach(b => b.classList.remove('active'));
+  $(`#${tabName}`).classList.add('active');
+  event.target.classList.add('active');
+
+  if (tabName === 'dashboard') updateDashboard();
+  if (tabName === 'exercises') updateExercisesTable();
+  if (tabName === 'users') updateUsersTable();
+  if (tabName === 'resources') updateResourcesTable();
+  if (tabName === 'chat') loadChatUsers();
+}
+
+function updateDashboard() {
+  const users = JSON.parse(localStorage.getItem(USERS_KEY) || '[]').filter(u => u.role === 'student');
+  const allStats = JSON.parse(localStorage.getItem('fr_stats_db') || '{}');
+
+  let totalAttempts = 0;
+  let totalScore = 0;
+  let attemptCount = 0;
+
+  Object.values(allStats).forEach(userStats => {
+    Object.values(userStats).forEach(lesson => {
+      if (lesson.attempts) {
+        totalAttempts += lesson.attempts.length;
+        lesson.attempts.forEach(a => {
+          totalScore += a.percentage;
+          attemptCount++;
+        });
+      }
+    });
+  });
+
+  $('#totalUsers').textContent = users.length;
+  $('#totalExercises').textContent = (bank.lecture?.length || 0) + (bank.ecoute?.length || 0) + (bank.grammaire?.length || 0) + (bank.lexique?.length || 0);
+  $('#totalAttempts').textContent = totalAttempts;
+  $('#avgScore').textContent = attemptCount > 0 ? Math.round(totalScore / attemptCount) + '%' : '0%';
+
+  setTimeout(() => {
+    drawAdminActivityChart();
+    drawAdminLevelChart();
+  }, 100);
+}
+
+function updateExercisesTable() {
+  const tbody = $('#exercisesBody');
+  const allExercises = [
+    ...(bank.lecture || []).map(e => ({ ...e, type: 'lecture' })), 
+    ...(bank.ecoute || []).map(e => ({ ...e, type: 'ecoute' })),
+    ...(bank.grammaire || []).map(e => ({ ...e, type: 'grammaire' })),
+    ...(bank.lexique || []).map(e => ({ ...e, type: 'lexique' }))
+  ];
+
+  if (allExercises.length === 0) {
+    tbody.innerHTML = '<tr><td colspan="6" class="empty-state">Aucun exercice</td></tr>';
+    return;
+  }
+
+  tbody.innerHTML = allExercises.map(ex => {
+    const qCount = (ex.qcm?.length || 0) + (ex.vf?.length || 0) + (ex.cloze ? 1 : 0);
+    let typeLabel = 'CE';
+    let typeClass = 'badge-lecture';
+    if (ex.type === 'ecoute') { typeLabel = 'CO'; typeClass = 'badge-ecoute'; }
+    else if (ex.type === 'grammaire') { typeLabel = 'Grammaire'; typeClass = 'badge-lecture'; } // Reusing style or add new one
+    else if (ex.type === 'lexique') { typeLabel = 'Lexique'; typeClass = 'badge-ecoute'; }
+
+    const levelClass = 'badge-' + (ex.niveau || 'a1').toLowerCase();
+
+    return `
+      <tr>
+        <td>${ex.titre}</td>
+        <td><span class="badge ${typeClass}">${typeLabel}</span></td>
+        <td><span class="badge ${levelClass}">${ex.niveau}</span></td>
+        <td>${ex.theme}</td>
+        <td>${qCount}</td>
+        <td>
+          <div class="action-btns">
+            <button class="btn-secondary" onclick="editExercise('${ex.id}')">Éditer</button>
+            <button class="btn-danger" onclick="deleteExercise('${ex.id}', '${ex.type}')">Supprimer</button>
+          </div>
+        </td>
+      </tr>
+    `;
+  }).join('');
+}
+
+function deleteExercise(id, type) {
+  if (!confirm('Êtes-vous sûr de vouloir supprimer cet exercice ?')) return;
+  let arr;
+  if (type === 'lecture') arr = bank.lecture;
+  else if (type === 'ecoute') arr = bank.ecoute;
+  else if (type === 'grammaire') arr = bank.grammaire;
+  else if (type === 'lexique') arr = bank.lexique;
+  
+  const idx = arr.findIndex(e => e.id === id);
+  if (idx >= 0) {
+    arr.splice(idx, 1);
+    saveBank();
+    updateExercisesTable();
+  }
+}
+
+function exportBank() {
+  const blob = new Blob([JSON.stringify(bank, null, 2)], { type: 'application/json' });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = 'questions.json';
+  a.click();
+  URL.revokeObjectURL(a.href);
+}
+
+function loadDefaultBank() {
+  const defaultBank = {
+    lecture: [
+      {
+        id: 'lec_a1_01',
+        niveau: 'A1',
+        theme: 'Salutations',
+        titre: 'Bonjour !',
+        passage_html: '<p>Bonjour, je m\'appelle Jean. Comment allez-vous ?</p>',
+        qcm: [{ question: 'Comment s\'appelle la personne ?', a: 'Jean', b: 'Marie', c: 'Pierre', answer: 'a', points: 2 }],
+        vf: [{ statement: 'La personne s\'appelle Jean.', answer: 'vrai', keywords: ['Jean'], points: 1 }]
+      }
+    ],
+    ecoute: [
+      {
+        id: 'eco_a1_01',
+        niveau: 'A1',
+        theme: 'Salutations',
+        titre: 'Écoute simple',
+        audio: 'audio/sample.mp3',
+        qcm: [{ question: 'Quel est le sujet ?', a: 'Salutations', b: 'Nourriture', c: 'Voyage', answer: 'a', points: 2 }],
+        cloze: 'Bonjour, je m\'appelle [Jean].',
+        transcription: 'Bonjour, je m\'appelle Jean.',
+        clozePoints: [2]
+      }
+    ],
+    grammaire: [],
+    lexique: []
+  };
+
+  bank = defaultBank;
+  saveBank();
+  updateExercisesTable();
+  alert('Banque par défaut chargée !');
+}
+
+function switchCreatorTab(tab) {
+  $$('.tab-btn-creator').forEach(btn => {
+    btn.classList.remove('active');
+    btn.style.color = '#666';
+    btn.style.borderBottomColor = 'transparent';
+  });
+  
+  event.target.classList.add('active');
+  event.target.style.color = 'var(--brand)';
+  event.target.style.borderBottomColor = 'var(--brand)';
+  
+  if (tab === 'form') {
+    $('#creatorFormTab').style.display = 'block';
+    $('#creatorBulkTab').style.display = 'none';
+  } else {
+    $('#creatorFormTab').style.display = 'none';
+    $('#creatorBulkTab').style.display = 'block';
+  }
+}
+
+function addFormQcmQuestion() {
+  formQcmCounter++;
+  const div = document.createElement('div');
+  div.style.cssText = 'background:#f9f9f9;padding:12px;border-radius:8px;margin:8px 0;border:1px solid #e0e0e0';
+  div.dataset.formQcmId = formQcmCounter;
+  
+  const isGrammar = $('#addType').value === 'grammaire';
+  
+  div.innerHTML = `
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
+      <span style="font-weight:600;color:var(--brand)">Question ${formQcmCounter}</span>
+      <button class="btn-danger" onclick="removeFormQcmQuestion(${formQcmCounter})" style="padding:6px 10px;font-size:.85rem">Supprimer</button>
+    </div>
+    <label>Question</label>
+    <input class="form-qcm-question" placeholder="Quelle est la capitale de la France ?" style="width:100%;padding:10px;border:1px solid #ddd;border-radius:8px;font-size:.95rem;box-sizing:border-box;margin-bottom:8px">
+    
+    <div class="form-qcm-options-container"></div>
+    
+    <button class="btn-secondary" onclick="addFormQcmOption(${formQcmCounter})" style="margin-bottom:8px;padding:6px 10px;font-size:.85rem">+ Ajouter une réponse</button>
+    
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:8px">
+      <div>
+        <label>Bonne réponse</label>
+        <select class="form-qcm-answer" style="width:100%;padding:10px;border:1px solid #ddd;border-radius:8px;font-size:.95rem;box-sizing:border-box">
+        </select>
+      </div>
+      <div>
+        <label>Points</label>
+        <input type="number" class="form-qcm-points" value="1" min="1" style="width:100%;padding:10px;border:1px solid #ddd;border-radius:8px;font-size:.95rem;box-sizing:border-box">
+      </div>
+    </div>
+    
+    <div style="margin-top:8px;display:${isGrammar ? 'block' : 'none'}">
+      <label>Explication (affichée dans le corrigé)</label>
+      <textarea class="form-qcm-explanation" placeholder="Expliquez la règle grammaticale..." style="width:100%;padding:10px;border:1px solid #ddd;border-radius:8px;font-size:.95rem;box-sizing:border-box;min-height:60px"></textarea>
+    </div>
+  `;
+  $('#formQcmQuestions').appendChild(div);
+  
+  // Add default 3 options
+  addFormQcmOption(formQcmCounter);
+  addFormQcmOption(formQcmCounter);
+  addFormQcmOption(formQcmCounter);
+}
+
+window.addFormQcmOption = function(questionId) {
+  const questionDiv = document.querySelector(`[data-form-qcm-id="${questionId}"]`);
+  if (!questionDiv) return;
+  
+  const container = questionDiv.querySelector('.form-qcm-options-container');
+  const existingOptions = container.querySelectorAll('[data-option-id]'); // Changed from [data-option-letter] to match relabel function
+  const optionIndex = existingOptions.length + 1; // 1, 2, 3, 4...
+  const optionLetter = String.fromCharCode(96 + optionIndex); // a, b, c, d, etc.
+  
+  const optionDiv = document.createElement('div');
+  optionDiv.dataset.optionId = optionLetter; // Add data-option-id
+  optionDiv.dataset.optionLetter = optionLetter; // Add data-option-letter
+  optionDiv.style.cssText = 'display:flex;gap:8px;margin-bottom:8px;align-items:center';
+  
+  optionDiv.innerHTML = `
+    <label style="margin:0;font-weight:600;min-width:60px">Choix ${optionLetter.toUpperCase()}</label>
+    <input class="form-qcm-option" data-option-letter="${optionLetter}" placeholder="Réponse ${optionLetter.toUpperCase()}" style="flex:1;padding:10px;border:1px solid #ddd;border-radius:8px;font-size:.95rem;box-sizing:border-box">
+    <button onclick="removeFormQcmOption(${questionId}, '${optionLetter}')" style="background:#e53e3e;color:#fff;border:none;padding:8px 12px;border-radius:6px;cursor:pointer;font-size:.85rem">✕</button>
+  `;
+  container.appendChild(optionDiv);
+  
+  // Update answer dropdown
+  updateFormQcmAnswerDropdown(questionId);
+};
+
+window.removeFormQcmOption = function(questionId, optionLetter) {
+  const questionDiv = document.querySelector(`[data-form-qcm-id="${questionId}"]`);
+  if (!questionDiv) return;
+  
+  const container = questionDiv.querySelector('.form-qcm-options-container');
+  const options = container.querySelectorAll('[data-option-id]');
+  
+  // Don't allow removing if only 2 options left
+  if (options.length <= 2) {
+    alert('Vous devez avoir au moins 2 choix de réponse.');
+    return;
+  }
+  
+  const optionDiv = container.querySelector(`[data-option-id="${optionLetter}"]`);
+  if (optionDiv) optionDiv.remove();
+  
+  relabelFormQcmOptions(questionId);
+  
+  // Update answer dropdown
+  updateFormQcmAnswerDropdown(questionId);
+};
+
+function relabelFormQcmOptions(questionId) {
+  const questionDiv = document.querySelector(`[data-form-qcm-id="${questionId}"]`);
+  if (!questionDiv) return;
+  
+  const container = questionDiv.querySelector('.form-qcm-options-container');
+  const optionDivs = container.querySelectorAll('[data-option-id]');
+  
+  optionDivs.forEach((optionDiv, index) => {
+    const newIndex = index + 1;
+    const newLetter = String.fromCharCode(96 + newIndex); // a, b, c, d...
+    
+    optionDiv.dataset.optionId = newLetter;
+    optionDiv.dataset.optionLetter = newLetter;
+    
+    // Update label
+    const label = optionDiv.querySelector('label');
+    if (label) label.textContent = `Choix ${newLetter.toUpperCase()}`;
+    
+    // Update input
+    const input = optionDiv.querySelector('.form-qcm-option');
+    if (input) {
+      input.dataset.optionLetter = newLetter;
+      input.placeholder = `Réponse ${newLetter.toUpperCase()}`;
+    }
+    
+    // Update remove button with correct letter reference
+    const button = optionDiv.querySelector('button');
+    if (button) {
+      button.setAttribute('onclick', `removeFormQcmOption(${questionId}, '${newLetter}')`);
+    }
+  });
+}
+
+function togglePassageType() {
+  const type = document.querySelector('input[name="passageType"]:checked').value;
+  $('#passageTextBox').style.display = type === 'text' ? 'block' : 'none';
+  $('#passageImageBox').style.display = type === 'image' ? 'block' : 'none';
+};
+
+function handlePassageImageDrop(event) {
+  event.preventDefault();
+  const file = event.dataTransfer.files[0];
+  if (file && file.type.startsWith('image/')) {
+    processPassageImage(file);
+  }
+};
+
+window.handlePassageImageSelect = function(event) {
+  const file = event.target.files[0];
+  if (file) {
+    processPassageImage(file);
+  }
+};
+
+function processPassageImage(file) {
+  const reader = new FileReader();
+  reader.onload = function(e) {
+    passageImageData = e.target.result;
+    $('#passageImagePreviewImg').src = passageImageData;
+    $('#passageImagePreview').style.display = 'block';
+    $('#passageImageDropZone').style.display = 'none';
+  };
+  reader.readAsDataURL(file);
+}
+
+window.removePassageImage = function() {
+  passageImageData = null;
+  $('#passageImagePreview').style.display = 'none';
+  $('#passageImageDropZone').style.display = 'block';
+  $('#passageImageInput').value = '';
+};
+
+function addExercise() { // Renamed from addFormExercise to match original
+  const type = $('#addType').value;
+  const level = $('#addLevel').value;
+  const theme = $('#addTheme').value.trim();
+  const title = $('#addTitle').value.trim();
+  const id = editingExerciseId || `${type}_${level}_${Date.now()}`;
+
+  if (!theme || !title) {
+    alert('Veuillez remplir le thème et le titre');
+    return;
+  }
+
+  const exercice = {id, niveau: level, theme, titre: title}; // Corrected keys
+
+  // Handle CE with image or text
+  if (type === 'lecture') {
+    const passageType = document.querySelector('input[name="passageType"]:checked').value;
+    
+    if (passageType === 'image') {
+      if (!passageImageData) {
+        alert('Veuillez ajouter une image');
+        return;
+      }
+      // Ensure the image data is correctly stored
+      if (editingExerciseId) {
+        const idx = bank.lecture.findIndex(e => e.id === editingExerciseId);
+        if (idx >= 0) {
+          bank.lecture[idx].passage_image = passageImageData;
+          bank.lecture[idx].passage_html = undefined; // Remove html if image is used
+        }
+      } else {
+        exercice.passage_image = passageImageData;
+      }
+    } else {
+      const passageTitle = $('#passageTitle').value.trim();
+      const passageText = $('#passageText').value.trim();
+      const passageSource = $('#passageSource').value.trim();
+      
+      let passage = '';
+      if (passageTitle) passage += `<h3 style="font-weight:700;margin-bottom:12px">${passageTitle}</h3>`;
+      if (passageText) passage += `<p>${passageText}</p>`;
+      if (passageSource) passage += `<p style="font-style:italic;text-align:right;color:#666;margin-top:12px">${passageSource}</p>`;
+      
+      if (!passage) {
+        alert('Veuillez ajouter un texte ou une image');
+        return;
+      }
+      
+      if (editingExerciseId) {
+        const idx = bank.lecture.findIndex(e => e.id === editingExerciseId);
+        if (idx >= 0) {
+          bank.lecture[idx].passage_html = passage;
+          bank.lecture[idx].passage_image = undefined; // Remove image if text is used
+        }
+      } else {
+        exercice.passage_html = passage;
+      }
+    }
+  }
+
+  // Handle QCM with dynamic options
+  if ($('#formQcmQuestions').children.length > 0) {
+    const questions = [];
+    $$('#formQcmQuestions [data-form-qcm-id]').forEach(qDiv => {
+      const question = qDiv.querySelector('.form-qcm-question').value.trim();
+      const options = {};
+      qDiv.querySelectorAll('.form-qcm-option').forEach(opt => {
+        const letter = opt.dataset.optionLetter;
+        const value = opt.value.trim();
+        if (value) options[letter] = value;
+      });
+      const answer = qDiv.querySelector('.form-qcm-answer').value;
+      const points = parseInt(qDiv.querySelector('.form-qcm-points').value) || 1;
+      const explanation = qDiv.querySelector('.form-qcm-explanation')?.value.trim() || '';
+      
+      if (question && Object.keys(options).length >= 2) {
+        const q = {question, ...options, answer, points};
+        if (explanation) q.explanation = explanation;
+        questions.push(q);
+      }
+    });
+    
+    if (questions.length === 0) {
+      alert('Veuillez ajouter au moins une question complète');
+      return;
+    }
+    
+    exercice.qcm = questions;
+  }
+  
+  // Handle Vrai/Faux questions
+  if ($('#formVfQuestions').children.length > 0) {
+    const vfQuestions = collectFormVfQuestions();
+    if (vfQuestions.length > 0) {
+      exercice.vf = vfQuestions;
+    }
+  }
+
+  // Handle Cloze questions
+  if (type === 'ecoute') {
+    const clozeData = collectClozeData();
+    if (clozeData) {
+      exercice.cloze = clozeData.cloze;
+      exercice.transcription = clozeData.transcription;
+      if (clozeData.clozePoints) {
+        exercice.clozePoints = clozeData.clozePoints;
+      }
+    }
+  }
+
+  // Save and update
+  if (editingExerciseId) {
+    const idx = bank[type].findIndex(e => e.id === editingExerciseId);
+    if (idx >= 0) {
+      bank[type][idx] = {...bank[type][idx], ...exercice}; // Merge with existing exercise data
+    }
+  } else {
+    if (!bank[type]) bank[type] = []; // Ensure array exists
+    bank[type].push(exercice);
+  }
+  
+  saveBank();
+  updateExercisesTable();
+  
+  // Reset forms
+  passageImageData = null;
+  optionCounter = {};
+  $('#formQcmQuestions').innerHTML = '';
+  $('#formVfQuestions').innerHTML = '';
+  formQcmCounter = 0;
+  formVfCounter = 0;
+  $('#formClozeText').value = '';
+  $('#formClozeTranscription').value = '';
+  $('#clozeBlanksConfig').style.display = 'none';
+  $('#passageImagePreview').style.display = 'none';
+  $('#passageImageDropZone').style.display = 'block';
+  $('#passageImageInput').value = '';
+  $('#passageTitle').value = '';
+  $('#passageText').value = '';
+  $('#passageSource').value = '';
+  $('input[name="passageType"][value="text"]').checked = true;
+  togglePassageType(); // Reset the UI
+  
+  $('#addTheme').value = '';
+  $('#addTitle').value = '';
+  $('#cancelEditBtn').style.display = 'none';
+  editingExerciseId = null;
+  
+  alert(editingExerciseId ? 'Exercice modifié !' : 'Exercice ajouté !');
+  // Optionally show a toast message
+  // showToast('Exercice ajouté avec succès!', 'success');
+  // loadExercises(); // This function might not exist globally, relying on updateExercisesTable
+}
+
+function updateAddForm() {
+  const type = $('#addType').value;
+  
+  $('#formQcmBox').style.display = 'block';
+  $('#formVfBox').style.display = (type === 'lecture' || type === 'ecoute') ? 'block' : 'none';
+  $('#formClozeBox').style.display = type === 'ecoute' ? 'block' : 'none';
+  
+  let html = '';
+  
+  if (type === 'lecture') {
+    html = `
+      <div id="passageBox" style="margin-top:16px">
+        <label style="font-weight:600;display:block;margin-bottom:12px;color:#2d3748">Type de contenu</label>
+        <div style="display:flex;gap:16px;margin-bottom:20px;padding:16px;background:#f7fafc;border-radius:8px">
+          <label style="display:flex;align-items:center;gap:8px;cursor:pointer;padding:8px 16px;background:#fff;border:2px solid #e2e8f0;border-radius:8px;transition:all .2s">
+            <input type="radio" name="passageType" value="text" checked onchange="togglePassageType()" style="cursor:pointer">
+            <span style="font-weight:500">📝 Texte</span>
+          </label>
+          <label style="display:flex;align-items:center;gap:8px;cursor:pointer;padding:8px 16px;background:#fff;border:2px solid #e2e8f0;border-radius:8px;transition:all .2s">
+            <input type="radio" name="passageType" value="image" onchange="togglePassageType()" style="cursor:pointer">
+            <span style="font-weight:500">🖼️ Image / Capture d'écran</span>
+          </label>
+        </div>
+        
+        <div id="passageTextBox">
+          <label style="font-weight:600;display:block;margin-bottom:8px;color:#2d3748">Titre (affiché en gras)</label>
+          <input id="passageTitle" placeholder="ex. La Tour Eiffel" style="width:100%;padding:10px;border:1px solid #ddd;border-radius:8px;font-size:.95rem;box-sizing:border-box;margin-bottom:16px">
+          <label style="font-weight:600;display:block;margin-bottom:8px;color:#2d3748">Texte principal</label>
+          <textarea id="passageText" placeholder="Entrez le texte à lire..." style="width:100%;padding:10px;border:1px solid #ddd;border-radius:8px;font-size:.95rem;box-sizing:border-box;min-height:120px;margin-bottom:16px"></textarea>
+          <label style="font-weight:600;display:block;margin-bottom:8px;color:#2d3748">Source (affichée en italique à droite)</label>
+          <input id="passageSource" placeholder="ex. Source: Le Monde, 2024" style="width:100%;padding:10px;border:1px solid #ddd;border-radius:8px;font-size:.95rem;box-sizing:border-box">
+        </div>
+        
+        <div id="passageImageBox" style="display:none">
+          <label style="font-weight:600;display:block;margin-bottom:8px;color:#2d3748">Image du document</label>
+          <div id="passageImageDropZone" style="border:2px dashed #cbd5e0;border-radius:8px;padding:32px;text-align:center;cursor:pointer;background:#f7fafc;margin-bottom:8px;transition:all .2s" ondragover="event.preventDefault();event.currentTarget.style.borderColor='#10b981';event.currentTarget.style.background='#ecfdf5'" ondragleave="event.currentTarget.style.borderColor='#cbd5e0';event.currentTarget.style.background='#f7fafc'" ondrop="handlePassageImageDrop(event);event.currentTarget.style.borderColor='#cbd5e0';event.currentTarget.style.background='#f7fafc'" onclick="$('#passageImageInput').click()">
+            <div style="font-size:2.5rem;margin-bottom:8px">📷</div>
+            <div style="color:#4a5568;font-weight:500">Glissez une image ici ou cliquez pour sélectionner</div>
+            <div style="color:#718096;font-size:.85rem;margin-top:4px">Formats acceptés: JPG, PNG, GIF</div>
+          </div>
+          <input type="file" id="passageImageInput" accept="image/*" style="display:none" onchange="handlePassageImageSelect(event)">
+          <div id="passageImagePreview" style="display:none;margin-top:12px">
+            <img id="passageImagePreviewImg" style="max-width:100%;border-radius:8px;box-shadow:0 4px 12px rgba(0,0,0,.1);margin-bottom:12px">
+            <button onclick="removePassageImage()" style="background:#e53e3e;color:#fff;border:none;padding:10px 16px;border-radius:6px;cursor:pointer;font-weight:500;transition:all .2s" onmouseover="this.style.background='#c53030'" onmouseout="this.style.background='#e53e3e'">🗑️ Supprimer l'image</button>
+          </div>
+        </div>
+      </div>
+    `;
+  } else if (type === 'ecoute') {
+    html = `
+    <div class="form-group">
+      <label>Chemin audio</label>
+      <div id="audioDropZone" style="border:2px dashed #ddd;border-radius:8px;padding:20px;text-align:center;cursor:pointer;transition:all .2s;background:#f9f9f9">
+        <input type="file" id="audioFileInput" accept="audio/*" style="display:none">
+        <div id="audioDropText">
+          <p style="margin:0;font-weight:600;color:var(--brand)">📁 Glissez un fichier audio ici</p>
+          <p style="margin:8px 0 0;font-size:.9rem;color:#666">ou cliquez pour parcourir</p>
+          <p style="margin:4px 0 0;font-size:.85rem;color:#999">Formats acceptés: MP3, WAV, OGG</p>
+        </div>
+        <div id="audioFileName" style="display:none;color:var(--success);font-weight:600"></div>
+      </div>
+      <input type="hidden" id="addAudio" value="">
+    </div>
+  `;
+  } else {
+    html = `<p style="color:#666;font-style:italic">Ajoutez des questions QCM ci-dessous pour cet exercice de ${type}.</p>`;
+  }
+  
+  $('#addFormContent').innerHTML = html;
+
+  // Add event listeners for drag and drop for audio file
+  if (type === 'ecoute') {
+    const audioDropZone = $('#audioDropZone');
+    const audioFileInput = $('#audioFileInput');
+    const audioFileNameDisplay = $('#audioFileName');
+    const hiddenAudioInput = $('#addAudio');
+
+    audioDropZone.addEventListener('click', () => audioFileInput.click());
+    audioDropZone.addEventListener('dragover', (e) => {
+      e.preventDefault();
+      audioDropZone.style.borderColor = 'var(--brand)';
+    });
+    audioDropZone.addEventListener('dragleave', () => {
+      audioDropZone.style.borderColor = '#ddd';
+    });
+    audioDropZone.addEventListener('drop', (e) => {
+      e.preventDefault();
+      audioDropZone.style.borderColor = '#ddd';
+      handleAudioFile(e.dataTransfer.files[0], audioFileInput, audioFileNameDisplay, hiddenAudioInput);
+    });
+    audioFileInput.addEventListener('change', (e) => {
+      handleAudioFile(e.target.files[0], audioFileInput, audioFileNameDisplay, hiddenAudioInput);
+    });
+  }
+  
+  // Add event listeners for passage image upload
+  if (type === 'lecture') {
+    // These are already set via inline HTML attributes for simplicity, but could be moved here.
+  }
+}
+
+function updateBulkForm() {
+  const type = $('#bulkType').value;
+  const html = type === 'lecture' ? `
+    <div class="form-group">
+      <label>Titre du texte (affiché en gras)</label>
+      <input id="bulkPassageTitle" placeholder="ex. La Tour Eiffel">
+    </div>
+    <div class="form-group">
+      <label>Texte principal</label>
+      <textarea id="bulkPassage" placeholder="Entrez le texte à lire..."></textarea>
+    </div>
+    <div class="form-group">
+      <label>Source (affichée en italique à droite)</label>
+      <input id="bulkPassageSource" placeholder="ex. Source: Le Monde, 2024">
+    </div>
+    <div class="form-group">
+      <label>Questions QCM (format: Question ; A ; B ; C ; réponse ; points)</label>
+      <textarea id="bulkQCM" placeholder="Exemple: Quelle est la capitale ? ; Paris ; Lyon ; Marseille ; a ; 2"></textarea>
+    </div>
+    <div class="form-group">
+      <label>Questions Vrai/Faux (format: Énoncé ; vrai|faux ; mots-clés ; points)</label>
+      <textarea id="bulkVF" placeholder="Exemple: Paris est en France. ; vrai ; Paris|France ; 1"></textarea>
+    </div>
+  ` : type === 'ecoute' ? `
+    <div class="form-group">
+      <label>Chemin audio</label>
+      <input id="bulkAudio" placeholder="ex. audio/lesson.mp3">
+    </div>
+    <div class="form-group">
+      <label>Questions QCM (format: Question ; A ; B ; C ; réponse ; points)</label>
+      <textarea id="bulkQCM" placeholder="Exemple: Quel est le sujet ? ; A ; B ; C ; a ; 2"></textarea>
+    </div>
+    <div class="form-group">
+      <label>Cloze (entourez les réponses avec [crochets])</label>
+      <textarea id="bulkCloze" placeholder="Exemple: Je vais au [marché] à [10h]."></textarea>
+    </div>
+    <div class="form-group">
+      <label>Points par trou (séparés par des virgules)</label>
+      <input id="bulkClozePoints" placeholder="ex. 2,3,2">
+    </div>
+    <div class="form-group">
+      <label>Transcription</label>
+      <textarea id="bulkTranscription" placeholder="Entrez la transcription..."></textarea>
+    </div>
+  ` : `
+    <!-- Bulk import for Grammaire/Lexique -->
+    <p style="color:#666;font-style:italic">Ajoutez des questions QCM ci-dessous pour cet exercice de ${type}.</p>
+    <div class="form-group">
+      <label>Questions QCM (format: Question ; A ; B ; C ; réponse ; points ; explanation)</label>
+      <textarea id="bulkQCM" placeholder="Exemple: Quel est le participe passé ? ; Mangé ; Mange ; Mangea ; a ; 2 ; Le participe passé de manger..."></textarea>
+    </div>
+  `;
+  $('#bulkFormContent').innerHTML = html;
+}
+
+function editExercise(id) {
+  let exercise = null;
+  let type = null;
+  
+  // Find the exercise and its type
+  for (const exType in bank) {
+    const found = bank[exType].find(e => e.id === id);
+    if (found) {
+      exercise = found;
+      type = exType;
+      break;
+    }
+  }
+  
+  if (!exercise) {
+    alert('Exercice introuvable');
+    return;
+  }
+  
+  switchTab('builder');
+  switchCreatorTab('form'); // Switch to form tab when editing
+  
+  editingExerciseId = id;
+  $('#cancelEditBtn').style.display = 'inline-block';
+  
+  $('#addType').value = type;
+  $('#addLevel').value = exercise.niveau;
+  $('#addTheme').value = exercise.theme;
+  $('#addTitle').value = exercise.titre;
+  
+  updateAddForm(); // This will render the correct fields based on type
+  
+  // Populate QCM questions
+  if (exercise.qcm) {
+    formQcmCounter = 0; // Reset counter for new questions
+    optionCounter = {}; // Reset option counters
+    $('#formQcmQuestions').innerHTML = ''; // Clear existing questions
+    
+    exercise.qcm.forEach(q => {
+      addFormQcmQuestion();
+      const lastAdded = $('#formQcmQuestions > div:last-child');
+      lastAdded.querySelector('.form-qcm-question').value = q.question;
+      
+      // Populate dynamic options
+      let currentOptionIndex = 0;
+      for (const letter in q) {
+        if (letter.length === 1 && q.hasOwnProperty(letter) && letter !== 'question' && letter !== 'answer' && letter !== 'points' && letter !== 'explanation') {
+          currentOptionIndex++;
+          const optionLetter = letter;
+          const optionValue = q[letter];
+          
+          const container = lastAdded.querySelector('.form-qcm-options-container');
+          const optionDiv = document.createElement('div');
+          optionDiv.dataset.optionId = optionLetter;
+          optionDiv.dataset.optionLetter = optionLetter; // Ensure data-option-letter is set
+          optionDiv.style.cssText = 'display:flex;gap:8px;margin-bottom:8px;align-items:center';
+          optionDiv.innerHTML = `
+            <label style="margin:0;font-weight:600;min-width:60px">Choix ${optionLetter.toUpperCase()}</label>
+            <input class="form-qcm-option" data-option-letter="${optionLetter}" placeholder="Réponse ${optionLetter.toUpperCase()}" value="${optionValue}" style="flex:1;padding:10px;border:1px solid #ddd;border-radius:8px;font-size:.95rem;box-sizing:border-box">
+            <button onclick="removeFormQcmOption(${formQcmCounter}, '${optionLetter}')" style="background:#e53e3e;color:#fff;border:none;padding:8px 12px;border-radius:6px;cursor:pointer;font-size:.85rem">✕</button>
+          `;
+          container.appendChild(optionDiv);
+        }
+      }
+      optionCounter[formQcmCounter] = currentOptionIndex; // Set the counter for this question
+      
+      lastAdded.querySelector('.form-qcm-answer').value = q.answer;
+      lastAdded.querySelector('.form-qcm-points').value = q.points;
+      if (q.explanation && lastAdded.querySelector('.form-qcm-explanation')) {
+        lastAdded.querySelector('.form-qcm-explanation').value = q.explanation;
+      }
+    });
+    updateFormQcmAnswerDropdown(formQcmCounter); // Update dropdowns after populating options
+  }
+
+  // Populate Vrai/Faux questions
+  if (exercise.vf) {
+    formVfCounter = 0; // Reset counter
+    $('#formVfQuestions').innerHTML = ''; // Clear existing
+    
+    exercise.vf.forEach(q => {
+      addFormVfQuestion();
+      const lastAdded = $('#formVfQuestions > div:last-child');
+      lastAdded.querySelector('.form-vf-statement').value = q.statement;
+      lastAdded.querySelector('.form-vf-answer').value = q.answer;
+      if (type === 'lecture') {
+        lastAdded.querySelector('.form-vf-keywords').value = (q.keywords || []).join('|');
+      }
+      lastAdded.querySelector('.form-vf-points').value = q.points;
+    });
+  }
+  
+  // Populate Passage for CE exercises
+  if (type === 'lecture') {
+    if (exercise.passage_image) {
+      passageImageData = exercise.passage_image;
+      $('#passageImagePreviewImg').src = passageImageData;
+      $('#passageImagePreview').style.display = 'block';
+      $('#passageImageDropZone').style.display = 'none';
+      document.querySelector('input[name="passageType"][value="image"]').checked = true;
+    } else if (exercise.passage_html) {
+      const passage = exercise.passage_html || '';
+      const titleMatch = passage.match(/<h3[^>]*>(.*?)<\/h3>/);
+      const sourceMatch = passage.match(/<p[^>]*style="[^"]*italic[^"]*"[^>]*>(.*?)<\/p>/);
+      const textMatch = passage.match(/<p>(.*?)<\/p>/); // Might need to adjust if there are multiple <p> tags
+      
+      if (titleMatch) $('#passageTitle').value = titleMatch[1].replace(/<[^>]*>/g, '');
+      // Extract text carefully, considering potential multiple paragraphs
+      const allPs = passage.match(/<p>(.*?)<\/p>/g);
+      if (allPs) {
+        $('#passageText').value = allPs.map(p => p.replace(/<p>|<\/p>/g, '')).join('\n'); // Join paragraphs with newlines
+      }
+      if (sourceMatch) $('#passageSource').value = sourceMatch[1].replace(/<[^>]*>/g, '');
+      
+      document.querySelector('input[name="passageType"][value="text"]').checked = true;
+    }
+    togglePassageType(); // Ensure correct UI is shown
+  }
+  
+  // Populate Cloze data for CO exercises
+  if (type === 'ecoute') {
+    if (exercise.cloze) {
+      $('#formClozeText').value = exercise.cloze;
+      if (exercise.transcription) {
+        $('#formClozeTranscription').value = exercise.transcription;
+      }
+      // Automatically detect blanks and populate points
+      detectClozeBlanks();
+      if (exercise.clozePoints) {
+        exercise.clozePoints.forEach((points, index) => {
+          const input = document.querySelector(`[data-blank-index="${index}"]`);
+          if (input) input.value = points;
+        });
+      }
+    }
+    if (exercise.audio) {
+      $('#addAudio').value = exercise.audio;
+      const fileNameDisplay = $('#audioFileName');
+      const audioDropText = $('#audioDropText');
+      audioDropText.style.display = 'none';
+      fileNameDisplay.textContent = exercise.audio.split('/').pop(); // Display just the file name
+      fileNameDisplay.style.display = 'block';
+    }
+  }
+  
+  document.querySelector('#builder .card:last-child').scrollIntoView({ behavior: 'smooth' });
+}
+
+function cancelEdit() {
+  editingExerciseId = null;
+  $('#cancelEditBtn').style.display = 'none';
+  $('#addTheme').value = '';
+  $('#addTitle').value = '';
+  
+  // Reset form question counters and clear questions
+  formQcmCounter = 0;
+  formVfCounter = 0;
+  $('#formQcmQuestions').innerHTML = '';
+  $('#formVfQuestions').innerHTML = '';
+  
+  // Reset Cloze form
+  $('#formClozeText').value = '';
+  $('#formClozeTranscription').value = '';
+  $('#clozeBlanksConfig').style.display = 'none';
+  
+  // Reset Passage form
+  passageImageData = null;
+  $('#passageImagePreview').style.display = 'none';
+  $('#passageImageDropZone').style.display = 'block';
+  $('#passageImageInput').value = '';
+  $('#passageTitle').value = '';
+  $('#passageText').value = '';
+  $('#passageSource').value = '';
+  $('input[name="passageType"][value="text"]').checked = true;
+  togglePassageType(); // Ensure UI is reset
+  
+  updateAddForm(); // Re-renders the form fields based on default type
+}
+
+function saveBank() {
+  localStorage.setItem(BANK_KEY, JSON.stringify(bank));
+}
+
+function parseQCM(text) {
+  return text.split('\n').map(line => {
+    const parts = line.split(';').map(s => s.trim());
+    const points = parseInt(parts[5]) || 1;
+    return { 
+      question: parts[0] || '', 
+      a: parts[1] || '', 
+      b: parts[2] || '', 
+      c: parts[3] || '', 
+      answer: (parts[4] || '').toLowerCase(),
+      points
+    };
+  }).filter(q => q.question);
+}
+
+function parseBulkQCM(text) {
+  return text.split('\n').map(line => {
+    const parts = line.split(';').map(s => s.trim());
+    const points = parseInt(parts[5]) || 1;
+    // Handle explanation field for bulk QCM
+    const explanation = parts.length > 6 ? parts[6] : '';
+    return { 
+      question: parts[0] || '', 
+      a: parts[1] || '', 
+      b: parts[2] || '', 
+      c: parts[3] || '', 
+      answer: (parts[4] || '').toLowerCase(),
+      points,
+      explanation
+    };
+  }).filter(q => q.question);
+}
+
+function parseVF(text) {
+  return text.split('\n').map(line => {
+    const parts = line.split(';').map(s => s.trim());
+    const keywords = (parts[2] || '').split('|').map(s => s.trim()).filter(Boolean);
+    const points = parseInt(parts[3]) || 1;
+    return { 
+      statement: parts[0] || '', 
+      answer: (parts[1] || '').toLowerCase(), 
+      keywords,
+      points
+    };
+  }).filter(q => q.statement);
+}
+
+function findLessonById(lessonId) {
+  if (!bank) return null;
+  let found = null;
+  // Check all exercise types
+  for (const type in bank) {
+    if (bank.hasOwnProperty(type)) {
+      const lesson = bank[type].find(l => l.id === lessonId);
+      if (lesson) {
+        found = { ...lesson, type: type };
+        break;
+      }
+    }
+  }
+  return found;
+}
+
+function getUserProgress(userId) {
+  const stats = JSON.parse(localStorage.getItem('fr_stats_db') || '{}')[userId] || {};
+  let completedLessons = 0;
+  let totalScore = 0;
+  let totalPoints = 0;
+  let attemptCount = 0;
+
+  Object.entries(stats).forEach(([lessonId, lessonData]) => {
+    if (lessonData.attempts && lessonData.attempts.length > 0) {
+      completedLessons++;
+      lessonData.attempts.forEach(att => {
+        totalScore += att.percentage;
+        totalPoints += att.score || 0;
+        attemptCount++;
+      });
+    }
+  });
+
+  const avgScore = attemptCount > 0 ? Math.round(totalScore / attemptCount) : 0;
+  return { completedLessons, avgScore, totalPoints };
+}
+
+function drawAdminActivityChart() {
+  const canvas = $('#adminActivityChart');
+  if (!canvas) return;
+  const ctx = canvas.getContext('2d');
+  const width = canvas.offsetWidth;
+  const height = canvas.offsetHeight;
+  canvas.width = width;
+  canvas.height = height;
+
+  const allStats = JSON.parse(localStorage.getItem('fr_stats_db') || '{}');
+  const allAttempts = [];
+  
+  Object.values(allStats).forEach(userStats => {
+    Object.values(userStats).forEach(lesson => {
+      if (lesson.attempts) {
+        allAttempts.push(...lesson.attempts);
+      }
+    });
+  });
+
+  if (allAttempts.length === 0) {
+    ctx.fillStyle = '#999';
+    ctx.font = '14px system-ui';
+    ctx.textAlign = 'center';
+    ctx.fillText('Aucune donnée disponible', width/2, height/2);
+    return;
+  }
+
+  const now = Date.now();
+  const thirtyDaysAgo = now - 30 * 24 * 60 * 60 * 1000;
+  const byDate = {};
+  
+  allAttempts.forEach(att => {
+    if (att.timestamp >= thirtyDaysAgo) {
+      const date = new Date(att.timestamp).toLocaleDateString('fr-FR');
+      byDate[date] = (byDate[date] || 0) + 1;
+    }
+  });
+
+  const dates = Object.keys(byDate).sort();
+  const counts = dates.map(d => byDate[d]);
+  const maxCount = Math.max(...counts, 1); // Ensure maxCount is at least 1 for division
+
+  if (dates.length === 0) {
+    ctx.fillStyle = '#999';
+    ctx.font = '14px system-ui';
+    ctx.textAlign = 'center';
+    ctx.fillText('Aucune activité récente', width/2, height/2);
+    return;
+  }
+
+  const padding = 40;
+  const chartWidth = width - padding * 2;
+  const chartHeight = height - padding * 2;
+  const step = (dates.length > 1) ? chartWidth / (dates.length - 1) : 0; // Avoid division by zero
+
+  ctx.strokeStyle = '#e0e0e0';
+  ctx.lineWidth = 1;
+  for (let i = 0; i <= 4; i++) {
+    const y = padding + (chartHeight / 4) * i;
+    ctx.beginPath();
+    ctx.moveTo(padding, y);
+    ctx.lineTo(width - padding, y);
+    ctx.stroke();
+    
+    ctx.fillStyle = '#999';
+    ctx.font = '11px system-ui';
+    ctx.textAlign = 'right';
+    const value = Math.round(maxCount - (maxCount / 4) * i);
+    ctx.fillText(value.toString(), padding - 8, y + 4);
+  }
+
+  ctx.strokeStyle = '#2196f3';
+  ctx.lineWidth = 3;
+  ctx.beginPath();
+  counts.forEach((count, i) => {
+    const x = padding + step * i;
+    const y = padding + chartHeight - (count / maxCount) * chartHeight;
+    if (i === 0) ctx.moveTo(x, y);
+    else ctx.lineTo(x, y);
+  });
+  ctx.stroke();
+
+  ctx.fillStyle = '#2196f3';
+  counts.forEach((count, i) => {
+    const x = padding + step * i;
+    const y = padding + chartHeight - (count / maxCount) * chartHeight;
+    ctx.beginPath();
+    ctx.arc(x, y, 4, 0, Math.PI * 2);
+    ctx.fill();
+  });
+
+  ctx.fillStyle = '#666';
+  ctx.font = '10px system-ui';
+  ctx.textAlign = 'center';
+  dates.forEach((date, i) => {
+    // Only label every other date if there are too many
+    if (dates.length > 10 && i % 2 !== 0) return;
+    const x = padding + step * i;
+    ctx.fillText(date.split('/').slice(0,2).join('/'), x, height - 10);
+  });
+}
+
+function drawAdminLevelChart() {
+  const canvas = $('#adminLevelChart');
+  if (!canvas) return;
+  const ctx = canvas.getContext('2d');
+  const width = canvas.offsetWidth;
+  const height = canvas.offsetHeight;
+  canvas.width = width;
+  canvas.height = height;
+
+  const allStats = JSON.parse(localStorage.getItem('fr_stats_db') || '{}');
+  const allAttempts = [];
+  
+  Object.values(allStats).forEach(userStats => {
+    Object.values(userStats).forEach(lesson => {
+      if (lesson.attempts) {
+        allAttempts.push(...lesson.attempts);
+      }
+    });
+  });
+
+  if (allAttempts.length === 0) {
+    ctx.fillStyle = '#999';
+    ctx.font = '14px system-ui';
+    ctx.textAlign = 'center';
+    ctx.fillText('Aucune donnée disponible', width/2, height/2);
+    return;
+  }
+
+  const levels = ['A1', 'A2', 'B1', 'B2', 'C1', 'C2'];
+  const byLevel = {};
+  levels.forEach(l => byLevel[l] = []);
+  
+  allAttempts.forEach(att => {
+    const lesson = findLessonById(att.lessonId);
+    if (lesson && byLevel[lesson.niveau]) {
+      byLevel[lesson.niveau].push(att.score);
+    }
+  });
+
+  const avgByLevel = levels.map(l => {
+    const scores = byLevel[l];
+    return scores.length > 0 ? scores.reduce((a,b) => a+b, 0) / scores.length : 0;
+  });
+
+  const padding = 40;
+  const chartWidth = width - padding * 2;
+  const chartHeight = height - padding * 2;
+  const barWidth = (levels.length > 0) ? (chartWidth / levels.length - 10) : 0; // Avoid division by zero
+  const colors = ['#4caf50', '#8bc34a', '#ffc107', '#ff9800', '#ff5722', '#f44336'];
+
+  levels.forEach((level, i) => {
+    const avg = avgByLevel[i];
+    const x = padding + (chartWidth / levels.length) * i + 5;
+    const barHeight = (avg / 100) * chartHeight;
+    const y = padding + chartHeight - barHeight;
+
+    ctx.fillStyle = colors[i];
+    ctx.fillRect(x, y, barWidth, barHeight);
+
+    ctx.fillStyle = '#333';
+    ctx.font = '12px system-ui';
+    ctx.textAlign = 'center';
+    ctx.fillText(level, x + barWidth/2, height - 10);
+    
+    if (avg > 0) {
+      ctx.fillText(Math.round(avg) + '%', x + barWidth/2, y - 5);
+    }
+  });
+
+  ctx.strokeStyle = '#e0e0e0';
+  ctx.lineWidth = 1;
+  for (let i = 0; i <= 4; i++) {
+    const y = padding + (chartHeight / 4) * i;
+    ctx.beginPath();
+    ctx.moveTo(padding, y);
+    ctx.lineTo(width - padding, y);
+    ctx.stroke();
+    
+    ctx.fillStyle = '#999';
+    ctx.font = '11px system-ui';
+    ctx.textAlign = 'right';
+    ctx.fillText((100 - i * 25) + '%', padding - 8, y + 4);
+  }
+}
+
+function viewUserStats(userId) {
+  const users = JSON.parse(localStorage.getItem(USERS_KEY) || '[]');
+  const user = users.find(u => u.id === userId);
+  
+  if (!user) {
+    alert('Utilisateur introuvable');
+    return;
+  }
+
+  const allStats = JSON.parse(localStorage.getItem('fr_stats_db') || '{}');
+  const userStats = allStats[userId] || {};
+  
+  // Display user info
+  $('#modalUserInfo').innerHTML = `
+    <p><strong>Nom:</strong> ${user.name}</p>
+    <p><strong>Email:</strong> ${user.email}</p>
+    <p><strong>ID:</strong> ${user.id}</p>
+  `;
+
+  // Calculate statistics
+  let completedLessons = 0;
+  let totalScore = 0;
+  let totalPoints = 0;
+  let attemptCount = 0;
+  const allAttempts = [];
+
+  Object.entries(userStats).forEach(([lessonId, lessonData]) => {
+    if (lessonData.attempts && lessonData.attempts.length > 0) {
+      completedLessons++;
+      lessonData.attempts.forEach(att => {
+        totalScore += att.percentage;
+        totalPoints += att.score || 0;
+        attemptCount++;
+        allAttempts.push({
+          ...att,
+          lessonId,
+          lessonTitle: findLessonById(lessonId)?.titre || lessonId // Get lesson title
+        });
+      });
+    }
+  });
+
+  const avgScore = attemptCount > 0 ? Math.round(totalScore / attemptCount) : 0;
+
+  // Display summary stats
+  $('#modalCompletedLessons').textContent = completedLessons;
+  $('#modalAvgScore').textContent = avgScore + '%';
+  $('#modalTotalAttempts').textContent = attemptCount;
+  $('#modalTotalPoints').textContent = totalPoints;
+
+  // Display attempts list (sorted by date, most recent first)
+  allAttempts.sort((a, b) => b.timestamp - a.timestamp);
+  
+  if (allAttempts.length === 0) {
+    $('#modalAttemptsList').innerHTML = '<p class="empty-state">Aucune tentative enregistrée</p>';
+  } else {
+    $('#modalAttemptsList').innerHTML = allAttempts.map(att => {
+      const date = new Date(att.timestamp).toLocaleString('fr-FR');
+      const scoreColor = att.percentage >= 80 ? 'var(--success)' : att.percentage >= 60 ? 'var(--warning)' : 'var(--error)';
+      
+      return `
+        <div class="attempt-item">
+          <div>
+            <strong>${att.lessonTitle}</strong>
+            <div class="attempt-date">${date}</div>
+          </div>
+          <div style="text-align:right">
+            <div class="attempt-score" style="color:${scoreColor}">${att.percentage}%</div>
+            <div style="font-size:.85rem;color:#666">${att.score || 0} pts / ${att.maxScore || 0} pts</div>
+          </div>
+        </div>
+      `;
+    }).join('');
+  }
+
+  // Show modal
+  $('#userStatsModal').classList.add('active');
+}
+
+function closeUserStatsModal() {
+  $('#userStatsModal').classList.remove('active');
+}
+
+function resetUserPassword(userId) {
+  const users = JSON.parse(localStorage.getItem(USERS_KEY) || '[]');
+  const userIndex = users.findIndex(u => u.id === userId);
+  
+  if (userIndex === -1) {
+    alert('Utilisateur introuvable');
+    return;
+  }
+  
+  const user = users[userIndex];
+  const newPassword = prompt(`Entrez le nouveau mot de passe pour ${user.name}:`);
+  
+  if (!newPassword) {
+    return; // User cancelled
+  }
+  
+  if (newPassword.length < 6) {
+    alert('Le mot de passe doit contenir au moins 6 caractères');
+    return;
+  }
+  
+  // Update password
+  users[userIndex].password = newPassword;
+  localStorage.setItem(USERS_KEY, JSON.stringify(users));
+  
+  alert(`Mot de passe réinitialisé avec succès pour ${user.name}`);
+}
+
+function deleteUser(userId) {
+  const users = JSON.parse(localStorage.getItem(USERS_KEY) || '[]');
+  const user = users.find(u => u.id === userId);
+  
+  if (!user) {
+    alert('Utilisateur introuvable');
+    return;
+  }
+  
+  const confirmMessage = `Êtes-vous sûr de vouloir supprimer le compte de ${user.name} (${user.email})?\n\nCette action supprimera également toutes les statistiques de cet utilisateur et ne peut pas être annulée.`;
+  
+  if (!confirm(confirmMessage)) {
+    return;
+  }
+  
+  // Remove user from users list
+  const updatedUsers = users.filter(u => u.id !== userId);
+  localStorage.setItem(USERS_KEY, JSON.stringify(updatedUsers));
+  
+  // Remove user statistics
+  const allStats = JSON.parse(localStorage.getItem('fr_stats_db') || '{}');
+  delete allStats[userId];
+  localStorage.setItem('fr_stats_db', JSON.stringify(allStats));
+  
+  // Remove user drafts
+  const allDrafts = JSON.parse(localStorage.getItem('fr_drafts_db') || '{}');
+  delete allDrafts[userId];
+  localStorage.setItem('fr_drafts_db', JSON.stringify(allDrafts));
+  
+  alert(`Le compte de ${user.name} a été supprimé avec succès`);
+  
+  // Refresh the users table and dashboard
+  updateUsersTable();
+  updateDashboard();
+}
+
+// Helper function for handling audio file uploads
+function handleAudioFile(file, inputElement, fileNameDisplay, hiddenAudioInput) {
+  if (!file) return;
+  
+  const allowedTypes = ['audio/mpeg', 'audio/wav', 'audio/ogg'];
+  if (!allowedTypes.includes(file.type)) {
+    alert('Format de fichier audio non supporté. Veuillez choisir un fichier MP3, WAV ou OGG.');
+    inputElement.value = ''; // Clear the input
+    return;
+  }
+
+  // For simplicity, we'll just store the file name for now.
+  // In a real application, you'd upload this file to a server.
+  const fileName = file.name;
+  hiddenAudioInput.value = `audio/${fileName}`; // Store the intended path
+  fileNameDisplay.textContent = fileName;
+  fileNameDisplay.style.display = 'block';
+  document.getElementById('audioDropText').style.display = 'none';
+  inputElement.value = ''; // Clear the input after processing
+}
+
+function addResource() {
+  const title = $('#resourceTitle').value.trim();
+  const level = $('#resourceLevel').value;
+  const url = $('#resourceUrl').value.trim();
+  const description = $('#resourceDescription').value.trim();
+  const type = $('#resourceType').value;
+
+  if (!title || !url) {
+    alert('Veuillez remplir le titre et l\'URL.');
+    return;
+  }
+
+  const resources = JSON.parse(localStorage.getItem('fr_resources') || '[]');
+  const id = editingResourceId || `res_${Date.now()}`;
+
+  if (editingResourceId) {
+    const idx = resources.findIndex(r => r.id === editingResourceId);
+    if (idx >= 0) {
+      resources[idx] = { id, title, level, url, description, type, createdAt: resources[idx].createdAt };
+    }
+  } else {
+    resources.push({ id, title, level, url, description, type, createdAt: Date.now() });
+  }
+
+  localStorage.setItem('fr_resources', JSON.stringify(resources));
+  updateResourcesTable();
+  
+  alert(editingResourceId ? 'Ressource modifiée !' : 'Ressource ajoutée !');
+  
+  $('#resourceTitle').value = '';
+  $('#resourceUrl').value = '';
+  $('#resourceDescription').value = '';
+  editingResourceId = null;
+  $('#cancelResourceBtn').style.display = 'none';
+}
+
+function updateResourcesTable() {
+  const resources = JSON.parse(localStorage.getItem('fr_resources') || '[]');
+  const tbody = $('#resourcesBody');
+
+  if (resources.length === 0) {
+    tbody.innerHTML = '<tr><td colspan="5" class="empty-state">Aucune ressource</td></tr>';
+    return;
+  }
+
+  tbody.innerHTML = resources.map(res => {
+    const typeIcons = {
+      video: '🎥',
+      article: '📄',
+      exercice: '✏️',
+      audio: '🎧',
+      autre: '🔗'
+    };
+    const icon = typeIcons[res.type] || '🔗';
+    const levelClass = 'badge-' + res.level.toLowerCase();
+
+    return `
+      <tr>
+        <td>${res.title}</td>
+        <td>${icon} ${res.type}</td>
+        <td><span class="badge ${levelClass}">${res.level}</span></td>
+        <td><a href="${res.url}" target="_blank" style="color:var(--brand);text-decoration:none">${res.url.substring(0, 40)}...</a></td>
+        <td>
+          <div class="action-btns">
+            <button class="btn-secondary" onclick="editResource('${res.id}')">Éditer</button>
+            <button class="btn-danger" onclick="deleteResource('${res.id}')">Supprimer</button>
+          </div>
+        </td>
+      </tr>
+    `;
+  }).join('');
+}
+
+function editResource(id) {
+  const resources = JSON.parse(localStorage.getItem('fr_resources') || '[]');
+  const resource = resources.find(r => r.id === id);
+  
+  if (!resource) {
+    alert('Ressource introuvable');
+    return;
+  }
+  
+  editingResourceId = id;
+  $('#resourceTitle').value = resource.title;
+  $('#resourceLevel').value = resource.level;
+  $('#resourceUrl').value = resource.url;
+  $('#resourceDescription').value = resource.description;
+  $('#resourceType').value = resource.type;
+  $('#cancelResourceBtn').style.display = 'inline-block';
+  
+  document.querySelector('#resources .card:first-child').scrollIntoView({ behavior: 'smooth' });
+}
+
+function cancelResourceEdit() {
+  editingResourceId = null;
+  $('#resourceTitle').value = '';
+  $('#resourceUrl').value = '';
+  $('#resourceDescription').value = '';
+  $('#cancelResourceBtn').style.display = 'none';
+}
+
+function deleteResource(id) {
+  if (!confirm('Êtes-vous sûr de vouloir supprimer cette ressource ?')) return;
+  
+  const resources = JSON.parse(localStorage.getItem('fr_resources') || '[]');
+  const filtered = resources.filter(r => r.id !== id);
+  localStorage.setItem('fr_resources', JSON.stringify(filtered));
+  updateResourcesTable();
+}
+
+function loadChatUsers() {
+  const users = JSON.parse(localStorage.getItem(USERS_KEY) || '[]').filter(u => u.role === 'student');
+  const messages = JSON.parse(localStorage.getItem('fr_messages') || '{}');
+  
+  if (users.length === 0) {
+    $('#chatUsersList').innerHTML = '<div class="empty-state">Aucun étudiant</div>';
+    return;
+  }
+
+  const html = users.map(user => {
+    const userMessages = messages[user.id] || [];
+    const unreadCount = userMessages.filter(m => !m.read && m.from === user.id).length;
+    const lastMessage = userMessages[userMessages.length - 1];
+    
+    return `
+      <div onclick="selectChatUser('${user.id}')" style="padding:12px;border-radius:8px;cursor:pointer;margin-bottom:8px;background:${selectedChatUserId === user.id ? '#e8f5e9' : '#fff'};border:1px solid ${selectedChatUserId === user.id ? 'var(--brand)' : '#e0e0e0'}">
+        <div style="display:flex;justify-content:space-between;align-items:center">
+          <strong>${user.name}</strong>
+          ${unreadCount > 0 ? `<span style="background:var(--error);color:#fff;padding:2px 6px;border-radius:10px;font-size:.75rem">${unreadCount}</span>` : ''}
+        </div>
+        ${lastMessage ? `<div style="font-size:.85rem;color:#666;margin-top:4px">${lastMessage.text.substring(0, 30)}...</div>` : ''}
+      </div>
+    `;
+  }).join('');
+
+  $('#chatUsersList').innerHTML = html;
+}
+
+window.selectChatUser = function(userId) {
+  selectedChatUserId = userId;
+  loadChatMessages(userId);
+  loadChatUsers(); // Refresh to update selection
+  $('#adminMessageInput').disabled = false;
+  $('#sendMessageBtn').disabled = false;
+  $('#deleteChatBtn').disabled = false;
+};
+
+function loadChatMessages(userId) {
+  const users = JSON.parse(localStorage.getItem(USERS_KEY) || '[]');
+  const user = users.find(u => u.id === userId);
+  const messages = JSON.parse(localStorage.getItem('fr_messages') || '{}');
+  const userMessages = messages[userId] || [];
+
+  // Mark messages as read
+  userMessages.forEach(m => {
+    if (m.from === userId) m.read = true;
+  });
+  messages[userId] = userMessages;
+  localStorage.setItem('fr_messages', JSON.stringify(messages));
+
+  if (userMessages.length === 0) {
+    $('#chatMessagesArea').innerHTML = `<div class="empty-state">Aucun message avec ${user.name}</div>`;
+    return;
+  }
+
+  const html = userMessages.map(msg => {
+    const isAdmin = msg.from === 'admin';
+    const time = new Date(msg.timestamp).toLocaleString('fr-FR');
+    
+    return `
+      <div style="margin-bottom:16px;display:flex;justify-content:${isAdmin ? 'flex-end' : 'flex-start'}">
+        <div style="max-width:70%;padding:12px;border-radius:12px;background:${isAdmin ? 'var(--brand)' : '#fff'};color:${isAdmin ? '#fff' : '#333'};box-shadow:0 2px 4px rgba(0,0,0,.1)">
+          <div style="font-weight:600;margin-bottom:4px;font-size:.85rem;opacity:.9">${isAdmin ? 'Admin' : user.name}</div>
+          <div>${msg.text}</div>
+          <div style="font-size:.75rem;margin-top:4px;opacity:.7">${time}</div>
+        </div>
+      </div>
+    `;
+  }).join('');
+
+  $('#chatMessagesArea').innerHTML = html;
+  $('#chatMessagesArea').scrollTop = $('#chatMessagesArea').scrollHeight;
+}
+
+function sendAdminMessage() {
+  if (!selectedChatUserId) return;
+  
+  const text = $('#adminMessageInput').value.trim();
+  if (!text) return;
+
+  const messages = JSON.parse(localStorage.getItem('fr_messages') || '{}');
+  if (!messages[selectedChatUserId]) messages[selectedChatUserId] = [];
+  
+  messages[selectedChatUserId].push({
+    from: 'admin',
+    to: selectedChatUserId,
+    text,
+    timestamp: Date.now(),
+    read: false
+  });
+
+  localStorage.setItem('fr_messages', JSON.stringify(messages));
+  $('#adminMessageInput').value = '';
+  loadChatMessages(selectedChatUserId);
+}
+
+function deleteAdminChatHistory() {
+  if (!selectedChatUserId) return;
+  
+  const users = JSON.parse(localStorage.getItem(USERS_KEY) || '[]');
+  const user = users.find(u => u.id === selectedChatUserId);
+  
+  if (!user) return;
+  
+  if (!confirm(`Êtes-vous sûr de vouloir supprimer tout l'historique de conversation avec ${user.name}?\n\nCette action est irréversible.`)) {
+    return;
+  }
+  
+  const messages = JSON.parse(localStorage.getItem('fr_messages') || '{}');
+  delete messages[selectedChatUserId];
+  localStorage.setItem('fr_messages', JSON.stringify(messages));
+  
+  // Reset UI
+  $('#chatMessagesArea').innerHTML = '<div class="empty-state">Historique supprimé</div>';
+  selectedChatUserId = null;
+  $('#adminMessageInput').disabled = true;
+  $('#sendMessageBtn').disabled = true;
+  $('#deleteChatBtn').disabled = true;
+  
+  loadChatUsers();
+  alert('Historique de conversation supprimé avec succès');
+}
+
+document.addEventListener('click', (e) => {
+  if (e.target.id === 'userStatsModal') {
+    closeUserStatsModal();
+  }
+});
+
+$('#logoutBtn').addEventListener('click', () => {
+  localStorage.removeItem(AUTH_KEY);
+  localStorage.removeItem('fr_current_user');
+  window.location.href = 'login.html';
+});
+
+function updateUsersTable() {
+  const users = JSON.parse(localStorage.getItem(USERS_KEY) || '[]');
+  const tbody = $('#usersBody');
+
+  if (users.length === 0) {
+    tbody.innerHTML = '<tr><td colspan="6" class="empty-state">Aucun utilisateur</td></tr>';
+    return;
+  }
+
+  tbody.innerHTML = users.map(user => {
+    const isAdmin = user.role === 'admin';
+    const isCurrentUser = user.id === currentUser.id;
+    
+    if (isAdmin) {
+      // Admin row
+      return `
+        <tr style="background:#f0f8ff">
+          <td><strong>${user.name}</strong> ${isCurrentUser ? '(Vous)' : ''}</td>
+          <td>${user.email}</td>
+          <td><span class="badge" style="background:#2196f3;color:#fff">Admin</span></td>
+          <td colspan="2" style="text-align:center;color:#666">—</td>
+          <td>
+            <div class="action-btns">
+              ${!isCurrentUser ? `
+                <button class="btn-secondary" onclick="resetUserPassword('${user.id}')">Changer mot de passe</button>
+                <button class="btn-danger" onclick="deleteAdmin('${user.id}')">Supprimer</button>
+              ` : '<span style="color:#666;font-size:.85rem">Vous ne pouvez pas vous gérer</span>'}
+            </div>
+          </td>
+        </tr>
+      `;
+    } else {
+      // Student row
+      const progress = getUserProgress(user.id);
+      return `
+        <tr>
+          <td>${user.name}</td>
+          <td>${user.email}</td>
+          <td><span class="badge" style="background:#4caf50;color:#fff">Étudiant</span></td>
+          <td>${progress.completedLessons}</td>
+          <td>${progress.avgScore}%</td>
+          <td>
+            <div class="action-btns">
+              <button class="btn-secondary" onclick="viewUserStats('${user.id}')">Voir stats</button>
+              <button class="btn-secondary" onclick="resetUserPassword('${user.id}')">Réinitialiser MDP</button>
+              <button class="btn-danger" onclick="deleteUser('${user.id}')">Supprimer</button>
+            </div>
+          </td>
+        </tr>
+      `;
+    }
+  }).join('');
+}
+
+function deleteAdmin(adminId) {
+  const users = JSON.parse(localStorage.getItem(USERS_KEY) || '[]');
+  const admin = users.find(u => u.id === adminId);
+  
+  if (!admin) {
+    alert('Administrateur introuvable');
+    return;
+  }
+  
+  // Check if this is the last admin
+  const adminCount = users.filter(u => u.role === 'admin').length;
+  if (adminCount <= 1) {
+    alert('Impossible de supprimer le dernier administrateur. Il doit toujours y avoir au moins un administrateur.');
+    return;
+  }
+  
+  const confirmMessage = `Êtes-vous sûr de vouloir supprimer l'administrateur ${admin.name} (${admin.email})?\n\nCette action ne peut pas être annulée.`;
+  
+  if (!confirm(confirmMessage)) {
+    return;
+  }
+  
+  // Remove admin from users list
+  const updatedUsers = users.filter(u => u.id !== adminId);
+  localStorage.setItem(USERS_KEY, JSON.stringify(updatedUsers));
+  
+  alert(`L'administrateur ${admin.name} a été supprimé avec succès`);
+  
+  // Refresh the users table
+  updateUsersTable();
+  updateDashboard();
+}
+
+// Helper functions for form QCM creation
+function updateFormQcmAnswerDropdown(questionId) {
+  const questionDiv = document.querySelector(`[data-form-qcm-id="${questionId}"]`);
+  if (!questionDiv) return;
+  
+  const answerSelect = questionDiv.querySelector('.form-qcm-answer');
+  const container = questionDiv.querySelector('.form-qcm-options-container');
+  const options = container.querySelectorAll('[data-option-letter]'); // Use data-option-letter for selector
+  
+  // Clear existing options
+  answerSelect.innerHTML = '';
+  
+  if (options.length === 0) {
+    answerSelect.innerHTML = '<option value="">Aucune réponse</option>';
+    return;
+  }
+  
+  options.forEach(optionDiv => { // Iterate over optionDivs
+    const letter = optionDiv.dataset.optionLetter; // Get the letter from the div's data attribute
+    const value = optionDiv.querySelector('.form-qcm-option').value.trim() || `Réponse ${letter.toUpperCase()}`;
+    const optionElement = document.createElement('option');
+    optionElement.value = letter;
+    optionElement.textContent = value;
+    answerSelect.appendChild(optionElement);
+  });
+}
+
+function addFormVfQuestion() {
+  formVfCounter++;
+  const div = document.createElement('div');
+  div.style.cssText = 'background:#f9f9f9;padding:12px;border-radius:8px;margin:8px 0;border:1px solid #e0e0e0';
+  div.dataset.formVfId = formVfCounter;
+  
+  const isLecture = $('#addType').value === 'lecture';
+  
+  div.innerHTML = `
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
+      <span style="font-weight:600;color:var(--brand)">Question ${formVfCounter}</span>
+      <button class="btn-danger" onclick="removeFormVfQuestion(${formVfCounter})" style="padding:6px 10px;font-size:.85rem">Supprimer</button>
+    </div>
+    <label>Énoncé</label>
+    <input class="form-vf-statement" placeholder="Le ciel est bleu." style="width:100%;padding:10px;border:1px solid #ddd;border-radius:8px;font-size:.95rem;box-sizing:border-box;margin-bottom:8px">
+    
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:8px">
+      <div>
+        <label>Bonne réponse</label>
+        <select class="form-vf-answer" style="width:100%;padding:10px;border:1px solid #ddd;border-radius:8px;font-size:.95rem;box-sizing:border-box">
+          <option value="vrai">Vrai</option>
+          <option value="faux">Faux</option>
+        </select>
+      </div>
+      <div>
+        <label>Points</label>
+        <input type="number" class="form-vf-points" value="1" min="1" style="width:100%;padding:10px;border:1px solid #ddd;border-radius:8px;font-size:.95rem;box-sizing:border-box">
+      </div>
+    </div>
+    
+    <div style="margin-top:8px;display:${isLecture ? 'block' : 'none'}">
+      <label>Mots-clés (séparés par |) pour indice dans le texte</label>
+      <input class="form-vf-keywords" placeholder="ex. ciel|bleu" style="width:100%;padding:10px;border:1px solid #ddd;border-radius:8px;font-size:.95rem;box-sizing:border-box">
+    </div>
+  `;
+  $('#formVfQuestions').appendChild(div);
+}
+
+function removeFormVfQuestion(id) {
+  const div = document.querySelector(`[data-form-vf-id="${id}"]`);
+  if (div) div.remove();
+}
+
+function collectFormVfQuestions() {
+  const questions = [];
+  $$('#formVfQuestions [data-form-vf-id]').forEach(qDiv => {
+    const statement = qDiv.querySelector('.form-vf-statement').value.trim();
+    const answer = qDiv.querySelector('.form-vf-answer').value;
+    const points = parseInt(qDiv.querySelector('.form-vf-points').value) || 1;
+    const keywordsInput = qDiv.querySelector('.form-vf-keywords');
+    const keywords = keywordsInput ? keywordsInput.value.split('|').map(s => s.trim()).filter(Boolean) : [];
+    
+    if (statement) {
+      questions.push({ statement, answer, points, keywords });
+    }
+  });
+  return questions;
+}
+
+function detectClozeBlanks() {
+  const text = $('#formClozeText').value;
+  const blanks = text.match(/\[(.*?)\]/g) || []; // Matches content inside brackets
+  
+  if (blanks.length === 0) {
+    $('#clozeBlanksConfig').style.display = 'none';
+    alert('Aucun trou détecté dans le texte. Assurez-vous d\'utiliser des crochets comme [mot].');
+    return;
+  }
+  
+  const blankValues = blanks.map(b => b.substring(1, b.length - 1)); // Remove brackets
+  const clozeConfigDiv = $('#clozeBlankslist');
+  clozeConfigDiv.innerHTML = '';
+  
+  blankValues.forEach((value, index) => {
+    const div = document.createElement('div');
+    div.style.cssText = 'display:flex;gap:10px;align-items:center;margin-bottom:8px';
+    div.innerHTML = `
+      <label style="min-width:100px">Trou #${index + 1} ([${value}])</label>
+      <input type="number" class="cloze-blank-points" data-blank-index="${index}" value="1" min="1" style="width:80px;padding:8px;border:1px solid #ddd;border-radius:6px;font-size:.9rem;box-sizing:border-box">
+      <input type="text" class="cloze-blank-value" value="${value}" disabled style="flex:1;padding:8px;border:1px solid #eee;border-radius:6px;font-size:.9rem;box-sizing:border-box;background:#f7f7f7">
+    `;
+    clozeConfigDiv.appendChild(div);
+  });
+  
+  $('#clozeBlanksConfig').style.display = 'block';
+}
+
+function collectClozeData() {
+  const clozeText = $('#formClozeText').value;
+  const transcription = $('#formClozeTranscription').value;
+  const pointsInputs = $$('.cloze-blank-points');
+  const clozePoints = pointsInputs.map(input => parseInt(input.value) || 1);
+  
+  if (!clozeText) {
+    alert('Le texte de l\'exercice Cloze est requis.');
+    return null;
+  }
+
+  // Ensure the transcription is present if cloze is used
+  if (clozeText && !transcription) {
+    alert('La transcription est requise pour les exercices Cloze.');
+    return null;
+  }
+  
+  return {
+    cloze: clozeText,
+    transcription: transcription,
+    clozePoints: clozePoints.length > 0 ? clozePoints : undefined
+  };
+}
+
+function addBulkExercise() {
+  const type = $('#bulkType').value;
+  const level = $('#bulkLevel').value;
+  const theme = $('#bulkTheme').value.trim();
+  const title = $('#bulkTitle').value.trim();
+  const id = `${type}_${level}_${Date.now()}`;
+
+  if (!theme || !title) {
+    alert('Veuillez remplir le thème et le titre');
+    return;
+  }
+
+  const exercice = {id, niveau: level, theme, titre: title};
+
+  if (type === 'lecture') {
+    const passageTitle = $('#bulkPassageTitle').value.trim();
+    const passageText = $('#bulkPassage').value.trim();
+    const passageSource = $('#bulkPassageSource').value.trim();
+    
+    let passage = '';
+    if (passageTitle) passage += `<h3 style="font-weight:700;margin-bottom:12px">${passageTitle}</h3>`;
+    if (passageText) passage += `<p>${passageText}</p>`;
+    if (passageSource) passage += `<p style="font-style:italic;text-align:right;color:#666;margin-top:12px">${passageSource}</p>`;
+    
+    if (passage) {
+      exercice.passage_html = passage;
+    }
+
+    const qcmText = $('#bulkQCM').value;
+    if (qcmText) {
+      exercice.qcm = parseBulkQCM(qcmText);
+    }
+    
+    const vfText = $('#bulkVF').value;
+    if (vfText) {
+      exercice.vf = parseVF(vfText);
+    }
+  } else if (type === 'ecoute') {
+    const audio = $('#bulkAudio').value.trim();
+    if (audio) {
+      // Assuming audio files are in an 'audio' folder and named correctly
+      // In a real app, this would be an uploaded file path.
+      exercice.audio = audio;
+    }
+    
+    const qcmText = $('#bulkQCM').value;
+    if (qcmText) {
+      exercice.qcm = parseQCM(qcmText);
+    }
+    
+    const clozeText = $('#bulkCloze').value.trim();
+    if (clozeText) {
+      exercice.cloze = clozeText;
+      const clozePointsText = $('#bulkClozePoints').value.trim();
+      if (clozePointsText) {
+        exercice.clozePoints = clozePointsText.split(',').map(p => parseInt(p.trim())).filter(p => !isNaN(p));
+      }
+    }
+    
+    const transcription = $('#bulkTranscription').value.trim();
+    if (transcription) {
+      exercice.transcription = transcription;
+    }
+  } else { // Grammaire / Lexique
+    const qcmText = $('#bulkQCM').value;
+    if (qcmText) {
+      exercice.qcm = parseBulkQCM(qcmText);
+    }
+  }
+
+  // Add exercise to bank
+  if (!bank[type]) bank[type] = [];
+  bank[type].push(exercice);
+  saveBank();
+  updateExercisesTable();
+  
+  alert('Exercices ajoutés avec succès !');
+  
+  // Clear form
+  $('#bulkTheme').value = '';
+  $('#bulkTitle').value = '';
+  $('#bulkPassageTitle').value = '';
+  $('#bulkPassage').value = '';
+  $('#bulkPassageSource').value = '';
+  $('#bulkAudio').value = '';
+  $('#bulkQCM').value = '';
+  $('#bulkVF').value = '';
+  $('#bulkCloze').value = '';
+  $('#bulkClozePoints').value = '';
+  $('#bulkTranscription').value = '';
+}
+
+// These functions are placeholders as they are not defined in the provided code
+// but are called in the <updates> section.
+function updateProgressStats() {}
+function renderLessons() {}
+function loadExternalResources() {}
+function loadStudentChat() {}
+function drawProgressChart() {}
+function drawLevelChart() {}
+function drawTypeChart() {}
+
+// Call initialization functions
+checkAuth();
+loadBank();
+updateUsersTable(); // Call updateUsersTable to display users on page load
+updateDashboard();
+setTimeout(() => {
+  drawAdminActivityChart();
+  drawAdminLevelChart();
+}, 100); // Delayed to ensure canvas is rendered
+
+</script>
+</body>
+</html>
