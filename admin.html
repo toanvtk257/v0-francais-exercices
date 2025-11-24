@@ -530,7 +530,7 @@ const $ = s => document.querySelector(s);
 const $$ = s => [...document.querySelectorAll(s)];
 const AUTH_KEY = 'fr_auth_user';
 const BANK_KEY = 'fr_bank_data';
-const USERS_KEY = 'fr_users_db'; // Note: This seems to conflict with the inline script's `fr_users`
+const USERS_KEY = 'fr_users'; // Changed from fr_users_db to fr_users for consistency
 const CLOUDINARY_CLOUD_NAME = 'dvbsn45rk';
 const CLOUDINARY_FOLDER = 'french-json';
 const CLOUDINARY_FILES_KEY = 'fr_cloudinary_files';
@@ -1088,18 +1088,19 @@ window.addFormQcmOption = function(questionId) {
   if (!questionDiv) return;
   
   const container = questionDiv.querySelector('.form-qcm-options-container');
-  const existingOptions = container.querySelectorAll('[data-option-id]'); // Changed from [data-option-letter] to match relabel function
-  const optionIndex = existingOptions.length + 1; // 1, 2, 3, 4...
-  const optionLetter = String.fromCharCode(96 + optionIndex); // a, b, c, d, etc.
+  if (!container) return; // Added check for container existence
+  
+  const existingOptions = container.querySelectorAll('.form-qcm-option').length; // Count current options
+  const optionLetter = String.fromCharCode(97 + existingOptions); // a, b, c, etc.
   
   const optionDiv = document.createElement('div');
-  optionDiv.dataset.optionId = optionLetter; // Add data-option-id
-  optionDiv.dataset.optionLetter = optionLetter; // Add data-option-letter
+  optionDiv.dataset.optionId = optionLetter;
+  optionDiv.dataset.optionLetter = optionLetter;
   optionDiv.style.cssText = 'display:flex;gap:8px;margin-bottom:8px;align-items:center';
   
   optionDiv.innerHTML = `
     <label style="margin:0;font-weight:600;min-width:60px">Choix ${optionLetter.toUpperCase()}</label>
-    <input class="form-qcm-option" data-option-letter="${optionLetter}" placeholder="Réponse ${letter.toUpperCase()}" style="flex:1;padding:10px;border:1px solid #ddd;border-radius:8px;font-size:.95rem;box-sizing:border-box">
+    <input class="form-qcm-option" data-option-letter="${optionLetter}" placeholder="Réponse ${optionLetter.toUpperCase()}" style="flex:1;padding:10px;border:1px solid #ddd;border-radius:8px;font-size:.95rem;box-sizing:border-box">
     <button class="btn-danger remove-form-option-btn" data-qcm-id="${questionId}" data-opt-idx="${optionLetter}" style="background:#e53e3e;color:#fff;border:none;padding:8px 12px;border-radius:6px;cursor:pointer;font-size:.85rem">✕</button>
   `;
   container.appendChild(optionDiv);
@@ -2768,7 +2769,7 @@ function updateUsersTable() {
   if (!tbody) return;
   
   // Get users from localStorage
-  const usersData = localStorage.getItem('fr_users'); // Assuming 'fr_users' is the correct key
+  const usersData = localStorage.getItem(USERS_KEY); // Assuming 'fr_users' is the correct key
   if (!usersData) {
     tbody.innerHTML = '<tr><td colspan="6" class="empty-state">Aucun utilisateur</td></tr>';
     return;
@@ -2776,56 +2777,56 @@ function updateUsersTable() {
   
   try {
     const users = JSON.parse(usersData);
-    const userEmails = Object.keys(users);
-    
-    if (userEmails.length === 0) {
+    // Assuming users is an array of user objects, each with 'id', 'name', 'email', 'role'
+    if (!Array.isArray(users) || users.length === 0) {
       tbody.innerHTML = '<tr><td colspan="6" class="empty-state">Aucun utilisateur</td></tr>';
       return;
     }
     
     let html = '';
-    userEmails.forEach(email => {
-      const user = users[email];
-      const name = user.name || email.split('@')[0];
+    users.forEach(user => {
+      const name = user.name || user.email.split('@')[0]; // Use name if available, else derive from email
       const role = user.role || 'étudiant';
       
       // Calculate completed lessons and average score from user progress
-      const progressData = localStorage.getItem(`fr_progress_${email}`); // Assuming progress is stored per email
+      const progressData = localStorage.getItem(`fr_progress_${user.id}`); // Assuming progress is stored per user ID
       let completedLessons = 0;
       let avgScore = 0;
       
       if (progressData) {
         try {
           const progress = JSON.parse(progressData);
+          // Progress object might be structured differently, assuming it's an object where keys are lesson IDs
           completedLessons = Object.keys(progress).length;
           
           // Calculate average score across all lessons for this user
           const scores = Object.values(progress).map(p => {
-            // Ensure 'p' is an object and has 'attempts'
+            // Ensure 'p' is an object and has 'attempts' array
             if (p && p.attempts && Array.isArray(p.attempts)) {
+              // Sum percentages from all attempts and divide by total attempts
               return p.attempts.map(att => att.percentage || 0);
             }
-            return 0;
+            return []; // Return empty array if no attempts or invalid structure
           }).flat(); // Flatten the array of scores from multiple attempts/lessons
 
           if (scores.length > 0) {
             avgScore = Math.round(scores.reduce((a, b) => a + b, 0) / scores.length);
           }
         } catch (e) {
-          console.error('[v0] Error parsing progress for', email, e);
+          console.error('[v0] Error parsing progress for user ID', user.id, e);
         }
       }
       
       html += `
         <tr>
           <td>${name}</td>
-          <td>${email}</td>
+          <td>${user.email}</td>
           <td><span class="badge badge-a1">${role}</span></td>
           <td>${completedLessons}</td>
           <td>${avgScore}%</td>
           <td class="action-btns">
-            <button class="btn-secondary" onclick="viewUserStats('${user.id || email}')">Voir détails</button> 
-            <button class="btn-danger" onclick="deleteUser('${user.id || email}')">Supprimer</button>
+            <button class="btn-secondary" onclick="viewUserStats('${user.id}')">Voir détails</button> 
+            <button class="btn-danger" onclick="deleteUser('${user.id}')">Supprimer</button>
           </td>
         </tr>
       `;
@@ -2834,7 +2835,7 @@ function updateUsersTable() {
     tbody.innerHTML = html;
     
     // Update dashboard total users count
-    document.getElementById('totalUsers').textContent = userEmails.length;
+    document.getElementById('totalUsers').textContent = users.length;
     
   } catch (error) {
     console.error('[v0] Error updating users table:', error);
