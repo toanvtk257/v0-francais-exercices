@@ -101,21 +101,29 @@ const AUTH_KEY = 'fr_auth_user';
 const USERS_KEY = 'fr_users_db';
 const ADMIN_SECURITY_CODE = '250784';
 
+console.log('[v0] Checking localStorage status...');
+console.log('[v0] USERS_KEY:', localStorage.getItem(USERS_KEY));
+console.log('[v0] AUTH_KEY:', localStorage.getItem(AUTH_KEY));
+
 function initUsersDB() {
   if (!localStorage.getItem(USERS_KEY)) {
     const defaultUsers = [
       { id: 'student1', name: 'Jean Dupont', email: 'jean@example.com', password: 'student123', role: 'student' }
     ];
     localStorage.setItem(USERS_KEY, JSON.stringify(defaultUsers));
+    console.log('[v0] Initialized users database');
   }
 }
 
 function getUsers() {
-  return JSON.parse(localStorage.getItem(USERS_KEY) || '[]');
+  const users = JSON.parse(localStorage.getItem(USERS_KEY) || '[]');
+  console.log('[v0] Retrieved users:', users.length);
+  return users;
 }
 
 function saveUsers(users) {
   localStorage.setItem(USERS_KEY, JSON.stringify(users));
+  console.log('[v0] Saved users to localStorage:', users.length);
 }
 
 function handleLogin(e) {
@@ -138,16 +146,27 @@ function handleLogin(e) {
   if (!user) {
     errorEl.textContent = 'Email/ID ou mot de passe incorrect.';
     errorEl.style.display = 'block';
+    console.log('[v0] Login failed for:', email);
     return;
   }
 
-  localStorage.setItem(AUTH_KEY, JSON.stringify({ id: user.id, name: user.name, email: user.email, role: user.role }));
+  const authData = { 
+    id: user.id, 
+    name: user.name, 
+    email: user.email, 
+    role: user.role,
+    loginTime: new Date().toISOString()
+  };
+  localStorage.setItem(AUTH_KEY, JSON.stringify(authData));
+  console.log('[v0] User logged in:', authData);
   
-  if (user.role === 'admin') {
-    window.location.href = 'admin.html';
-  } else {
-    window.location.href = 'dashboard.html';
-  }
+  setTimeout(() => {
+    if (user.role === 'admin') {
+      window.location.href = 'admin.html';
+    } else {
+      window.location.href = 'dashboard.html';
+    }
+  }, 100);
 }
 
 function handleRegister(e) {
@@ -208,6 +227,7 @@ function handleRegister(e) {
 
   users.push(newUser);
   saveUsers(users);
+  console.log('[v0] New user registered:', newUser.email);
 
   successEl.textContent = 'Compte créé avec succès ! Connectez-vous maintenant.';
   successEl.style.display = 'block';
@@ -251,8 +271,17 @@ initUsersDB();
 
 const currentUser = localStorage.getItem(AUTH_KEY);
 if (currentUser) {
-  const user = JSON.parse(currentUser);
-  window.location.href = user.role === 'admin' ? 'admin.html' : 'dashboard.html';
+  try {
+    const user = JSON.parse(currentUser);
+    console.log('[v0] User already logged in, redirecting...', user.email);
+    const urlParams = new URLSearchParams(window.location.search);
+    if (!urlParams.has('force')) {
+      window.location.href = user.role === 'admin' ? 'admin.html' : 'dashboard.html';
+    }
+  } catch (error) {
+    console.error('[v0] Error parsing user data:', error);
+    localStorage.removeItem(AUTH_KEY);
+  }
 }
 </script>
 </body>
