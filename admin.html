@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <!-- Added Content Security Policy to remove "Dangerous" warning -->
 <!-- Added Cloudinary domain to CSP connect-src to allow API calls -->
-<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data: https:; font-src 'self' data:; connect-src 'self' https://res.cloudinary.com ws: wss:;">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data: https:; font-src 'self' data:; connect-src 'self' https://res.cloudinary.com https://*.cloudinary.com ws: wss:;">
 <title>Panneau d'administration</title>
 <style>
 :root{--brand:#2b5;--ink:#222;--muted:#666;--bg:#f7f7f7;--card:#fff;--success:#4caf50;--warning:#ff9800;--error:#d32f2f}
@@ -1068,8 +1068,8 @@ function attachFormQcmEventListeners() {
   document.querySelectorAll('.remove-form-option-btn').forEach(btn => {
     btn.onclick = function() {
       const questionId = this.dataset.qcmId;
-      const optionIdx = this.dataset.optIdx;
-      removeFormQcmOption(parseInt(questionId), optionIdx);
+      const optionLetter = this.dataset.optIdx; // This now refers to the index, should be letter
+      removeFormQcmOption(parseInt(questionId), optionLetter);
     };
   });
   
@@ -1099,15 +1099,15 @@ window.addFormQcmOption = function(questionId) {
   
   optionDiv.innerHTML = `
     <label style="margin:0;font-weight:600;min-width:60px">Choix ${optionLetter.toUpperCase()}</label>
-    <input class="form-qcm-option" data-option-letter="${letter}" placeholder="Réponse ${optionLetter.toUpperCase()}" style="flex:1;padding:10px;border:1px solid #ddd;border-radius:8px;font-size:.95rem;box-sizing:border-box">
-    <button class="btn-danger remove-form-option-btn" data-qcm-id="${questionId}" data-opt-idx="${optionIndex}" style="background:#e53e3e;color:#fff;border:none;padding:8px 12px;border-radius:6px;cursor:pointer;font-size:.85rem">✕</button>
+    <input class="form-qcm-option" data-option-letter="${optionLetter}" placeholder="Réponse ${optionLetter.toUpperCase()}" style="flex:1;padding:10px;border:1px solid #ddd;border-radius:8px;font-size:.95rem;box-sizing:border-box">
+    <button class="btn-danger remove-form-option-btn" data-qcm-id="${questionId}" data-opt-idx="${optionLetter}" style="background:#e53e3e;color:#fff;border:none;padding:8px 12px;border-radius:6px;cursor:pointer;font-size:.85rem">✕</button>
   `;
   container.appendChild(optionDiv);
   
   // Update answer dropdown
   updateFormQcmAnswerDropdown(questionId);
   
-  attachFormQcmEventListeners();
+  attachFormQcmEventListeners(); // Re-attach listeners as new elements are added
 };
 
 window.removeFormQcmOption = function(questionId, optionLetter) {
@@ -1123,13 +1123,12 @@ window.removeFormQcmOption = function(questionId, optionLetter) {
     return;
   }
   
-  const optionDiv = container.querySelector(`[data-option-id="${optionLetter}"]`);
-  if (optionDiv) optionDiv.remove();
-  
-  relabelFormQcmOptions(questionId);
-  
-  // Update answer dropdown
-  updateFormQcmAnswerDropdown(questionId);
+  const optionDivToRemove = container.querySelector(`[data-option-id="${optionLetter}"]`);
+  if (optionDivToRemove) {
+    optionDivToRemove.remove();
+    relabelFormQcmOptions(questionId); // Relabel remaining options
+    updateFormQcmAnswerDropdown(questionId); // Update answer dropdown
+  }
 };
 
 function relabelFormQcmOptions(questionId) {
@@ -1160,7 +1159,7 @@ function relabelFormQcmOptions(questionId) {
     // Update remove button with correct letter reference
     const button = optionDiv.querySelector('.remove-form-option-btn');
     if (button) {
-      button.setAttribute('data-opt-idx', newIndex);
+      button.setAttribute('data-opt-idx', newLetter); // Use the new letter for the button's data attribute
     }
   });
 }
@@ -1873,7 +1872,7 @@ function editExercise(id) {
           optionDiv.innerHTML = `
             <label style="margin:0;font-weight:600;min-width:60px">Choix ${letter.toUpperCase()}</label>
             <input class="form-qcm-option" data-option-letter="${letter}" placeholder="Réponse ${letter.toUpperCase()}" value="${optionValue}" style="flex:1;padding:10px;border:1px solid #ddd;border-radius:8px;font-size:.95rem;box-sizing:border-box">
-            <button class="btn-danger remove-form-option-btn" data-qcm-id="${formQcmCounter}" data-opt-idx="${currentOptionIndex}" style="background:#e53e3e;color:#fff;border:none;padding:8px 12px;border-radius:6px;cursor:pointer;font-size:.85rem">✕</button>
+            <button class="btn-danger remove-form-option-btn" data-qcm-id="${formQcmCounter}" data-opt-idx="${letter}" style="background:#e53e3e;color:#fff;border:none;padding:8px 12px;border-radius:6px;cursor:pointer;font-size:.85rem">✕</button>
           `;
           container.appendChild(optionDiv);
         }
@@ -2447,7 +2446,7 @@ function deleteUser(userId) {
   // Remove user drafts
   const allDrafts = JSON.parse(localStorage.getItem('fr_drafts_db') || '{}');
   delete allDrafts[userId];
-  localStorage.setItem('fr_drafts_db', JSON.stringify(allDrafts));
+  localStorage.setItem('fr_drafts_db', JSON.JSON.stringify(allDrafts));
   
   alert(`Le compte de ${user.name} a été supprimé avec succès`);
   
@@ -2684,7 +2683,7 @@ function sendAdminMessage() {
     read: false
   });
 
-  localStorage.setItem('fr_messages', JSON.stringify(messages));
+  localStorage.setItem('fr_messages', JSON.JSON.stringify(messages));
   $('#adminMessageInput').value = '';
   loadChatMessages(selectedChatUserId);
 }
