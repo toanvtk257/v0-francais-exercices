@@ -59,8 +59,8 @@ button:hover{opacity:.9}
     </div>
 
     <div class="form-group">
-      <label for="login-pin">Code PIN (4 chiffres)</label>
-      <input type="tel" id="login-pin" class="pin-input" autocomplete="off" placeholder="••••" maxlength="4" pattern="[0-9]*" inputmode="numeric">
+      <label for="login-pin">Code PIN (6 chiffres)</label>
+      <input type="tel" id="login-pin" class="pin-input" autocomplete="off" placeholder="••••••" maxlength="6" pattern="[0-9]*" inputmode="numeric">
     </div>
 
     <button type="button" onclick="handleLogin()">Connexion</button>
@@ -70,7 +70,7 @@ button:hover{opacity:.9}
   <!-- Updated registration to use PIN instead of password -->
   <div id="register-tab" class="tab-content">
     <div class="info-box">
-      Version de démonstration : créez un compte avec un code PIN à 4 chiffres pour accéder à la plateforme.
+      Version de démonstration : créez un compte avec un code PIN à 6 chiffres pour accéder à la plateforme.
     </div>
     
     <div class="form-group">
@@ -84,8 +84,8 @@ button:hover{opacity:.9}
     </div>
 
     <div class="form-group">
-      <label for="register-pin">Code PIN (4 chiffres)</label>
-      <input type="tel" id="register-pin" class="pin-input" autocomplete="off" placeholder="••••" maxlength="4" pattern="[0-9]*" inputmode="numeric">
+      <label for="register-pin">Code PIN (6 chiffres)</label>
+      <input type="tel" id="register-pin" class="pin-input" autocomplete="off" placeholder="••••••" maxlength="6" pattern="[0-9]*" inputmode="numeric">
     </div>
 
     <div class="form-group">
@@ -134,8 +134,8 @@ function handleLogin() {
     return;
   }
   
-  if (pin.length !== 4 || !/^\d{4}$/.test(pin)) {
-    errorDiv.textContent = 'Le code PIN doit contenir exactement 4 chiffres';
+  if (pin.length !== 6 || !/^\d{6}$/.test(pin)) {
+    errorDiv.textContent = 'Le code PIN doit contenir exactement 6 chiffres';
     errorDiv.style.display = 'block';
     return;
   }
@@ -174,8 +174,8 @@ function handleRegister() {
     return;
   }
   
-  if (pin.length !== 4 || !/^\d{4}$/.test(pin)) {
-    errorDiv.textContent = 'Le code PIN doit contenir exactement 4 chiffres';
+  if (pin.length !== 6 || !/^\d{6}$/.test(pin)) {
+    errorDiv.textContent = 'Le code PIN doit contenir exactement 6 chiffres';
     errorDiv.style.display = 'block';
     return;
   }
