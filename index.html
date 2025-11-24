@@ -3,6 +3,8 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
+<!-- Added Content Security Policy to remove "Dangerous" warning -->
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data: https:; font-src 'self' data:; connect-src 'self' ws: wss:; media-src 'self' data: https:;">
 <title>Entraînement au français - espace numérique</title>
 
 <!-- Authentication check moved here to execute BEFORE page renders -->
@@ -18,7 +20,6 @@
   
   try {
     const userData = JSON.parse(loggedUser);
-    console.log('[v0] User authenticated:', userData.email);
   } catch (e) {
     localStorage.removeItem(AUTH_KEY);
     window.location.href = 'login.html';
