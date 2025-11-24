@@ -1039,7 +1039,21 @@ function addFormQcmQuestion() {
   attachFormQcmEventListeners();
 }
 
-function attachFormQcmEventListeners() {
+window.removeFormQcmQuestion = function(questionId) {
+  console.log('[v0] Removing QCM question:', questionId);
+  if (confirm('Voulez-vous vraiment supprimer cette question?')) {
+    // Find the parent div with data-qcm-id and remove it
+    const questionDiv = document.querySelector(`[data-qcm-id="${questionId}"]`).closest('div[style*="background:#f9f9f9"]');
+    if (questionDiv) {
+      questionDiv.remove();
+      console.log('[v0] Question removed');
+    } else {
+      console.error('[v0] Could not find question div for removal with ID:', questionId);
+    }
+  }
+};
+
+window.attachFormQcmEventListeners = function() {
   // Attach event listeners to all "Add response" buttons
   document.querySelectorAll('.add-form-option-btn').forEach(btn => {
     btn.onclick = function() {
@@ -1856,7 +1870,7 @@ function editExercise(id) {
       for (let i = 0; i < 26; i++) { // Check up to 'z'
         const letter = String.fromCharCode(97 + i); // 'a', 'b', 'c', ...
         if (q.hasOwnProperty(letter) && q[letter]) {
-          currentOptionIndex++;
+          currentOptionCount++; // Increment for each option added
           const optionValue = q[letter];
           
           const container = questionDiv.querySelector('.form-qcm-options-container');
@@ -1872,7 +1886,7 @@ function editExercise(id) {
           container.appendChild(optionDiv);
         }
       }
-      optionCounter[formQcmCounter] = currentOptionCount; // Set the counter for this question (was currentOptionIndex, should be derived from how many options were added)
+      optionCounter[formQcmCounter] = currentOptionCount; // Store the number of options added
       
       // Set the answer and update the dropdown
       if (q.answer) {
