@@ -23,13 +23,13 @@ button:hover{opacity:.9}
 .tab.active{background:var(--brand);color:#fff}
 .tab-content{display:none}
 .tab-content.active{display:block}
-/* Added PIN input styling with masked dots */
+/* Re-enabling PIN masking with dots */
 .pin-input{
   text-align:center;
   font-size:1.5rem;
   letter-spacing:8px;
   font-weight:600;
-  /* Removed -webkit-text-security:disc to avoid Chrome phishing detection */
+  -webkit-text-security:disc;
 }
 .info-box{
   background:#e8f5e9;
@@ -60,7 +60,6 @@ button:hover{opacity:.9}
 
     <div class="form-group">
       <label for="login-pin">Code PIN (6 chiffres)</label>
-      <!-- Reverted back to type="text" which worked before -->
       <input type="text" id="login-pin" class="pin-input" autocomplete="off" data-form-type="other" placeholder="123456" maxlength="6" pattern="[0-9]*" inputmode="numeric">
     </div>
 
@@ -85,7 +84,6 @@ button:hover{opacity:.9}
 
     <div class="form-group">
       <label for="register-pin">Code PIN (6 chiffres)</label>
-      <!-- Reverted back to type="text" which worked before -->
       <input type="text" id="register-pin" class="pin-input" autocomplete="off" data-form-type="other" placeholder="123456" maxlength="6" pattern="[0-9]*" inputmode="numeric">
     </div>
 
