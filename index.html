@@ -31,6 +31,9 @@
 :root{--brand:#2b5;--ink:#222;--muted:#666;--bg:#f7f7f7;--card:#fff}
 html,body{margin:0;padding:0;background:var(--bg);color:var(--ink);font-family:system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif}
 header{background:var(--brand);color:#fff;padding:18px 20px}
+header .header-content{display:flex;justify-content:space-between;align-items:center}
+.logout-btn{background:#dc2626;border:none;color:#fff;padding:8px 16px;border-radius:8px;cursor:pointer;font-weight:600;font-size:.9rem;transition:all .2s}
+.logout-btn:hover{background:#b91c1c}
 main{max-width:980px;margin:24px auto;padding:0 16px 48px}
 .card{background:var(--card);border-radius:14px;box-shadow:0 6px 18px rgba(0,0,0,.05);padding:18px;margin:16px 0}
 h1{margin:0;font-size:1.4rem}
@@ -54,8 +57,13 @@ input[type="text"], textarea{width:100%;padding:10px;border:1px solid #ddd;borde
 </head>
 <body>
 <header>
-  <h1>Entraînement au français - <em>espace numérique</em></h1>
-  <p class="small">Fonctionne hors ligne ! Ou utilisez "Choisir un JSON" pour charger un fichier personnalisé.</p>
+  <div class="header-content">
+    <div>
+      <h1>Entraînement au français - <em>espace numérique</em></h1>
+      <p class="small">Fonctionne hors ligne ! Ou utilisez "Choisir un JSON" pour charger un fichier personnalisé.</p>
+    </div>
+    <button class="logout-btn" id="logoutBtn">Déconnexion</button>
+  </div>
 </header>
 <main>
   <section class="card">
@@ -338,6 +346,13 @@ document.getElementById('clozeReset').addEventListener('click', ()=>{ $$('#cloze
 document.addEventListener('input', updateTransVisibility, true);
 
 window.addEventListener('DOMContentLoaded', fetchDefault);
+
+document.getElementById('logoutBtn').addEventListener('click', function() {
+  if (confirm('Voulez-vous vraiment vous déconnecter ?')) {
+    localStorage.removeItem('fr_auth_user');
+    window.location.replace('https://v0-francais-exercices.vercel.app/login.html');
+  }
+});
 </script>
 </body>
 </html>
