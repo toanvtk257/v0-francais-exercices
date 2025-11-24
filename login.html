@@ -33,13 +33,13 @@ button:hover{opacity:.9}
     Version de démonstration : cliquez sur votre rôle pour accéder directement à la plateforme.
   </div>
 
-  <!-- Using pure HTML links instead of JavaScript -->
-  <a href="dashboard.html" class="role-card">
+  <!-- Using window.location.origin to create full absolute URLs -->
+  <a href="./dashboard.html" class="role-card" onclick="event.preventDefault(); window.location.href = window.location.origin + '/dashboard.html';">
     <h3 class="role-title">👨‍🎓 Étudiant</h3>
     <p class="role-desc">Accéder aux exercices de français</p>
   </a>
 
-  <a href="admin.html" class="role-card">
+  <a href="./admin.html" class="role-card" onclick="event.preventDefault(); window.location.href = window.location.origin + '/admin.html';">
     <h3 class="role-title">👨‍💼 Administrateur</h3>
     <p class="role-desc">Gestion complète de la plateforme</p>
   </a>
