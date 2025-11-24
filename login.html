@@ -17,57 +17,243 @@ input,select{width:100%;padding:12px;border:1px solid #ddd;border-radius:10px;fo
 input:focus,select:focus{outline:none;border-color:var(--brand);box-shadow:0 0 0 3px rgba(34,187,85,.1)}
 button{width:100%;border:0;padding:14px;border-radius:10px;cursor:pointer;font-weight:600;font-size:1rem;transition:all .2s;background:var(--brand);color:#fff;margin-top:8px}
 button:hover{opacity:.9}
-.info-box{background:#f0f8ff;border:1px solid #cde;border-radius:10px;padding:14px;margin-bottom:20px;font-size:.9rem;color:#333}
-.role-card{border:2px solid #ddd;border-radius:12px;padding:20px;margin-bottom:16px;text-decoration:none;display:block;transition:all .2s;background:#fff}
-.role-card:hover{border-color:var(--brand);box-shadow:0 4px 12px rgba(34,187,85,.15);transform:translateY(-2px)}
-.role-title{font-size:1.1rem;font-weight:700;color:var(--brand);margin:0 0 8px}
-.role-desc{color:var(--muted);font-size:.9rem;margin:0}
+.error{color:#c33;font-size:.9rem;margin-top:8px;display:none}
+.tabs{display:flex;gap:8px;margin-bottom:24px}
+.tab{flex:1;padding:12px;border:0;background:#f0f0f0;border-radius:8px;cursor:pointer;font-weight:600;transition:all .2s}
+.tab.active{background:var(--brand);color:#fff}
+.tab-content{display:none}
+.tab-content.active{display:block}
+/* Added PIN input styling with masked dots */
+.pin-input{
+  text-align:center;
+  font-size:1.5rem;
+  letter-spacing:8px;
+  font-weight:600;
+  -webkit-text-security:disc;
+}
+.info-box{
+  background:#e8f5e9;
+  border-left:4px solid var(--brand);
+  padding:12px;
+  margin-bottom:16px;
+  border-radius:6px;
+  font-size:.9rem;
+  color:var(--ink);
+}
 </style>
 </head>
 <body>
 <div class="container">
   <h1>Entraînement au français - <em>espace numérique</em></h1>
-  <p class="subtitle">Sélectionnez votre profil pour accéder</p>
+  <p class="subtitle">Connexion à la plateforme</p>
 
-  <div class="info-box">
-    Version de démonstration : cliquez sur votre rôle pour accéder directement à la plateforme.
+  <div class="tabs">
+    <button class="tab active" onclick="switchTab('login')">Connexion</button>
+    <button class="tab" onclick="switchTab('register')">Inscription</button>
   </div>
 
-  <!-- Using pure HTML links instead of JavaScript -->
-  <a href="#" onclick="loginAsStudent(); return false;" class="role-card">
-    <h3 class="role-title">👨‍🎓 Étudiant</h3>
-    <p class="role-desc">Accéder aux exercices de français</p>
-  </a>
+  <div id="login-tab" class="tab-content active">
+    <div class="form-group">
+      <label for="login-username">Identifiant</label>
+      <input type="text" id="login-username" autocomplete="off" placeholder="Votre identifiant">
+    </div>
 
-  <a href="#" onclick="loginAsAdmin(); return false;" class="role-card">
-    <h3 class="role-title">👨‍💼 Administrateur</h3>
-    <p class="role-desc">Gestion complète de la plateforme</p>
-  </a>
+    <div class="form-group">
+      <label for="login-pin">Code PIN (6 chiffres)</label>
+      <input type="text" id="login-pin" class="pin-input" autocomplete="off" data-form-type="other" placeholder="••••••" maxlength="6" pattern="[0-9]*" inputmode="numeric">
+    </div>
+
+    <button type="button" onclick="handleLogin()">Connexion</button>
+    <div id="login-error" class="error"></div>
+  </div>
+
+  <div id="register-tab" class="tab-content">
+    <div class="info-box">
+      Version de démonstration : créez un compte avec un code PIN à 6 chiffres pour accéder à la plateforme.
+    </div>
+    
+    <div class="form-group">
+      <label for="register-name">Nom complet</label>
+      <input type="text" id="register-name" autocomplete="off" placeholder="Jean Dupont">
+    </div>
+
+    <div class="form-group">
+      <label for="register-username">Identifiant</label>
+      <input type="text" id="register-username" autocomplete="off" placeholder="Choisissez un identifiant unique">
+    </div>
+
+    <div class="form-group">
+      <label for="register-pin">Code PIN (6 chiffres)</label>
+      <input type="text" id="register-pin" class="pin-input" autocomplete="off" data-form-type="other" placeholder="••••••" maxlength="6" pattern="[0-9]*" inputmode="numeric">
+    </div>
+
+    <div class="form-group">
+      <label for="register-role">Rôle</label>
+      <select id="register-role" onchange="toggleAdminSecretField()">
+        <option value="student">Étudiant - Accès aux exercices</option>
+        <option value="admin">Administrateur - Gestion complète</option>
+      </select>
+    </div>
+
+    <div class="form-group" id="admin-secret-field" style="display:none;">
+      <label for="admin-secret">Code secret administrateur</label>
+      <input type="text" id="admin-secret" autocomplete="off" placeholder="Code requis pour créer un compte admin">
+      <small style="color:var(--muted);font-size:.85rem;display:block;margin-top:4px;">Contactez l'administrateur pour obtenir ce code</small>
+    </div>
+
+    <button type="button" onclick="handleRegister()">S'inscrire</button>
+    <div id="register-error" class="error"></div>
+  </div>
 </div>
 
-<!-- Adding authentication JavaScript -->
 <script>
-  function loginAsStudent() {
-    const userData = {
-      name: 'Étudiant Demo',
-      email: 'student@demo.fr',
-      role: 'student'
-    };
-    localStorage.setItem('fr_auth_user', JSON.stringify(userData));
-    localStorage.setItem('fr_current_user', JSON.stringify(userData));
-    window.location.href = 'dashboard.html';
-  }
+const ADMIN_SECRET_CODE = '250784';
 
-  function loginAsAdmin() {
-    const userData = {
-      name: 'Administrateur Demo',
-      email: 'admin@demo.fr',
-      role: 'admin'
-    };
-    localStorage.setItem('fr_auth_user', JSON.stringify(userData));
-    localStorage.setItem('fr_current_user', JSON.stringify(userData));
-    window.location.href = 'admin.html';
+function toggleAdminSecretField() {
+  const role = document.getElementById('register-role').value;
+  const secretField = document.getElementById('admin-secret-field');
+  
+  if (role === 'admin') {
+    secretField.style.display = 'block';
+  } else {
+    secretField.style.display = 'none';
   }
+}
+
+function switchTab(tab) {
+  const loginTab = document.getElementById('login-tab');
+  const registerTab = document.getElementById('register-tab');
+  const tabs = document.querySelectorAll('.tab');
+  
+  tabs.forEach(t => t.classList.remove('active'));
+  
+  if (tab === 'login') {
+    loginTab.classList.add('active');
+    registerTab.classList.remove('active');
+    tabs[0].classList.add('active');
+  } else {
+    registerTab.classList.add('active');
+    loginTab.classList.remove('active');
+    tabs[1].classList.add('active');
+  }
+  
+  document.getElementById('login-error').style.display = 'none';
+  document.getElementById('register-error').style.display = 'none';
+}
+
+function handleLogin() {
+  const username = document.getElementById('login-username').value.trim();
+  const pin = document.getElementById('login-pin').value;
+  const errorDiv = document.getElementById('login-error');
+  
+  if (!username || !pin) {
+    errorDiv.textContent = 'Veuillez remplir tous les champs';
+    errorDiv.style.display = 'block';
+    return;
+  }
+  
+  if (pin.length !== 6 || !/^\d{6}$/.test(pin)) {
+    errorDiv.textContent = 'Le code PIN doit contenir exactement 6 chiffres';
+    errorDiv.style.display = 'block';
+    return;
+  }
+  
+  const users = JSON.parse(localStorage.getItem('fr_users') || '{}');
+  const user = users[username];
+  
+  if (!user || user.pin !== pin) {
+    errorDiv.textContent = 'Identifiant ou code PIN incorrect';
+    errorDiv.style.display = 'block';
+    return;
+  }
+  
+  const userData = {
+    id: user.id,
+    name: user.name,
+    username: user.username,
+    role: user.role
+  };
+  localStorage.setItem('fr_auth_user', JSON.stringify(userData));
+  localStorage.setItem('fr_current_user', user.id);
+  
+  window.location.href = user.role === 'admin' ? 'admin.html' : 'dashboard.html';
+}
+
+function handleRegister() {
+  const name = document.getElementById('register-name').value.trim();
+  const username = document.getElementById('register-username').value.trim();
+  const pin = document.getElementById('register-pin').value;
+  const role = document.getElementById('register-role').value;
+  const errorDiv = document.getElementById('register-error');
+  
+  if (!name || !username || !pin) {
+    errorDiv.textContent = 'Veuillez remplir tous les champs';
+    errorDiv.style.display = 'block';
+    return;
+  }
+  
+  if (pin.length !== 6 || !/^\d{6}$/.test(pin)) {
+    errorDiv.textContent = 'Le code PIN doit contenir exactement 6 chiffres';
+    errorDiv.style.display = 'block';
+    return;
+  }
+  
+  if (role === 'admin') {
+    const adminSecret = document.getElementById('admin-secret').value.trim();
+    if (adminSecret !== ADMIN_SECRET_CODE) {
+      errorDiv.textContent = 'Code secret administrateur incorrect';
+      errorDiv.style.display = 'block';
+      return;
+    }
+  }
+  
+  const users = JSON.parse(localStorage.getItem('fr_users') || '{}');
+  
+  if (users[username]) {
+    errorDiv.textContent = 'Cet identifiant est déjà utilisé';
+    errorDiv.style.display = 'block';
+    return;
+  }
+  
+  const userId = 'user_' + Date.now();
+  users[username] = {
+    id: userId,
+    name: name,
+    username: username,
+    pin: pin,
+    role: role
+  };
+  
+  localStorage.setItem('fr_users', JSON.stringify(users));
+  
+  const userData = {
+    id: userId,
+    name: name,
+    username: username,
+    role: role
+  };
+  localStorage.setItem('fr_auth_user', JSON.stringify(userData));
+  localStorage.setItem('fr_current_user', userId);
+  
+  window.location.href = role === 'admin' ? 'admin.html' : 'dashboard.html';
+}
+
+document.addEventListener('DOMContentLoaded', function() {
+  document.getElementById('login-pin').addEventListener('keypress', function(e) {
+    if (e.key === 'Enter') handleLogin();
+  });
+  
+  document.getElementById('register-role').addEventListener('keypress', function(e) {
+    if (e.key === 'Enter') handleRegister();
+  });
+  
+  const pinInputs = document.querySelectorAll('.pin-input');
+  pinInputs.forEach(input => {
+    input.addEventListener('input', function(e) {
+      this.value = this.value.replace(/[^0-9]/g, '');
+    });
+  });
+});
 </script>
 </body>
 </html>
