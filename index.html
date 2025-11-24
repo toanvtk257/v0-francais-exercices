@@ -131,36 +131,101 @@ const $ = s=>document.querySelector(s);
 const $$ = s=>[...document.querySelectorAll(s)];
 const normalize = s=>(s||'').toString().normalize('NFD').replace(/\p{Diacritic}/gu,'').toLowerCase().trim();
 
+const CLOUDINARY_CLOUD_NAME = 'dvbsn45rk';
+const CLOUDINARY_JSON_FOLDER = 'french-json';
+const FILES_INDEX_KEY = 'fr_json_files_index';
+const CACHE_KEY_PREFIX = 'fr_json_cache_';
+const CACHE_TIMESTAMP_KEY = 'fr_json_cache_timestamp';
+const CACHE_DURATION_MS = 1000 * 60 * 60 * 24; // 24 hours
+
+async function fetchFromCloudinary() {
+  $('#loadStatus').textContent='Chargement depuis Cloudinary...';
+  
+  try {
+    // Check cache first
+    const cacheTimestamp = localStorage.getItem(CACHE_TIMESTAMP_KEY);
+    const now = Date.now();
+    
+    if (cacheTimestamp && (now - parseInt(cacheTimestamp)) < CACHE_DURATION_MS) {
+      // Load from cache
+      const cachedData = localStorage.getItem(CACHE_KEY_PREFIX + 'merged');
+      if (cachedData) {
+        BANK = JSON.parse(cachedData);
+        $('#loadStatus').textContent='Chargé depuis le cache: ' + (BANK.lecture?.length||0) + ' CE, ' + (BANK.ecoute?.length||0) + ' CO.';
+        buildPickers();
+        return;
+      }
+    }
+    
+    // Load from Cloudinary
+    const filesIndex = JSON.parse(localStorage.getItem(FILES_INDEX_KEY) || '[]');
+    
+    if (filesIndex.length === 0) {
+      throw new Error('Aucun fichier JSON configuré');
+    }
+    
+    const mergedBank = {lecture: [], ecoute: [], grammaire: [], lexique: []};
+    
+    // Load all files in parallel
+    const loadPromises = filesIndex.map(async (fileInfo) => {
+      try {
+        const response = await fetch(fileInfo.cloudinaryUrl);
+        if (!response.ok) throw new Error(`Échec chargement ${fileInfo.fileName}`);
+        const data = await response.json();
+        return { fileName: fileInfo.fileName, data };
+      } catch (err) {
+        console.error(`[v0] Error loading ${fileInfo.fileName}:`, err);
+        return null;
+      }
+    });
+    
+    const results = await Promise.all(loadPromises);
+    
+    // Merge all data
+    results.forEach(result => {
+      if (result && result.data) {
+        const { data } = result;
+        if (data.lecture) mergedBank.lecture.push(...data.lecture);
+        if (data.ecoute) mergedBank.ecoute.push(...data.ecoute);
+        if (data.grammaire) mergedBank.grammaire.push(...data.grammaire);
+        if (data.lexique) mergedBank.lexique.push(...data.lexique);
+      }
+    });
+    
+    BANK = mergedBank;
+    
+    // Update cache
+    localStorage.setItem(CACHE_KEY_PREFIX + 'merged', JSON.stringify(BANK));
+    localStorage.setItem(CACHE_TIMESTAMP_KEY, now.toString());
+    
+    $('#loadStatus').textContent=`Chargé depuis Cloudinary (${filesIndex.length} fichiers): ` + 
+      (BANK.lecture?.length||0) + ' CE, ' + (BANK.ecoute?.length||0) + ' CO.`;
+    buildPickers();
+    
+  } catch(e) {
+    $('#loadStatus').textContent='Erreur Cloudinary. ' + e.message;
+    // Try local fallback
+    fetchDefault();
+  }
+}
+
 async function fetchDefault(){
-  $('#loadStatus').textContent='Chargement de la banque...';
+  $('#loadStatus').textContent='Chargement de la banque locale...';
   try{
-    // Try to load from embedded questions.js
     if(window.questionsData){
       BANK = window.questionsData;
-      $('#loadStatus').textContent='Chargé: ' + (BANK.lecture?.length||0) + ' CE, ' + (BANK.ecoute?.length||0) + ' CO.';
+      $('#loadStatus').textContent='Chargé (local): ' + (BANK.lecture?.length||0) + ' CE, ' + (BANK.ecoute?.length||0) + ' CO.';
       buildPickers();
     } else {
-      // Fallback to fetch if questions.js is not loaded
       const r = await fetch('data/questions.json');
       if(!r.ok) throw new Error('Échec lecture');
       BANK = await r.json();
-      $('#loadStatus').textContent='Chargé: ' + (BANK.lecture?.length||0) + ' CE, ' + (BANK.ecoute?.length||0) + ' CO.';
+      $('#loadStatus').textContent='Chargé (local): ' + (BANK.lecture?.length||0) + ' CE, ' + (BANK.ecoute?.length||0) + ' CO.';
       buildPickers();
     }
   }catch(e){
     $('#loadStatus').textContent='Impossible de charger la banque. Utilisez "Choisir un JSON".';
   }
-}
-function readPickedJson(file){
-  const fr = new FileReader();
-  fr.onload = e=>{
-    try{
-      BANK = JSON.parse(e.target.result);
-      $('#loadStatus').textContent='Chargé: ' + (BANK.lecture?.length||0) + ' CE, ' + (BANK.ecoute?.length||0) + ' CO.';
-      buildPickers();
-    }catch(err){ $('#loadStatus').textContent='JSON invalide.'; }
-  };
-  fr.readAsText(file,'utf-8');
 }
 
 function groupByPath(arr){
@@ -333,7 +398,15 @@ function updateTransVisibility(){
 }
 
 // wire
-document.getElementById('loadDefault').addEventListener('click', fetchDefault);
+document.getElementById('loadDefault').addEventListener('click', async () => {
+  const filesIndex = JSON.parse(localStorage.getItem(FILES_INDEX_KEY) || '[]');
+  if (filesIndex.length > 0) {
+    await fetchFromCloudinary();
+  } else {
+    await fetchDefault();
+  }
+});
+
 document.getElementById('pickJson').addEventListener('change', e=>{ const f=e.target.files[0]; if(f) readPickedJson(f); });
 document.getElementById('levelPick').addEventListener('change', fillTopics);
 document.getElementById('topicPick').addEventListener('change', fillLessons);
@@ -346,7 +419,14 @@ document.getElementById('clozeGrade').addEventListener('click', gradeCloze);
 document.getElementById('clozeReset').addEventListener('click', ()=>{ $$('#clozeHost input').forEach(i=>i.value=''); $('#clozeFb').textContent=''; updateTransVisibility(); });
 document.addEventListener('input', updateTransVisibility, true);
 
-window.addEventListener('DOMContentLoaded', fetchDefault);
+window.addEventListener('DOMContentLoaded', async () => {
+  const filesIndex = JSON.parse(localStorage.getItem(FILES_INDEX_KEY) || '[]');
+  if (filesIndex.length > 0) {
+    await fetchFromCloudinary();
+  } else {
+    await fetchDefault();
+  }
+});
 
 document.getElementById('logoutBtn').addEventListener('click', function() {
   if (confirm('Voulez-vous vraiment vous déconnecter ?')) {
