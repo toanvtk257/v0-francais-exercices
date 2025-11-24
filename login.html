@@ -123,6 +123,8 @@ function saveUsers(users) {
 
 function handleLogin(e) {
   e.preventDefault();
+  console.log("[v0] Login form submitted");
+  
   const email = document.getElementById('loginEmail').value.trim();
   const password = document.getElementById('loginPassword').value;
   const errorEl = document.getElementById('loginError');
@@ -136,6 +138,7 @@ function handleLogin(e) {
   }
 
   const users = getUsers();
+  console.log("[v0] Checking credentials");
   
   const user = users.find(u => {
     return u.email === email && u.password === password;
@@ -147,11 +150,12 @@ function handleLogin(e) {
     return;
   }
 
+  console.log("[v0] User found, redirecting...");
   localStorage.setItem(AUTH_KEY, JSON.stringify(user));
   
-  const baseUrl = 'https://v0-francais-exercices.vercel.app';
   const redirectPage = user.role === 'admin' ? 'admin.html' : 'dashboard.html';
-  window.location.href = `${baseUrl}/${redirectPage}`;
+  console.log("[v0] Redirecting to:", redirectPage);
+  window.location.replace(redirectPage);
 }
 
 function handleRegister(event) {
@@ -212,6 +216,7 @@ function handleRegister(event) {
   
   const baseUrl = 'https://v0-francais-exercices.vercel.app';
   const redirectPage = newUser.role === 'admin' ? 'admin.html' : 'dashboard.html';
+  console.log("[v0] Redirecting to:", redirectPage);
   window.location.href = `${baseUrl}/${redirectPage}`;
 }
 
