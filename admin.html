@@ -1763,20 +1763,19 @@ function resetUserPassword(userId) {
   }
   
   const user = users[userIndex];
-  const newPassword = prompt(`Entrez le nouveau code PIN (6 chiffres) pour ${user.name}:`);
+  const newPin = prompt(`Entrez le nouveau code PIN (6 chiffres) pour ${user.name}:`);
   
-  if (!newPassword) {
-    return; // User cancelled
+  if (!newPin) {
+    return;
   }
   
-  if (!/^\d{6}$/.test(newPassword)) {
+  if (!/^\d{6}$/.test(newPin)) {
     alert('Le code PIN doit contenir exactement 6 chiffres');
     return;
   }
   
-  // Update password
-  users[userIndex].password = newPassword;
-  localStorage.setItem(USERS_KEY, JSON.JSON.stringify(users));
+  users[userIndex].pin = newPin;
+  localStorage.setItem(USERS_KEY, JSON.stringify(users));
   
   alert(`Code PIN réinitialisé avec succès pour ${user.name}`);
 }

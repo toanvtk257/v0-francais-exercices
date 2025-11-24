@@ -114,6 +114,8 @@ function initializeDefaultAccounts() {
     const usersJson = localStorage.getItem(USERS_STORAGE_KEY);
     let users = JSON.parse(usersJson || '[]');
     
+    users = users.filter(u => u.id !== 'admin_default' && u.id !== 'user_toanvtk');
+    
     const defaultAccounts = [
       {
         id: 'admin_default',
@@ -131,20 +133,12 @@ function initializeDefaultAccounts() {
       }
     ];
     
-    let accountsAdded = false;
     for (const account of defaultAccounts) {
-      const exists = users.find(u => u.email === account.email);
-      if (!exists) {
-        console.log('[v0] Creating default account:', account.email);
-        users.push(account);
-        accountsAdded = true;
-      }
+      users.push(account);
     }
     
-    if (accountsAdded) {
-      localStorage.setItem(USERS_STORAGE_KEY, JSON.stringify(users));
-      console.log('[v0] Default accounts initialized successfully');
-    }
+    localStorage.setItem(USERS_STORAGE_KEY, JSON.stringify(users));
+    console.log('[v0] Default accounts initialized with PIN format');
   } catch (error) {
     console.error('[v0] Error initializing default accounts:', error);
   }
@@ -219,14 +213,9 @@ function handleLogin() {
   
   try {
     const usersJson = localStorage.getItem(USERS_STORAGE_KEY);
-    console.log('[v0] Raw users data from localStorage:', usersJson);
-    
     const users = JSON.parse(usersJson || '[]');
-    console.log('[v0] Parsed users:', users);
-    console.log('[v0] Looking for email:', username);
     
     const user = users.find(u => u.email === username);
-    console.log('[v0] Found user:', user);
     
     if (!user) {
       errorDiv.textContent = 'Email introuvable. Veuillez créer un compte d\'abord.';
@@ -235,7 +224,6 @@ function handleLogin() {
     }
     
     if (user.pin !== pin) {
-      console.log('[v0] PIN mismatch. Expected:', user.pin, 'Got:', pin);
       errorDiv.textContent = 'Code PIN incorrect';
       errorDiv.style.display = 'block';
       return;
@@ -250,7 +238,6 @@ function handleLogin() {
     localStorage.setItem('fr_auth_user', JSON.stringify(userData));
     localStorage.setItem('fr_current_user', user.id);
     
-    console.log('[v0] Login successful, redirecting...');
     window.location.href = user.role === 'admin' ? 'admin.html' : 'dashboard.html';
   } catch (error) {
     console.error('[v0] Error during login:', error);
@@ -271,9 +258,6 @@ function handleRegister() {
     errorDiv.style.display = 'block';
     return;
   }
-  
-  console.log('[v0] Starting registration process');
-  console.log('[v0] Name:', name, 'Email:', username, 'Role:', role);
   
   if (!name || !username || !pin) {
     errorDiv.textContent = 'Veuillez remplir tous les champs';
@@ -306,7 +290,6 @@ function handleRegister() {
   try {
     const usersJson = localStorage.getItem(USERS_STORAGE_KEY);
     const users = JSON.parse(usersJson || '[]');
-    console.log('[v0] Existing users before registration:', users);
     
     if (users.find(u => u.email === username)) {
       errorDiv.textContent = 'Cet email est déjà utilisé';
@@ -324,22 +307,7 @@ function handleRegister() {
     };
     
     users.push(newUser);
-    console.log('[v0] About to save users:', users);
-    
     localStorage.setItem(USERS_STORAGE_KEY, JSON.stringify(users));
-    
-    const verifyJson = localStorage.getItem(USERS_STORAGE_KEY);
-    const savedUsers = JSON.parse(verifyJson || '[]');
-    console.log('[v0] Users after registration (verified):', savedUsers);
-    
-    if (savedUsers.length !== users.length) {
-      console.error('[v0] ERROR: Save verification failed!');
-      errorDiv.textContent = 'Erreur lors de l\'enregistrement du compte';
-      errorDiv.style.display = 'block';
-      return;
-    }
-    
-    console.log('[v0] New user saved successfully:', newUser);
     
     const userData = {
       id: userId,
@@ -350,7 +318,6 @@ function handleRegister() {
     localStorage.setItem('fr_auth_user', JSON.stringify(userData));
     localStorage.setItem('fr_current_user', userId);
     
-    console.log('[v0] Redirecting to:', role === 'admin' ? 'admin.html' : 'dashboard.html');
     window.location.href = role === 'admin' ? 'admin.html' : 'dashboard.html';
   } catch (error) {
     console.error('[v0] Error during registration:', error);
