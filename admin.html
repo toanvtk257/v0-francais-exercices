@@ -569,43 +569,56 @@ function checkAuth() {
 }
 
 async function loadBank() {
-  console.log('[v0] Loading bank from Cloudinary and localStorage...');
+  console.log('[v0] === STARTING BANK LOADING ===');
   
   // Load from localStorage as fallback
   const stored = localStorage.getItem(BANK_KEY);
   if (stored) {
     bank = JSON.parse(stored);
     console.log('[v0] Loaded from localStorage:', bank);
+    console.log('[v0] localStorage bank structure:', {
+      lecture: bank.lecture?.length || 0,
+      ecoute: bank.ecoute?.length || 0,
+      grammaire: bank.grammaire?.length || 0,
+      lexique: bank.lexique?.length || 0
+    });
   } else {
     bank = { lecture: [], ecoute: [], grammaire: [], lexique: [] };
+    console.log('[v0] No localStorage data, using empty bank');
   }
 
   // Try to load from Cloudinary
   try {
+    console.log('[v0] Attempting to load from Cloudinary...');
     const cloudinaryBank = await loadFromCloudinary();
     if (cloudinaryBank) {
       bank = cloudinaryBank;
       localStorage.setItem(BANK_KEY, JSON.stringify(bank));
-      console.log('[v0] Loaded from Cloudinary and cached:', bank);
+      console.log('[v0] SUCCESS: Loaded from Cloudinary:', bank);
+      console.log('[v0] Cloudinary bank structure:', {
+        lecture: bank.lecture?.length || 0,
+        ecoute: bank.ecoute?.length || 0,
+        grammaire: bank.grammaire?.length || 0,
+        lexique: bank.lexique?.length || 0
+      });
+    } else {
+      console.log('[v0] No data returned from Cloudinary, using cached/empty bank');
     }
   } catch (error) {
-    console.error('[v0] Error loading from Cloudinary:', error);
+    console.error('[v0] ERROR loading from Cloudinary:', error);
   }
   
-  // Update tables and dashboard AFTER bank is loaded
-  if (document.querySelector('#exercises')) updateExercisesTable();
-  if (document.querySelector('#dashboard')) updateDashboard();
-  if (document.querySelector('#users')) updateUsersTable();
-  if (document.querySelector('#resources')) updateResourcesTable();
-  if (document.querySelector('#chat')) loadChatUsers();
-
-  // Ensure charts are drawn if the dashboard tab is active
-  if ($('#dashboard').classList.contains('active')) {
-    setTimeout(() => {
-      drawAdminActivityChart();
-      drawAdminLevelChart();
-    }, 100);
-  }
+  console.log('[v0] === FINAL BANK STATE ===');
+  console.log('[v0] Total exercises:', {
+    lecture: bank.lecture?.length || 0,
+    ecoute: bank.ecoute?.length || 0,
+    grammaire: bank.grammaire?.length || 0,
+    lexique: bank.lexique?.length || 0
+  });
+  
+  updateExercisesTable();
+  updateDashboard();
+  updateUsersTable();
 }
 
 
@@ -656,14 +669,15 @@ async function loadBankDataFromIndex(fileNames) {
     return null;
   }
 
-  console.log('[v0] Loading files from Cloudinary:', fileNames);
+  console.log('[v0] === LOADING FILES FROM CLOUDINARY ===');
+  console.log('[v0] Files to load:', fileNames);
 
   const mergedBank = { lecture: [], ecoute: [], grammaire: [], lexique: [] };
   
   const promises = fileNames.map(async (fileName) => {
     try {
-      // Construct the direct URL for the raw file
       const url = `https://res.cloudinary.com/${CLOUDINARY_CLOUD_NAME}/raw/upload/${CLOUDINARY_FOLDER}/${fileName}`;
+      console.log(`[v0] Fetching ${fileName} from:`, url);
       const response = await fetch(url);
       
       if (!response.ok) {
@@ -672,7 +686,12 @@ async function loadBankDataFromIndex(fileNames) {
       }
       
       const data = await response.json();
-      console.log(`[v0] Loaded ${fileName}:`, data);
+      console.log(`[v0] SUCCESS: Loaded ${fileName} with structure:`, {
+        lecture: data.lecture?.length || 0,
+        ecoute: data.ecoute?.length || 0,
+        grammaire: data.grammaire?.length || 0,
+        lexique: data.lexique?.length || 0
+      });
       return data;
     } catch (error) {
       console.error(`[v0] Error loading ${fileName}:`, error);
@@ -682,17 +701,39 @@ async function loadBankDataFromIndex(fileNames) {
 
   const results = await Promise.all(promises);
   
-  results.forEach(data => {
+  console.log('[v0] All fetch results:', results);
+  
+  results.forEach((data, index) => {
     if (data) {
-      // Ensure we only merge known types and handle potential missing arrays
-      if (data.lecture && Array.isArray(data.lecture)) mergedBank.lecture.push(...data.lecture);
-      if (data.ecoute && Array.isArray(data.ecoute)) mergedBank.ecoute.push(...data.ecoute);
-      if (data.grammaire && Array.isArray(data.grammaire)) mergedBank.grammaire.push(...data.grammaire);
-      if (data.lexique && Array.isArray(data.lexique)) mergedBank.lexique.push(...data.lexique);
+      console.log(`[v0] Merging file ${fileNames[index]}...`);
+      if (data.lecture && Array.isArray(data.lecture)) {
+        console.log(`[v0] Adding ${data.lecture.length} lecture exercises`);
+        mergedBank.lecture.push(...data.lecture);
+      }
+      if (data.ecoute && Array.isArray(data.ecoute)) {
+        console.log(`[v0] Adding ${data.ecoute.length} ecoute exercises`);
+        mergedBank.ecoute.push(...data.ecoute);
+      }
+      if (data.grammaire && Array.isArray(data.grammaire)) {
+        console.log(`[v0] Adding ${data.grammaire.length} grammaire exercises`);
+        mergedBank.grammaire.push(...data.grammaire);
+      }
+      if (data.lexique && Array.isArray(data.lexique)) {
+        console.log(`[v0] Adding ${data.lexique.length} lexique exercises`);
+        mergedBank.lexique.push(...data.lexique);
+      }
     }
   });
 
+  console.log('[v0] === FINAL MERGED BANK ===');
   console.log('[v0] Merged bank from Cloudinary:', mergedBank);
+  console.log('[v0] Totals:', {
+    lecture: mergedBank.lecture.length,
+    ecoute: mergedBank.ecoute.length,
+    grammaire: mergedBank.grammaire.length,
+    lexique: mergedBank.lexique.length
+  });
+  
   return mergedBank;
 }
 
