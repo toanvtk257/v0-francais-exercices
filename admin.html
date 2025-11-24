@@ -1138,7 +1138,7 @@ window.addFormQcmOption = function(questionId) {
   
   optionDiv.innerHTML = `
     <label style="margin:0;font-weight:600;min-width:60px">Choix ${optionLetter.toUpperCase()}</label>
-    <input class="form-qcm-option" data-option-letter="${optionLetter}" placeholder="Réponse ${optionLetter.toUpperCase()}" style="flex:1;padding:10px;border:1px solid #ddd;border-radius:8px;font-size:.95rem;box-sizing:border-box">
+    <input class="form-qcm-option" data-option-letter="${optionLetter}" placeholder="Réponse ${letter.toUpperCase()}" style="flex:1;padding:10px;border:1px solid #ddd;border-radius:8px;font-size:.95rem;box-sizing:border-box">
     <button class="btn-danger remove-form-option-btn" data-qcm-id="${questionId}" data-opt-idx="${optionLetter}" style="background:#e53e3e;color:#fff;border:none;padding:8px 12px;border-radius:6px;cursor:pointer;font-size:.85rem">✕</button>
   `;
   container.appendChild(optionDiv);
@@ -2505,7 +2505,7 @@ function deleteUser(userId) {
   // Remove user statistics
   const allStats = JSON.parse(localStorage.getItem('fr_stats_db') || '{}');
   delete allStats[userId];
-  localStorage.setItem('fr_stats_db', JSON.stringify(allStats));
+  localStorage.setItem('fr_stats_db', JSON.JSON.stringify(allStats));
   
   // Remove user drafts
   const allDrafts = JSON.parse(localStorage.getItem('fr_drafts_db') || '{}');
@@ -2519,13 +2519,14 @@ function deleteUser(userId) {
   updateDashboard();
 }
 
-async function uploadToCloudinary(file, resourceType = 'auto') {
+async function uploadToCloudinary(file) {
   const formData = new FormData();
   formData.append('file', file);
   formData.append('upload_preset', CLOUDINARY_UPLOAD_PRESET);
   formData.append('folder', 'french-audio');
 
-  const url = `https://api.cloudinary.com/v1_1/${CLOUDINARY_CLOUD_NAME}/${resourceType}/upload`;
+  // Use 'raw' resource type for audio files
+  const url = `https://api.cloudinary.com/v1_1/${CLOUDINARY_CLOUD_NAME}/raw/upload`;
 
   try {
     const response = await fetch(url, {
@@ -2590,7 +2591,7 @@ async function handleAudioFile(file, inputElement, fileNameDisplay, hiddenAudioI
   }
   
   try {
-    const cloudinaryUrl = await uploadToCloudinary(renamedFile, 'video');
+    const cloudinaryUrl = await uploadToCloudinary(renamedFile);
     
     console.log('[v0] Audio uploaded successfully to Cloudinary:', cloudinaryUrl);
     
