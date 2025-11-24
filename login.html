@@ -101,6 +101,7 @@ const $ = s => document.querySelector(s);
 const AUTH_KEY = 'fr_auth_user';
 const USERS_KEY = 'fr_users_db';
 const ADMIN_SECURITY_CODE = '250784';
+const STORAGE_KEY = 'fr_users_db';
 
 function initUsersDB() {
   if (!localStorage.getItem(USERS_KEY)) {
@@ -148,8 +149,9 @@ function handleLogin(e) {
 
   localStorage.setItem(AUTH_KEY, JSON.stringify(user));
   
-  const redirectPage = user.role === 'admin' ? '/admin.html' : '/dashboard.html';
-  window.location.href = redirectPage;
+  const baseUrl = 'https://v0-francais-exercices.vercel.app';
+  const redirectPage = user.role === 'admin' ? 'admin.html' : 'dashboard.html';
+  window.location.href = `${baseUrl}/${redirectPage}`;
 }
 
 function handleRegister(event) {
@@ -208,8 +210,9 @@ function handleRegister(event) {
   
   localStorage.setItem(AUTH_KEY, JSON.stringify(newUser));
   
-  const redirectPage = newUser.role === 'admin' ? '/admin.html' : '/dashboard.html';
-  window.location.href = redirectPage;
+  const baseUrl = 'https://v0-francais-exercices.vercel.app';
+  const redirectPage = newUser.role === 'admin' ? 'admin.html' : 'dashboard.html';
+  window.location.href = `${baseUrl}/${redirectPage}`;
 }
 
 $('#regRole').addEventListener('change', (e) => {
@@ -245,8 +248,9 @@ const currentUser = localStorage.getItem(AUTH_KEY);
 if (currentUser) {
   try {
     const user = JSON.parse(currentUser);
-    const redirectPage = user.role === 'admin' ? '/admin.html' : '/dashboard.html';
-    window.location.href = redirectPage;
+    const baseUrl = 'https://v0-francais-exercices.vercel.app';
+    const redirectPage = user.role === 'admin' ? 'admin.html' : 'dashboard.html';
+    window.location.href = `${baseUrl}/${redirectPage}`;
   } catch (error) {
     localStorage.removeItem(AUTH_KEY);
   }
