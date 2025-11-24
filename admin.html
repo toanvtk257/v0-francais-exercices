@@ -533,7 +533,7 @@ const AUTH_KEY = 'fr_auth_user';
 const BANK_KEY = 'fr_bank_data';
 const USERS_KEY = 'fr_users_db';
 const CLOUDINARY_CLOUD_NAME = 'dvbsn45rk';
-const CLOUDINARY_FOLDER = 'french-exercises';
+const CLOUDINARY_FOLDER = 'french-json';
 const CLOUDINARY_FILES_KEY = 'fr_cloudinary_files';
 const CACHE_DURATION = 24 * 60 * 60 * 1000;
 
@@ -623,7 +623,7 @@ async function loadBank() {
 }
 
 
-async function loadFromCloudinary() {
+function loadFromCloudinary() {
   // First, check if we have a valid cached index and if it's recent enough
   const cachedIndex = localStorage.getItem(CLOUDINARY_FILES_KEY);
   const cachedIndexData = cachedIndex ? JSON.parse(cachedIndex) : null;
@@ -664,7 +664,7 @@ async function loadFromCloudinary() {
   }
 }
 
-async function loadBankDataFromIndex(fileNames) {
+function loadBankDataFromIndex(fileNames) {
   if (fileNames.length === 0) {
     console.log('[v0] No files to load from Cloudinary index.');
     return null;
@@ -1000,7 +1000,7 @@ window.addFormQcmOption = function(questionId) {
   
   optionDiv.innerHTML = `
     <label style="margin:0;font-weight:600;min-width:60px">Choix ${optionLetter.toUpperCase()}</label>
-    <input class="form-qcm-option" data-option-letter="${optionLetter}" placeholder="Réponse ${optionLetter.toUpperCase()}" style="flex:1;padding:10px;border:1px solid #ddd;border-radius:8px;font-size:.95rem;box-sizing:border-box">
+    <input class="form-qcm-option" data-option-letter="${optionLetter}" placeholder="Réponse ${letter.toUpperCase()}" style="flex:1;padding:10px;border:1px solid #ddd;border-radius:8px;font-size:.95rem;box-sizing:border-box">
     <button onclick="removeFormQcmOption(${questionId}, '${optionLetter}')" style="background:#e53e3e;color:#fff;border:none;padding:8px 12px;border-radius:6px;cursor:pointer;font-size:.85rem">✕</button>
   `;
   container.appendChild(optionDiv);
@@ -2334,7 +2334,7 @@ function deleteUser(userId) {
   
   // Remove user from users list
   const updatedUsers = users.filter(u => u.id !== userId);
-  localStorage.setItem(USERS_KEY, JSON.stringify(updatedUsers));
+  localStorage.setItem(USERS_KEY, JSON.JSON.stringify(updatedUsers));
   
   // Remove user statistics
   const allStats = JSON.parse(localStorage.getItem('fr_stats_db') || '{}');
