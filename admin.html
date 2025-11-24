@@ -684,11 +684,10 @@ async function loadBank() {
     console.log('[v0] === STARTING BANK LOADING ===');
     BANK = {lecture:[], ecoute:[], grammaire:[], lexique:[]};
     
-    // Try localStorage first
     const cached = localStorage.getItem('fr_bank_data');
     if (cached) {
         try {
-            const parsed = JSON.JSON.parse(cached);
+            const parsed = JSON.parse(cached);
             console.log('[v0] Loaded from localStorage:', parsed);
             console.log('[v0] localStorage bank structure:', {
                 lecture: parsed.lecture?.length || 0,
@@ -704,45 +703,82 @@ async function loadBank() {
         console.log('[v0] No localStorage data, using empty bank');
     }
     
-    // Try to load from Cloudinary - load known files directly
-    console.log('[v0] Attempting to load known files from Cloudinary...');
-    const knownFiles = ['a1_CO.json', 'a1_co.json', 'a1_ecoute.json']; // Try different variations
+    console.log('[v0] Attempting to load from Cloudinary...');
     
-    for (const filename of knownFiles) {
-        try {
-            const url = `https://res.cloudinary.com/dvbsn45rk/raw/upload/french-json/${filename}`;
-            console.log(`[v0] Trying to load: ${url}`);
-            const response = await fetch(url);
+    try {
+        // Try loading the index file that lists all available exercises
+        const indexUrl = 'https://res.cloudinary.com/dvbsn45rk/raw/upload/cloudinary_index.json';
+        console.log('[v0] Loading index from:', indexUrl);
+        
+        const indexResponse = await fetch(indexUrl);
+        if (indexResponse.ok) {
+            const index = await indexResponse.json();
+            console.log('[v0] Index loaded successfully:', index);
             
-            if (response.ok) {
-                const data = await response.json();
-                console.log(`[v0] Successfully loaded ${filename}:`, data);
-                
-                // Merge exercises from this file into BANK
-                if (data.lecture) BANK.lecture = [...BANK.lecture, ...data.lecture];
-                if (data.ecoute) BANK.ecoute = [...BANK.ecoute, ...data.ecoute];
-                if (data.grammaire) BANK.grammaire = [...BANK.grammaire, ...data.grammaire];
-                if (data.lexique) BANK.lexique = [...BANK.lexique, ...data.lexique];
-                
-                console.log(`[v0] Merged data from ${filename}`);
-            } else {
-                console.log(`[v0] File ${filename} not found (${response.status})`);
+            // Load each file listed in the index
+            for (const file of index.files || []) {
+                try {
+                    const fileUrl = `https://res.cloudinary.com/dvbsn45rk/raw/upload/${file}`;
+                    console.log(`[v0] Loading exercise file: ${fileUrl}`);
+                    
+                    const fileResponse = await fetch(fileUrl);
+                    if (fileResponse.ok) {
+                        const data = await fileResponse.json();
+                        console.log(`[v0] Loaded ${file}:`, data);
+                        
+                        // Merge exercises into BANK
+                        if (data.lecture) BANK.lecture = [...BANK.lecture, ...data.lecture];
+                        if (data.ecoute) BANK.ecoute = [...BANK.ecoute, ...data.ecoute];
+                        if (data.grammaire) BANK.grammaire = [...BANK.grammaire, ...data.grammaire];
+                        if (data.lexique) BANK.lexique = [...BANK.lexique, ...data.lexique];
+                    }
+                } catch(e) {
+                    console.error(`[v0] Failed to load ${file}:`, e);
+                }
             }
-        } catch(e) {
-            console.log(`[v0] Could not load ${filename}:`, e.message);
+        } else {
+            console.log('[v0] Index file not found, trying direct files...');
+            
+            // Fallback: try loading known files directly
+            const knownFiles = ['a1_CO.json', 'a1_co.json', 'a1_ecoute.json'];
+            for (const filename of knownFiles) {
+                try {
+                    const url = `https://res.cloudinary.com/dvbsn45rk/raw/upload/${filename}`;
+                    console.log(`[v0] Trying: ${url}`);
+                    const response = await fetch(url);
+                    
+                    if (response.ok) {
+                        const data = await response.json();
+                        console.log(`[v0] Loaded ${filename}:`, data);
+                        
+                        if (data.lecture) BANK.lecture = [...BANK.lecture, ...data.lecture];
+                        if (data.ecoute) BANK.ecoute = [...BANK.ecoute, ...data.ecoute];
+                        if (data.grammaire) BANK.grammaire = [...BANK.grammaire, ...data.grammaire];
+                        if (data.lexique) BANK.lexique = [...BANK.lexique, ...data.lexique];
+                    }
+                } catch(e) {
+                    console.log(`[v0] Could not load ${filename}:`, e.message);
+                }
+            }
         }
+    } catch(e) {
+        console.error('[v0] Cloudinary load error:', e);
     }
     
     console.log('[v0] === FINAL BANK STATE ===');
-    console.log('[v0] Bank from Cloudinary/localStorage:', BANK);
-    console.log('[v0] Totals:', {
+    console.log('[v0] Bank totals:', {
         lecture: BANK.lecture?.length || 0,
         ecoute: BANK.ecoute?.length || 0,
         grammaire: BANK.grammaire?.length || 0,
         lexique: BANK.lexique?.length || 0
     });
     
-    updateGlobalStats(); // This function needs to be defined or removed if not used. Assuming it's meant to update dashboard stats.
+    if (BANK.lecture.length > 0 || BANK.ecoute.length > 0 || BANK.grammaire.length > 0 || BANK.lexique.length > 0) {
+        localStorage.setItem('fr_bank_data', JSON.JSON.stringify(BANK));
+        console.log('[v0] Saved updated bank to localStorage');
+    }
+    
+    updateGlobalStats();
     updateExercisesTable();
     updateUsersTable();
 }
@@ -1048,7 +1084,7 @@ window.addFormQcmOption = function(questionId) {
   
   optionDiv.innerHTML = `
     <label style="margin:0;font-weight:600;min-width:60px">Choix ${optionLetter.toUpperCase()}</label>
-    <input class="form-qcm-option" data-option-letter="${optionLetter}" placeholder="Réponse ${optionLetter.toUpperCase()}" style="flex:1;padding:10px;border:1px solid #ddd;border-radius:8px;font-size:.95rem;box-sizing:border-box">
+    <input class="form-qcm-option" data-option-letter="${letter}" placeholder="Réponse ${letter.toUpperCase()}" style="flex:1;padding:10px;border:1px solid #ddd;border-radius:8px;font-size:.95rem;box-sizing:border-box">
     <button class="btn-danger remove-form-option-btn" data-qcm-id="${questionId}" data-opt-idx="${optionLetter}" style="background:#e53e3e;color:#fff;border:none;padding:8px 12px;border-radius:6px;cursor:pointer;font-size:.85rem">✕</button>
   `;
   container.appendChild(optionDiv);
