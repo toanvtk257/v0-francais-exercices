@@ -107,23 +107,16 @@ function initUsersDB() {
       { id: 'student1', name: 'Jean Dupont', email: 'jean@example.com', password: 'student123', role: 'student' }
     ];
     localStorage.setItem(USERS_KEY, JSON.stringify(defaultUsers));
-    console.log('[v0] Initialized users DB with default user');
-  } else {
-    console.log('[v0] Users DB already exists');
   }
 }
 
 function getUsers() {
   const users = JSON.parse(localStorage.getItem(USERS_KEY) || '[]');
-  console.log('[v0] Retrieved users from DB:', users.length, 'users');
   return users;
 }
 
 function saveUsers(users) {
   localStorage.setItem(USERS_KEY, JSON.stringify(users));
-  console.log('[v0] Saved users to DB:', users.length, 'users');
-  const saved = localStorage.getItem(USERS_KEY);
-  console.log('[v0] Verification - users saved successfully:', saved !== null);
 }
 
 function handleLogin(e) {
@@ -131,8 +124,6 @@ function handleLogin(e) {
   const email = document.getElementById('loginEmail').value.trim();
   const password = document.getElementById('loginPassword').value;
   const errorEl = document.getElementById('loginError');
-
-  console.log('[v0] Login attempt for email:', email);
 
   errorEl.style.display = 'none';
 
@@ -143,28 +134,20 @@ function handleLogin(e) {
   }
 
   const users = getUsers();
-  console.log('[v0] All users in database:', users);
-  console.log('[v0] Searching for user in', users.length, 'total users');
-  console.log('[v0] Looking for email:', email);
-  console.log('[v0] Password length:', password.length);
   
   const user = users.find(u => {
-    console.log('[v0] Comparing with user:', u.email, 'Match:', u.email === email, 'Password match:', u.password === password);
     return u.email === email && u.password === password;
   });
 
   if (!user) {
-    console.log('[v0] User not found or password incorrect');
     errorEl.textContent = 'Email ou mot de passe incorrect.';
     errorEl.style.display = 'block';
     return;
   }
 
-  console.log('[v0] Login successful for user:', user.name, 'role:', user.role);
   localStorage.setItem(AUTH_KEY, JSON.stringify(user));
   
   const redirectUrl = user.role === 'admin' ? './admin.html' : './dashboard.html';
-  console.log('[v0] Redirecting to:', redirectUrl);
   window.location.replace(redirectUrl);
 }
 
@@ -176,8 +159,6 @@ function handleRegister(event) {
   const password = $('#regPassword').value.trim();
   const confirmPassword = $('#regPassword2').value.trim();
   const role = $('#regRole').value;
-
-  console.log('[v0] Registration attempt for:', email, 'role:', role);
 
   const errorEl = $('#regError');
   const securityCodeErrorEl = $('#securityCodeError');
@@ -208,7 +189,6 @@ function handleRegister(event) {
 
   const users = getUsers();
   if (users.some(u => u.email === email)) {
-    console.log('[v0] Email already exists');
     errorEl.textContent = 'Cet email est déjà utilisé.';
     errorEl.style.display = 'block';
     return;
@@ -222,18 +202,12 @@ function handleRegister(event) {
     role
   };
 
-  console.log('[v0] Creating new user:', newUser.name, newUser.email);
   users.push(newUser);
   saveUsers(users);
-  
-  const updatedUsers = getUsers();
-  const userExists = updatedUsers.some(u => u.email === email);
-  console.log('[v0] User added to DB successfully:', userExists);
   
   localStorage.setItem(AUTH_KEY, JSON.stringify(newUser));
   
   const redirectUrl = newUser.role === 'admin' ? './admin.html' : './dashboard.html';
-  console.log('[v0] Registration complete, redirecting to:', redirectUrl);
   window.location.replace(redirectUrl);
 }
 
@@ -265,7 +239,6 @@ $('#loginForm').addEventListener('submit', handleLogin);
 $('#registerForm').addEventListener('submit', handleRegister);
 
 initUsersDB();
-console.log('[v0] Login page initialized');
 
 const currentUser = localStorage.getItem(AUTH_KEY);
 if (currentUser) {
