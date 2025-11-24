@@ -3,6 +3,10 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
+<!-- Added cache control headers to force browser to reload with new CSP -->
+<meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+<meta http-equiv="Pragma" content="no-cache">
+<meta http-equiv="Expires" content="0">
 <!-- Added Content Security Policy to remove "Dangerous" warning -->
 <!-- Added Cloudinary domain to CSP connect-src to allow API calls -->
 <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data: https:; font-src 'self' data:; connect-src 'self' https://res.cloudinary.com ws: wss:;">
@@ -738,10 +742,10 @@ async function loadBank() {
   console.log('[v0] === FINAL BANK STATE ===');
   console.log('[v0] Bank from Cloudinary/localStorage:', BANK);
   console.log('[v0] Totals:', {
-    lecture: BANK.lecture?.length || 0,
-    ecoute: BANK.ecoute?.length || 0,
-    grammaire: BANK.grammaire?.length || 0,
-    lexique: BANK.lexique?.length || 0
+    lecture: BANK.lecture.length,
+    ecoute: BANK.ecoute.length,
+    grammaire: BANK.grammaire.length,
+    lexique: BANK.lexique.length
   });
   
   updateExercisesTable();
