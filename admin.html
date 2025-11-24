@@ -321,13 +321,13 @@ h1 {
         <div id="formQcmBox" style="display:none">
           <h3 style="margin:16px 0 8px;font-size:1.1rem">Questions QCM</h3>
           <div id="formQcmQuestions"></div>
-          <button class="btn-secondary" onclick="addFormQcmQuestion()">+ Ajouter une question QCM</button>
+          <button class="btn-secondary" id="addFormQcmBtn">+ Ajouter une question QCM</button>
         </div>
 
         <div id="formVfBox" style="display:none">
           <h3 style="margin:16px 0 8px;font-size:1.1rem">Questions Vrai/Faux</h3>
           <div id="formVfQuestions"></div>
-          <button class="btn-secondary" onclick="addFormVfQuestion()">+ Ajouter une question Vrai/Faux</button>
+          <button class="btn-secondary" id="addFormVfBtn">+ Ajouter une question Vrai/Faux</button>
         </div>
         
         <!-- CHANGE: Added interactive Cloze builder with automatic blank detection -->
@@ -601,11 +601,30 @@ document.addEventListener('DOMContentLoaded', async () => {
       }
     });
   }
+
+  const addFormQcmBtn = document.getElementById('addFormQcmBtn');
+  const addFormVfBtn = document.getElementById('addFormVfBtn');
+  
+  if (addFormQcmBtn) {
+    addFormQcmBtn.addEventListener('click', () => {
+      console.log('[v0] Add QCM button clicked');
+      addFormQcmQuestion();
+    });
+  }
+  
+  if (addFormVfBtn) {
+    addFormVfBtn.addEventListener('click', () => {
+      console.log('[v0] Add VF button clicked');
+      addFormVfQuestion();
+    });
+  }
   
   // Load initial data
   console.log('[v0] Loading initial bank data...');
   await loadBank();
   console.log('[v0] Initial load complete');
+  
+  console.log('[v0] Admin page loaded');
 });
 
 function addCloudinarySyncButton() {
@@ -807,8 +826,6 @@ async function loadBankDataFromIndex(fileNames) {
   return mergedBank;
 }
 
-// Removed addCloudinarySyncButton() here as it's handled in DOMContentLoaded
-
 function switchTab(tabName, event) {
   console.log('[v0] Switching to tab:', tabName);
   $$('.tab-content').forEach(t => t.classList.remove('active'));
@@ -861,6 +878,9 @@ function updateDashboard() {
 }
 
 function updateExercisesTable() {
+  console.log('[v0] Updating exercises table');
+  console.log('[v0] Bank content:', bank);
+  
   const tbody = $('#exercisesBody');
   const allExercises = [
     ...(bank.lecture || []).map(e => ({ ...e, type: 'lecture' })), 
@@ -868,6 +888,8 @@ function updateExercisesTable() {
     ...(bank.grammaire || []).map(e => ({ ...e, type: 'grammaire' })),
     ...(bank.lexique || []).map(e => ({ ...e, type: 'lexique' }))
   ];
+
+  console.log('[v0] Total exercises found:', allExercises.length);
 
   if (allExercises.length === 0) {
     tbody.innerHTML = '<tr><td colspan="6" class="empty-state">Aucun exercice</td></tr>';
@@ -879,7 +901,7 @@ function updateExercisesTable() {
     let typeLabel = 'CE';
     let typeClass = 'badge-lecture';
     if (ex.type === 'ecoute') { typeLabel = 'CO'; typeClass = 'badge-ecoute'; }
-    else if (ex.type === 'grammaire') { typeLabel = 'Grammaire'; typeClass = 'badge-lecture'; } // Reusing style or add new one
+    else if (ex.type === 'grammaire') { typeLabel = 'Grammaire'; typeClass = 'badge-lecture'; }
     else if (ex.type === 'lexique') { typeLabel = 'Lexique'; typeClass = 'badge-ecoute'; }
 
     const levelClass = 'badge-' + (ex.niveau || 'a1').toLowerCase();
@@ -893,13 +915,15 @@ function updateExercisesTable() {
         <td>${qCount}</td>
         <td>
           <div class="action-btns">
-            <button class="btn-secondary" onclick="editExercise('${ex.id}')">Éditer</button>
-            <button class="btn-danger" onclick="deleteExercise('${ex.id}', '${ex.type}')">Supprimer</button>
+            <button class="btn-secondary edit-exercise-btn" data-exercise-id="${ex.id}">Éditer</button>
+            <button class="btn-danger delete-exercise-btn" data-exercise-id="${ex.id}" data-exercise-type="${ex.type}">Supprimer</button>
           </div>
         </td>
       </tr>
     `;
   }).join('');
+  
+  attachExerciseActionListeners();
 }
 
 function deleteExercise(id, type) {
@@ -984,6 +1008,7 @@ function switchCreatorTab(tab) {
 }
 
 function addFormQcmQuestion() {
+  console.log('[v0] Adding form QCM question');
   formQcmCounter++;
   const div = document.createElement('div');
   div.style.cssText = 'background:#f9f9f9;padding:12px;border-radius:8px;margin:8px 0;border:1px solid #e0e0e0';
@@ -994,14 +1019,14 @@ function addFormQcmQuestion() {
   div.innerHTML = `
     <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
       <span style="font-weight:600;color:var(--brand)">Question ${formQcmCounter}</span>
-      <button class="btn-danger" onclick="removeFormQcmQuestion(${formQcmCounter})" style="padding:6px 10px;font-size:.85rem">Supprimer</button>
+      <button class="btn-danger remove-form-qcm-btn" data-qcm-id="${formQcmCounter}" style="padding:6px 10px;font-size:.85rem">Supprimer</button>
     </div>
     <label>Question</label>
     <input class="form-qcm-question" placeholder="Quelle est la capitale de la France ?" style="width:100%;padding:10px;border:1px solid #ddd;border-radius:8px;font-size:.95rem;box-sizing:border-box;margin-bottom:8px">
     
     <div class="form-qcm-options-container"></div>
     
-    <button class="btn-secondary" onclick="addFormQcmOption(${formQcmCounter})" style="margin-bottom:8px;padding:6px 10px;font-size:.85rem">+ Ajouter une réponse</button>
+    <button class="btn-secondary add-form-qcm-option-btn" data-qcm-id="${formQcmCounter}" style="margin-bottom:8px;padding:6px 10px;font-size:.85rem">+ Ajouter une réponse</button>
     
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:8px">
       <div>
@@ -1026,7 +1051,10 @@ function addFormQcmQuestion() {
   addFormQcmOption(formQcmCounter);
   addFormQcmOption(formQcmCounter);
   addFormQcmOption(formQcmCounter);
+  
+  attachFormQcmEventListeners();
 }
+
 
 window.addFormQcmOption = function(questionId) {
   const questionDiv = document.querySelector(`[data-form-qcm-id="${questionId}"]`);
@@ -1044,13 +1072,15 @@ window.addFormQcmOption = function(questionId) {
   
   optionDiv.innerHTML = `
     <label style="margin:0;font-weight:600;min-width:60px">Choix ${optionLetter.toUpperCase()}</label>
-    <input class="form-qcm-option" data-option-letter="${optionLetter}" placeholder="Réponse ${letter.toUpperCase()}" style="flex:1;padding:10px;border:1px solid #ddd;border-radius:8px;font-size:.95rem;box-sizing:border-box">
-    <button onclick="removeFormQcmOption(${questionId}, '${optionLetter}')" style="background:#e53e3e;color:#fff;border:none;padding:8px 12px;border-radius:6px;cursor:pointer;font-size:.85rem">✕</button>
+    <input class="form-qcm-option" data-option-letter="${optionLetter}" placeholder="Réponse ${optionLetter.toUpperCase()}" style="flex:1;padding:10px;border:1px solid #ddd;border-radius:8px;font-size:.95rem;box-sizing:border-box">
+    <button class="btn-danger remove-form-option-btn" data-qcm-id="${questionId}" data-opt-idx="${optionIndex}" style="background:#e53e3e;color:#fff;border:none;padding:8px 12px;border-radius:6px;cursor:pointer;font-size:.85rem">✕</button>
   `;
   container.appendChild(optionDiv);
   
   // Update answer dropdown
   updateFormQcmAnswerDropdown(questionId);
+  
+  attachFormQcmEventListeners();
 };
 
 window.removeFormQcmOption = function(questionId, optionLetter) {
@@ -1101,9 +1131,9 @@ function relabelFormQcmOptions(questionId) {
     }
     
     // Update remove button with correct letter reference
-    const button = optionDiv.querySelector('button');
+    const button = optionDiv.querySelector('.remove-form-option-btn');
     if (button) {
-      button.setAttribute('onclick', `removeFormQcmOption(${questionId}, '${newLetter}')`);
+      button.setAttribute('data-opt-idx', newIndex);
     }
   });
 }
@@ -1771,14 +1801,14 @@ function editExercise(id) {
       questionDiv.innerHTML = `
         <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
           <span style="font-weight:600;color:var(--brand)">Question ${formQcmCounter}</span>
-          <button class="btn-danger" onclick="removeFormQcmQuestion(${formQcmCounter})" style="padding:6px 10px;font-size:.85rem">Supprimer</button>
+          <button class="btn-danger remove-form-qcm-btn" data-qcm-id="${formQcmCounter}" style="padding:6px 10px;font-size:.85rem">Supprimer</button>
         </div>
         <label>Question</label>
         <input class="form-qcm-question" placeholder="Quelle est la capitale de la France ?" style="width:100%;padding:10px;border:1px solid #ddd;border-radius:8px;font-size:.95rem;box-sizing:border-box;margin-bottom:8px" value="${q.question}">
         
         <div class="form-qcm-options-container"></div>
         
-        <button class="btn-secondary" onclick="addFormQcmOption(${formQcmCounter})" style="margin-bottom:8px;padding:6px 10px;font-size:.85rem">+ Ajouter une réponse</button>
+        <button class="btn-secondary add-form-qcm-option-btn" data-qcm-id="${formQcmCounter}" style="margin-bottom:8px;padding:6px 10px;font-size:.85rem">+ Ajouter une réponse</button>
         
         <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:8px">
           <div>
@@ -1816,7 +1846,7 @@ function editExercise(id) {
           optionDiv.innerHTML = `
             <label style="margin:0;font-weight:600;min-width:60px">Choix ${letter.toUpperCase()}</label>
             <input class="form-qcm-option" data-option-letter="${letter}" placeholder="Réponse ${letter.toUpperCase()}" value="${optionValue}" style="flex:1;padding:10px;border:1px solid #ddd;border-radius:8px;font-size:.95rem;box-sizing:border-box">
-            <button onclick="removeFormQcmOption(${formQcmCounter}, '${letter}')" style="background:#e53e3e;color:#fff;border:none;padding:8px 12px;border-radius:6px;cursor:pointer;font-size:.85rem">✕</button>
+            <button class="btn-danger remove-form-option-btn" data-qcm-id="${formQcmCounter}" data-opt-idx="${currentOptionIndex}" style="background:#e53e3e;color:#fff;border:none;padding:8px 12px;border-radius:6px;cursor:pointer;font-size:.85rem">✕</button>
           `;
           container.appendChild(optionDiv);
         }
@@ -2380,7 +2410,7 @@ function deleteUser(userId) {
   
   // Remove user from users list
   const updatedUsers = users.filter(u => u.id !== userId);
-  localStorage.setItem(USERS_KEY, JSON.stringify(updatedUsers));
+  localStorage.setItem(USERS_KEY, JSON.JSON.stringify(updatedUsers));
   
   // Remove user statistics
   const allStats = JSON.parse(localStorage.getItem('fr_stats_db') || '{}');
@@ -2484,13 +2514,16 @@ function updateResourcesTable() {
         <td><a href="${res.url}" target="_blank" style="color:var(--brand);text-decoration:none">${res.url.length > 50 ? res.url.substring(0, 50) + '...' : res.url}</a></td>
         <td>
           <div class="action-btns">
-            <button class="btn-secondary" onclick="editResource('${res.id}')">Éditer</button>
-            <button class="btn-danger" onclick="deleteResource('${res.id}')">Supprimer</button>
+            <button class="btn-secondary edit-resource-btn" data-resource-id="${res.id}">Éditer</button>
+            <button class="btn-danger delete-resource-btn" data-resource-id="${res.id}">Supprimer</button>
           </div>
         </td>
       </tr>
     `;
   }).join('');
+  
+  // Attach event listeners for resource action buttons
+  attachResourceActionListeners();
 }
 
 function editResource(id) {
@@ -2545,7 +2578,7 @@ function loadChatUsers() {
     const lastMessage = userMessages[userMessages.length - 1];
     
     return `
-      <div onclick="selectChatUser('${user.id}')" style="padding:12px;border-radius:8px;cursor:pointer;margin-bottom:8px;background:${selectedChatUserId === user.id ? '#e8f5e9' : '#fff'};border:1px solid ${selectedChatUserId === user.id ? 'var(--brand)' : '#e0e0e0'}">
+      <div class="chat-user-item" data-user-id="${user.id}" style="padding:12px;border-radius:8px;cursor:pointer;margin-bottom:8px;background:${selectedChatUserId === user.id ? '#e8f5e9' : '#fff'};border:1px solid ${selectedChatUserId === user.id ? 'var(--brand)' : '#e0e0e0'}">
         <div style="display:flex;justify-content:space-between;align-items:center">
           <strong>${user.name}</strong>
           ${unreadCount > 0 ? `<span style="background:var(--error);color:#fff;padding:2px 6px;border-radius:10px;font-size:.75rem">${unreadCount}</span>` : ''}
@@ -2556,6 +2589,9 @@ function loadChatUsers() {
   }).join('');
 
   $('#chatUsersList').innerHTML = html;
+  
+  // Attach event listeners to dynamically created chat user items
+  attachChatUserListeners();
 }
 
 window.selectChatUser = function(userId) {
@@ -2578,7 +2614,7 @@ function loadChatMessages(userId) {
     if (m.from === userId) m.read = true;
   });
   messages[userId] = userMessages;
-  localStorage.setItem('fr_messages', JSON.stringify(messages));
+  localStorage.setItem('fr_messages', JSON.JSON.stringify(messages));
 
   if (userMessages.length === 0) {
     $('#chatMessagesArea').innerHTML = `<div class="empty-state">Aucun message avec ${user.name}</div>`;
@@ -2653,20 +2689,31 @@ function deleteAdminChatHistory() {
   alert('Historique de conversation supprimé avec succès');
 }
 
+// New function to attach event listeners to dynamically created resource action buttons
+function attachResourceActionListeners() {
+  document.querySelectorAll('.edit-resource-btn').forEach(btn => {
+    btn.onclick = () => editResource(btn.dataset.resourceId);
+  });
+  
+  document.querySelectorAll('.delete-resource-btn').forEach(btn => {
+    btn.onclick = () => deleteResource(btn.dataset.resourceId);
+  });
+}
+
+// New function to attach event listeners to dynamically created chat user items
+function attachChatUserListeners() {
+  document.querySelectorAll('.chat-user-item').forEach(item => {
+    item.addEventListener('click', () => selectChatUser(item.dataset.userId));
+  });
+}
+
+
 document.addEventListener('click', (e) => {
   // Close modal if clicking outside of content
   if (e.target.id === 'userStatsModal' && $(`#${e.target.id}`).classList.contains('active')) {
     closeUserStatsModal();
   }
 });
-
-// Removed duplicate logout listener, the one in the main script is sufficient
-// document.getElementById('logoutBtn').addEventListener('click', function() {
-//   if (confirm('Voulez-vous vraiment vous déconnecter ?')) {
-//     localStorage.removeItem('fr_auth_user');
-//     window.location.replace('https://v0-francais-exercices.vercel.app/login.html');
-//   }
-// });
 
 // These functions are placeholders as they are not defined in the provided code
 // but are called in the <updates> section.
@@ -2681,9 +2728,9 @@ function drawTypeChart() {}
 // Call initialization functions
 checkAuth();
 // loadBank() and related updates are now handled within DOMContentLoaded
+// This ensures data is available before attempting to render.
 
 // Moved initial table updates and chart drawing to be called after loadBank inside DOMContentLoaded
-// This ensures data is available before attempting to render.
 
 // Moved user table update here to ensure it's called after bank loading if needed
 updateUsersTable(); 
