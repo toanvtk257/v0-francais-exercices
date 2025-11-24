@@ -126,12 +126,11 @@ function saveUsers(users) {
   console.log('[v0] Verification - users saved successfully:', saved !== null);
 }
 
-function handleLogin(event) {
-  event.preventDefault();
-
-  const email = $('#loginEmail').value.trim();
-  const password = $('#loginPassword').value.trim();
-  const errorEl = $('#loginError');
+function handleLogin(e) {
+  e.preventDefault();
+  const email = document.getElementById('loginEmail').value.trim();
+  const password = document.getElementById('loginPassword').value;
+  const errorEl = document.getElementById('loginError');
 
   console.log('[v0] Login attempt for email:', email);
 
@@ -144,8 +143,15 @@ function handleLogin(event) {
   }
 
   const users = getUsers();
+  console.log('[v0] All users in database:', users);
   console.log('[v0] Searching for user in', users.length, 'total users');
-  const user = users.find(u => u.email === email && u.password === password);
+  console.log('[v0] Looking for email:', email);
+  console.log('[v0] Password length:', password.length);
+  
+  const user = users.find(u => {
+    console.log('[v0] Comparing with user:', u.email, 'Match:', u.email === email, 'Password match:', u.password === password);
+    return u.email === email && u.password === password;
+  });
 
   if (!user) {
     console.log('[v0] User not found or password incorrect');
