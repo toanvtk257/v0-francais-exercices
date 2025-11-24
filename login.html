@@ -34,15 +34,40 @@ button:hover{opacity:.9}
   </div>
 
   <!-- Using pure HTML links instead of JavaScript -->
-  <a href="dashboard.html" class="role-card">
+  <a href="#" onclick="loginAsStudent(); return false;" class="role-card">
     <h3 class="role-title">👨‍🎓 Étudiant</h3>
     <p class="role-desc">Accéder aux exercices de français</p>
   </a>
 
-  <a href="admin.html" class="role-card">
+  <a href="#" onclick="loginAsAdmin(); return false;" class="role-card">
     <h3 class="role-title">👨‍💼 Administrateur</h3>
     <p class="role-desc">Gestion complète de la plateforme</p>
   </a>
 </div>
+
+<!-- Adding authentication JavaScript -->
+<script>
+  function loginAsStudent() {
+    const userData = {
+      name: 'Étudiant Demo',
+      email: 'student@demo.fr',
+      role: 'student'
+    };
+    localStorage.setItem('fr_auth_user', JSON.stringify(userData));
+    localStorage.setItem('fr_current_user', JSON.stringify(userData));
+    window.location.href = 'dashboard.html';
+  }
+
+  function loginAsAdmin() {
+    const userData = {
+      name: 'Administrateur Demo',
+      email: 'admin@demo.fr',
+      role: 'admin'
+    };
+    localStorage.setItem('fr_auth_user', JSON.stringify(userData));
+    localStorage.setItem('fr_current_user', JSON.stringify(userData));
+    window.location.href = 'admin.html';
+  }
+</script>
 </body>
 </html>
