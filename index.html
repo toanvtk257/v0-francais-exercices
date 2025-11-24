@@ -431,7 +431,7 @@ window.addEventListener('DOMContentLoaded', async () => {
 document.getElementById('logoutBtn').addEventListener('click', function() {
   if (confirm('Voulez-vous vraiment vous déconnecter ?')) {
     localStorage.removeItem('fr_auth_user');
-    window.location.replace('https://v0-francais-exercices.vercel.app/login.html');
+    window.location.href = 'login.html';
   }
 });
 </script>
