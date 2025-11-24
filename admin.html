@@ -3,9 +3,9 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<!-- Added cache control headers to force browser to reload with new CSP -->
-<!-- Removed cache control meta tags and fixed CSP -->
-<meta http-equiv="Content-Security-Policy" content="connect-src 'self' https://res.cloudinary.com https://api.cloudinary.com; default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data: https: blob:;">
+<!-- Added Content Security Policy to remove "Dangerous" warning -->
+<!-- Added Cloudinary domain to CSP connect-src to allow API calls -->
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data: https:; font-src 'self' data:; connect-src 'self' https://res.cloudinary.com ws: wss:;">
 <title>Panneau d'administration</title>
 <style>
 :root{--brand:#2b5;--ink:#222;--muted:#666;--bg:#f7f7f7;--card:#fff;--success:#4caf50;--warning:#ff9800;--error:#d32f2f}
@@ -151,19 +151,18 @@ h1 {
 }
 /* END NEW STYLES */
 
-/* Updated CSP with explicit connect-src and added timestamp to force browser reload -->
-<!-- ** REMOVED ** -->
-<!-- <meta http-equiv="Content-Security-Policy" 
+/* Updated CSP with explicit connect-src and added timestamp to force browser reload */
+<meta http-equiv="Content-Security-Policy" 
           content="default-src 'self'; 
                    script-src 'self' 'unsafe-inline' 'unsafe-eval'; 
                    style-src 'self' 'unsafe-inline'; 
                    connect-src 'self' https://res.cloudinary.com https://api.cloudinary.com ws: wss:; 
                    img-src 'self' data: https: blob:; 
                    media-src 'self' https: blob:; 
-                   font-src 'self' data:"> -->
-<!-- <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate"> -->
-<!-- <meta http-equiv="Pragma" content="no-cache"> -->
-<!-- <meta http-equiv="Expires" content="0"> -->
+                   font-src 'self' data:">
+<meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+<meta http-equiv="Pragma" content="no-cache">
+<meta http-equiv="Expires" content="0">
 
 </style>
 </head>
@@ -282,16 +281,8 @@ h1 {
     <div class="card">
       <h2>Importer/Exporter la banque</h2>
       <div class="btns">
-        <!-- Added manual file import button to bypass CSP cache issue -->
-        <input type="file" id="manualJsonImport" accept=".json" style="display:none">
-        <button id="manualImportBtn" style="background:#3b82f6;color:white;border:none;padding:12px 24px;border-radius:8px;cursor:pointer;font-size:1rem;font-weight:600">Importer JSON manuellement</button>
-        <span style="font-size:0.9rem;color:#666">(Contourner le cache du navigateur)</span>
-
-        <!-- Moved original import button and removed its onclick -->
         <input type="file" id="importBank" accept=".json" style="display:none">
-        <button class="btn-primary" onclick="document.getElementById('importBank').click()">Importer JSON (via Cloudinary)</button>
-        <!-- Added Sync Cloudinary button -->
-        <button class="btn-secondary" id="syncCloudinaryBtn" style="background:var(--brand);color:white;">Synchroniser Cloudinary</button>
+        <button class="btn-primary" onclick="document.getElementById('importBank').click()">Importer JSON</button>
         <button class="btn-secondary" onclick="exportBank()">Exporter JSON</button>
         <button class="btn-secondary" onclick="loadDefaultBank()">Charger exemple</button>
       </div>
@@ -593,71 +584,19 @@ document.addEventListener('DOMContentLoaded', async () => {
     });
   });
   
-  // ** UPDATED CODE START **
-  // Attach event listeners for manual import
-  $('#manualImportBtn').addEventListener('click', () => {
-    $('#manualJsonImport').click();
-  });
-  $('#manualJsonImport').addEventListener('change', async (event) => {
-    const file = event.target.files[0];
-    if (!file) return;
-
-    const reader = new FileReader();
-    reader.onload = async (e) => {
-      try {
-        const content = e.target.result;
-        const importedData = JSON.parse(content);
-        
-        console.log('[v0] Imported data structure:', importedData);
-        
-        // Handle different JSON formats
-        if (Array.isArray(importedData)) {
-          // If it's an array, merge directly into the appropriate category
-          // Try to determine category from first exercise
-          if (importedData.length > 0) {
-            const firstEx = importedData[0];
-            const category = firstEx.type || (firstEx.type === 'lecture' ? 'lecture' : (firstEx.type === 'ecoute' ? 'ecoute' : (firstEx.type === 'grammaire' ? 'grammaire' : 'lexique'))); // default to grammaire if type is not defined or unexpected
-            BANK[category] = [...(BANK[category] || []), ...importedData];
-          }
-        } else if (importedData.exercises && Array.isArray(importedData.exercises)) {
-          // If it has an exercises array, merge that
-          const category = importedData.type || (importedData.type === 'lecture' ? 'lecture' : (importedData.type === 'ecoute' ? 'ecoute' : (importedData.type === 'grammaire' ? 'grammaire' : 'lexique')));
-          BANK[category] = [...(BANK[category] || []), ...importedData.exercises];
-        } else {
-          // If it's an object with categories, merge each category
-          BANK.lecture = [...(BANK.lecture || []), ...(importedData.lecture || [])];
-          BANK.ecoute = [...(BANK.ecoute || []), ...(importedData.ecoute || [])];
-          BANK.grammaire = [...(BANK.grammaire || []), ...(importedData.grammaire || [])];
-          BANK.lexique = [...(BANK.lexique || []), ...(importedData.lexique || [])];
-          // Added handling for CE/CO if they are used as top-level keys
-          BANK.CE = [...(BANK.CE || []), ...(importedData.CE || [])];
-          BANK.CO = [...(BANK.CO || []), ...(importedData.CO || [])];
-        }
-        
-        saveBank(); // Save the merged bank
-        updateExercisesTable(); // Refresh the table
-        
-        const exerciseCount = Object.values(BANK).flat().length;
-        alert(`Fichier JSON importé avec succès! ${exerciseCount} exercice(s) au total dans la banque.`);
-        event.target.value = ''; // Reset file input
-      } catch (error) {
-        console.error('[v0] Error importing JSON:', error);
-        alert(`Erreur lors de l'importation du fichier JSON: ${error.message}\nVérifiez que le fichier est un JSON valide.`);
-        event.target.value = ''; // Reset file input
-      }
-    };
-    reader.readAsText(file);
-  });
-
   // Attach event listener to Synchroniser Cloudinary button
-  const syncBtn = $('#syncCloudinaryBtn');
+  // Dynamically add the button to the header if it doesn't exist
+  if (!$('header h1 button')) { // Simple check to avoid adding multiple buttons
+    addCloudinarySyncButton();
+  }
+  const syncBtn = $('header h1 button'); // Get the newly added button
   if (syncBtn) {
     syncBtn.addEventListener('click', async () => {
       console.log('[v0] Sync button clicked');
       syncBtn.disabled = true;
       syncBtn.textContent = 'Synchronisation...';
       try {
-        await loadBank(); // This function now handles both localStorage and Cloudinary sync
+        await loadBank(); // Load the bank which now includes Cloudinary sync logic
         alert('Synchronisation avec Cloudinary terminée!');
       } catch (error) {
         console.error('[v0] Sync failed:', error);
@@ -668,7 +607,6 @@ document.addEventListener('DOMContentLoaded', async () => {
       }
     });
   }
-  // ** UPDATED CODE END **
   
   // Attach event listener to logout button
   const logoutBtn = $('#logoutBtn');
@@ -702,14 +640,25 @@ document.addEventListener('DOMContentLoaded', async () => {
   
   // Load initial data
   console.log('[v0] Loading initial bank data...');
-  await loadBank(); // This function now handles both localStorage and Cloudinary sync logic
+  await loadBank(); // This function now handles both localStorage and Cloudinary
   console.log('[v0] Initial load complete');
   
   console.log('[v0] Admin page loaded');
 });
 
-// Removed addCloudinarySyncButton as the button is now hardcoded in the HTML
-// function addCloudinarySyncButton() { ... }
+function addCloudinarySyncButton() {
+  const header = document.querySelector('h1'); // Targeting h1 specifically
+  if (header) {
+    const syncBtn = document.createElement('button');
+    syncBtn.id = 'syncCloudinaryBtn'; // Give it an ID for easier selection
+    syncBtn.textContent = 'Synchroniser Cloudinary';
+    syncBtn.className = 'btn-primary'; // Use existing btn-primary style
+    syncBtn.style.marginLeft = '20px';
+    syncBtn.style.padding = '8px 12px'; // Adjust padding for better appearance
+    syncBtn.style.fontSize = '.85rem'; // Match logout button font size
+    header.appendChild(syncBtn);
+  }
+}
 
 function checkAuth() {
   const auth = localStorage.getItem(AUTH_KEY);
@@ -728,145 +677,141 @@ function checkAuth() {
 }
 
 async function loadBank() {
-    console.log('[v0] === STARTING BANK LOADING ===');
-    BANK = {lecture:[], ecoute:[], grammaire:[], lexique:[], CE: [], CO: []}; // Ensure CE and CO are initialized
-    
-    const cached = localStorage.getItem('fr_bank_data');
-    if (cached) {
-        try {
-            const parsed = JSON.parse(cached);
-            console.log('[v0] Loaded from localStorage:', parsed);
-            // Merge parsed data into BANK, ensuring all expected keys exist
-            BANK.lecture = [...(BANK.lecture || []), ...(parsed.lecture || [])];
-            BANK.ecoute = [...(BANK.ecoute || []), ...(parsed.ecoute || [])];
-            BANK.grammaire = [...(BANK.grammaire || []), ...(parsed.grammaire || [])];
-            BANK.lexique = [...(BANK.lexique || []), ...(parsed.lexique || [])];
-            // Merge CE and CO if they exist in parsed data
-            BANK.CE = [...(BANK.CE || []), ...(parsed.CE || [])];
-            BANK.CO = [...(BANK.CO || []), ...(parsed.CO || [])];
-            
-            // If the cached data has CE/CO as keys, also merge them into lecture/ecoute if needed, or use them directly
-            // For now, we prioritize CE/CO if they are top-level keys in the cache
-            if (parsed.CE) BANK.lecture = [...BANK.lecture, ...parsed.CE]; // Assuming CE maps to lecture
-            if (parsed.CO) BANK.ecoute = [...BANK.ecoute, ...parsed.CO]; // Assuming CO maps to ecoute
-            
-        } catch(e) {
-            console.error('[v0] Error parsing localStorage:', e);
-        }
-    } else {
-        console.log('[v0] No localStorage data, using empty bank');
-    }
-    
-    console.log('[v0] Attempting to load from Cloudinary...');
-    
-    try {
-        // Try loading the index file that lists all available exercises
-        const indexUrl = 'https://res.cloudinary.com/dvbsn45rk/raw/upload/cloudinary_index.json';
-        console.log('[v0] Loading index from:', indexUrl);
-        
-        const indexResponse = await fetch(indexUrl);
-        if (indexResponse.ok) {
-            const index = await indexResponse.json();
-            console.log('[v0] Index loaded successfully:', index);
-            
-            // Load each file listed in the index
-            for (const file of index.files || []) {
-                try {
-                    const fileUrl = `https://res.cloudinary.com/dvbsn45rk/raw/upload/${file}`;
-                    console.log(`[v0] Loading exercise file: ${fileUrl}`);
-                    
-                    const fileResponse = await fetch(fileUrl);
-                    if (fileResponse.ok) {
-                        const data = await fileResponse.json();
-                        console.log(`[v0] Loaded ${file}:`, data);
-                        
-                        // Merge exercises into BANK
-                        if (data.lecture) BANK.lecture = [...BANK.lecture, ...data.lecture];
-                        if (data.ecoute) BANK.ecoute = [...BANK.ecoute, ...data.ecoute];
-                        if (data.grammaire) BANK.grammaire = [...BANK.grammaire, ...data.grammaire];
-                        if (data.lexique) BANK.lexique = [...BANK.lexique, ...data.lexique];
-                        // Also merge CE/CO if present at top level of file data
-                        if (data.CE) BANK.lecture = [...BANK.lecture, ...data.CE];
-                        if (data.CO) BANK.ecoute = [...BANK.ecoute, ...data.CO];
-                    } else {
-                        console.warn(`[v0] Failed to load ${file} (HTTP status: ${fileResponse.status})`);
-                    }
-                } catch(e) {
-                    console.error(`[v0] Failed to process ${file}:`, e);
-                }
-            }
-        } else {
-            console.log('[v0] Index file not found, trying direct files...');
-            
-            // Fallback: try loading known files directly
-            const knownFiles = ['a1_CO.json', 'a1_co.json', 'a1_ecoute.json'];
-            for (const filename of knownFiles) {
-                try {
-                    const url = `https://res.cloudinary.com/dvbsn45rk/raw/upload/${filename}`;
-                    console.log(`[v0] Trying: ${url}`);
-                    const response = await fetch(url);
-                    
-                    if (response.ok) {
-                        const data = await response.json();
-                        console.log(`[v0] Loaded ${filename}:`, data);
-                        
-                        if (data.lecture) BANK.lecture = [...BANK.lecture, ...data.lecture];
-                        if (data.ecoute) BANK.ecoute = [...BANK.ecoute, ...data.ecoute];
-                        if (data.grammaire) BANK.grammaire = [...BANK.grammaire, ...data.grammaire];
-                        if (data.lexique) BANK.lexique = [...BANK.lexique, ...data.lexique];
-                        // Handle CE/CO if present
-                        if (data.CE) BANK.lecture = [...BANK.lecture, ...data.CE];
-                        if (data.CO) BANK.ecoute = [...BANK.ecoute, ...data.CO];
-                    } else {
-                        console.warn(`[v0] Could not load ${filename} (HTTP status: ${response.status})`);
-                    }
-                } catch(e) {
-                    console.log(`[v0] Could not load ${filename}:`, e.message);
-                }
-            }
-        }
-    } catch(e) {
-        console.error('[v0] Cloudinary load error:', e);
-    }
-    
-    console.log('[v0] === FINAL BANK STATE ===');
-    console.log('[v0] Bank totals:', {
-        lecture: BANK.lecture?.length || 0,
-        ecoute: BANK.ecoute?.length || 0,
-        grammaire: BANK.grammaire?.length || 0,
-        lexique: BANK.lexique?.length || 0,
-        CE: BANK.CE?.length || 0, // Log CE/CO if they were merged
-        CO: BANK.CO?.length || 0
-    });
-    
-    // Combine CE/CO into lecture/ecoute if they exist and are separate
-    // This ensures consistency for tables and forms
-    const combinedLecture = [...BANK.lecture, ...(BANK.CE || [])];
-    const combinedEcoute = [...BANK.ecoute, ...(BANK.CO || [])];
-    
-    BANK.lecture = combinedLecture;
-    BANK.ecoute = combinedEcoute;
-    
-    // Remove CE/CO keys if they were only used for temporary merging
-    delete BANK.CE;
-    delete BANK.CO;
-    
-    console.log('[v0] Bank totals after combining CE/CO:', {
-        lecture: BANK.lecture?.length || 0,
-        ecoute: BANK.ecoute?.length || 0,
-        grammaire: BANK.grammaire?.length || 0,
-        lexique: BANK.lexique?.length || 0
-    });
+  console.log('[v0] === STARTING BANK LOADING ===');
+  
+  // Load from localStorage first if available and not expired
+  const storedBank = localStorage.getItem(BANK_KEY);
+  const cachedIndex = localStorage.getItem(CLOUDINARY_FILES_KEY);
+  const cachedIndexData = cachedIndex ? JSON.parse(cachedIndex) : null;
 
-    if (BANK.lecture.length > 0 || BANK.ecoute.length > 0 || BANK.grammaire.length > 0 || BANK.lexique.length > 0) {
-        localStorage.setItem('fr_bank_data', JSON.JSON.stringify(BANK));
-        console.log('[v0] Saved updated bank to localStorage');
+  if (storedBank) {
+    BANK = JSON.parse(storedBank);
+    console.log('[v0] Loaded from localStorage:', BANK);
+    console.log('[v0] localStorage bank structure:', {
+      lecture: BANK.lecture?.length || 0,
+      ecoute: BANK.ecoute?.length || 0,
+      grammaire: BANK.grammaire?.length || 0,
+      lexique: BANK.lexique?.length || 0
+    });
+  } else {
+    BANK = { lecture: [], ecoute: [], grammaire: [], lexique: [] };
+    console.log('[v0] No localStorage data, starting with empty bank');
+  }
+
+  // Try to load from Cloudinary if index exists and is recent
+  if (cachedIndexData && cachedIndexData.timestamp && (Date.now() - cachedIndexData.timestamp < CACHE_DURATION)) {
+    console.log('[v0] Using cached Cloudinary files index.');
+    // Attempt to load bank data from the cached index
+    await loadBankDataFromIndex(cachedIndexData.files);
+    // If Cloudinary load was successful, it will overwrite BANK.
+    // If it fails or returns nothing, the localStorage data (or initial empty BANK) remains.
+  } else {
+    // If index is old or missing, fetch a fresh index
+    console.log('[v0] Fetching Cloudinary files index...');
+    try {
+      const response = await fetch(`https://res.cloudinary.com/${CLOUDINARY_CLOUD_NAME}/raw/list/${CLOUDINARY_FOLDER}.json`);
+      if (!response.ok) {
+        console.warn(`[v0] Failed to fetch Cloudinary index: ${response.status}`);
+      } else {
+        const data = await response.json();
+        const fileNames = data.resources.map(r => r.public_id.split('/').pop()); // Get filename without folder path
+        const jsonFileNames = fileNames.filter(name => name.endsWith('.json'));
+
+        if (jsonFileNames.length > 0) {
+          localStorage.setItem(CLOUDINARY_FILES_KEY, JSON.JSON.stringify({ files: jsonFileNames, timestamp: Date.now() }));
+          console.log('[v0] Fetched and cached Cloudinary files index.');
+          // Load bank data from the new index
+          await loadBankDataFromIndex(jsonFileNames);
+        } else {
+          console.log('[v0] No JSON files found in Cloudinary folder.');
+          localStorage.removeItem(CLOUDINARY_FILES_KEY); // Clear old index if no json files
+        }
+      }
+    } catch (error) {
+      console.error('[v0] Error fetching Cloudinary index:', error);
     }
-    
-    updateGlobalStats();
-    updateExercisesTable();
-    updateUsersTable();
+  }
+
+  // After attempting Cloudinary load, save the final merged bank to localStorage
+  localStorage.setItem(BANK_KEY, JSON.stringify(BANK));
+  
+  console.log('[v0] === FINAL BANK STATE ===');
+  console.log('[v0] Bank from Cloudinary/localStorage:', BANK);
+  console.log('[v0] Totals:', {
+    lecture: BANK.lecture?.length || 0,
+    ecoute: BANK.ecoute?.length || 0,
+    grammaire: BANK.grammaire?.length || 0,
+    lexique: BANK.lexique?.length || 0
+  });
+  
+  updateExercisesTable();
+  updateDashboard();
+  updateUsersTable();
 }
+
+
+async function loadBankDataFromIndex(fileNames) {
+  console.log('[v0] loadBankDataFromIndex called with', fileNames.length, 'files');
+  
+  for (const filename of fileNames) {
+    try {
+      console.log('[v0] Fetching file:', filename);
+      const url = `${CLOUDINARY_BASE_URL}/${CLOUDINARY_FOLDER}/${filename}`;
+      console.log('[v0] Full URL:', url);
+      
+      const response = await fetch(url);
+      console.log('[v0] Response status:', response.status);
+      
+      if (!response.ok) {
+        console.error('[v0] Failed to fetch', filename, '- Status:', response.status);
+        continue;
+      }
+      
+      const text = await response.text();
+      console.log('[v0] Response text length:', text.length);
+      
+      const data = JSON.parse(text);
+      console.log('[v0] Parsed data for', filename, ':', {
+        hasLecture: !!data.lecture,
+        hasEcoute: !!data.ecoute,
+        hasGrammaire: !!data.grammaire,
+        hasLexique: !!data.lexique,
+        lectureCount: data.lecture ? data.lecture.length : 0,
+        ecouteCount: data.ecoute ? data.ecoute.length : 0,
+        grammaireCount: data.grammaire ? data.grammaire.length : 0,
+        lexiqueCount: data.lexique ? data.lexique.length : 0
+      });
+      
+      // Merge data into BANK
+      if (data.lecture && Array.isArray(data.lecture)) {
+        console.log('[v0] Adding', data.lecture.length, 'lecture exercises');
+        BANK.lecture = BANK.lecture.concat(data.lecture);
+      }
+      if (data.ecoute && Array.isArray(data.ecoute)) {
+        console.log('[v0] Adding', data.ecoute.length, 'ecoute exercises');
+        BANK.ecoute = BANK.ecoute.concat(data.ecoute);
+      }
+      if (data.grammaire && Array.isArray(data.grammaire)) {
+        console.log('[v0] Adding', data.grammaire.length, 'grammaire exercises');
+        BANK.grammaire = BANK.grammaire.concat(data.grammaire);
+      }
+      if (data.lexique && Array.isArray(data.lexique)) {
+        console.log('[v0] Adding', data.lexique.length, 'lexique exercises');
+        BANK.lexique = BANK.lexique.concat(data.lexique);
+      }
+    } catch (err) {
+      console.error('[v0] Error loading', filename, ':', err);
+    }
+  }
+  
+  console.log('[v0] Final BANK state after merging files:', {
+    lecture: BANK.lecture.length,
+    ecoute: BANK.ecoute.length,
+    grammaire: BANK.grammaire.length,
+    lexique: BANK.lexique.length
+  });
+}
+
 
 function switchTab(tabName, event) {
   console.log('[v0] Switching to tab:', tabName);
@@ -924,7 +869,6 @@ function updateExercisesTable() {
   console.log('[v0] Bank content:', BANK); // Use BANK
   
   const tbody = $('#exercisesBody');
-  // Ensure CE/CO are mapped to lecture/ecoute before creating the table
   const allExercises = [
     ...(BANK.lecture || []).map(e => ({ ...e, type: 'lecture' })), // Use BANK
     ...(BANK.ecoute || []).map(e => ({ ...e, type: 'ecoute' })), // Use BANK
@@ -990,15 +934,7 @@ function deleteExercise(id, type) {
 }
 
 function exportBank() {
-  // Create a new object to hold potentially merged CE/CO into lecture/ecoute
-  const exportBankData = {
-    lecture: [...(BANK.lecture || [])],
-    ecoute: [...(BANK.ecoute || [])],
-    grammaire: [...(BANK.grammaire || [])],
-    lexique: [...(BANK.lexique || [])]
-  };
-
-  const blob = new Blob([JSON.JSON.stringify(exportBankData, null, 2)], { type: 'application/json' }); // Use BANK
+  const blob = new Blob([JSON.stringify(BANK, null, 2)], { type: 'application/json' }); // Use BANK
   const a = document.createElement('a');
   a.href = URL.createObjectURL(blob);
   a.download = 'questions.json';
@@ -1177,8 +1113,8 @@ window.addFormQcmOption = function(questionId) {
   
   optionDiv.innerHTML = `
     <label style="margin:0;font-weight:600;min-width:60px">Choix ${optionLetter.toUpperCase()}</label>
-    <input class="form-qcm-option" data-option-letter="${letter}" placeholder="Réponse ${letter.toUpperCase()}" style="flex:1;padding:10px;border:1px solid #ddd;border-radius:8px;font-size:.95rem;box-sizing:border-box">
-    <button class="btn-danger remove-form-option-btn" data-qcm-id="${questionId}" data-opt-idx="${letter}" style="background:#e53e3e;color:#fff;border:none;padding:8px 12px;border-radius:6px;cursor:pointer;font-size:.85rem">✕</button>
+    <input class="form-qcm-option" data-option-letter="${optionLetter}" placeholder="Réponse ${optionLetter.toUpperCase()}" style="flex:1;padding:10px;border:1px solid #ddd;border-radius:8px;font-size:.95rem;box-sizing:border-box">
+    <button class="btn-danger remove-form-option-btn" data-qcm-id="${questionId}" data-opt-idx="${optionLetter}" style="background:#e53e3e;color:#fff;border:none;padding:8px 12px;border-radius:6px;cursor:pointer;font-size:.85rem">✕</button>
   `;
   container.appendChild(optionDiv);
   
@@ -2123,7 +2059,7 @@ function cancelEdit() {
 }
 
 function saveBank() {
-  localStorage.setItem(BANK_KEY, JSON.JSON.stringify(BANK)); // Use BANK
+  localStorage.setItem(BANK_KEY, JSON.stringify(BANK)); // Use BANK
 }
 
 function parseQCM(text) {
@@ -2531,7 +2467,7 @@ function deleteUser(userId) {
   // Remove user statistics
   const allStats = JSON.parse(localStorage.getItem('fr_stats_db') || '{}');
   delete allStats[userId];
-  localStorage.setItem('fr_stats_db', JSON.JSON.stringify(allStats));
+  localStorage.setItem('fr_stats_db', JSON.stringify(allStats));
   
   // Remove user drafts
   const allDrafts = JSON.parse(localStorage.getItem('fr_drafts_db') || '{}');
@@ -2933,11 +2869,6 @@ function updateUsersTable() {
     console.error('[v0] Error updating users table:', error);
     tbody.innerHTML = '<tr><td colspan="6" class="empty-state">Erreur lors du chargement des utilisateurs</td></tr>';
   }
-}
-
-// Dummy function for updateGlobalStats, assuming it was intended to update dashboard stats.
-function updateGlobalStats() {
-    updateDashboard(); // Reusing updateDashboard as it contains the relevant logic
 }
 
 </script>
