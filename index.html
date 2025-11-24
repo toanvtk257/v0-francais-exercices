@@ -429,9 +429,15 @@ window.addEventListener('DOMContentLoaded', async () => {
 });
 
 document.getElementById('logoutBtn').addEventListener('click', function() {
+  console.log('[v0] Logout button clicked');
   if (confirm('Voulez-vous vraiment vous déconnecter ?')) {
+    console.log('[v0] User confirmed logout');
     localStorage.removeItem('fr_auth_user');
+    console.log('[v0] Removed auth user from localStorage');
+    console.log('[v0] Redirecting to login.html...');
     window.location.href = 'login.html';
+  } else {
+    console.log('[v0] User cancelled logout');
   }
 });
 </script>
