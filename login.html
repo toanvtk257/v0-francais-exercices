@@ -37,15 +37,15 @@ button{flex:1;border:0;padding:12px;border-radius:10px;cursor:pointer;font-weigh
   <form id="loginForm" autocomplete="off">
     <div class="form-group">
       <label for="loginEmail">Email ou ID étudiant</label>
-      <input type="text" id="loginEmail" placeholder="ex. etudiant@example.com" required autocomplete="off">
+      <input type="text" id="loginEmail" name="email" placeholder="ex. etudiant@example.com" required autocomplete="off">
       <div class="error" id="loginError"></div>
     </div>
     <div class="form-group">
       <label for="loginPassword">Mot de passe</label>
-      <input type="password" id="loginPassword" placeholder="••••••••" required autocomplete="new-password">
+      <input type="password" id="loginPassword" name="password" placeholder="••••••••" required autocomplete="new-password">
     </div>
     <div class="btns">
-      <button type="button" class="btn-primary" id="loginBtn">Connexion</button>
+      <button type="submit" class="btn-primary" id="loginBtn">Connexion</button>
     </div>
   </form>
 
@@ -56,16 +56,16 @@ button{flex:1;border:0;padding:12px;border-radius:10px;cursor:pointer;font-weigh
     </div>
     <div class="form-group">
       <label for="regName">Nom complet</label>
-      <input type="text" id="regName" placeholder="ex. Jean Dupont" required>
+      <input type="text" id="regName" name="name" placeholder="ex. Jean Dupont" required>
     </div>
     <div class="form-group">
-      <label for="regEmail">Email</label>
-      <input type="email" id="regEmail" placeholder="ex. jean@example.com" required>
+      <label for="regEmail">Email ou ID étudiant</label>
+      <input type="text" id="regEmail" name="email" placeholder="ex. jean@example.com" required>
+      <div class="error" id="regError"></div>
     </div>
     <div class="form-group">
       <label for="regPassword">Mot de passe</label>
-      <input type="password" id="regPassword" placeholder="••••••••" required>
-      <div class="error" id="regError"></div>
+      <input type="password" id="regPassword" name="password" placeholder="••••••••" required>
     </div>
     <div class="form-group">
       <label for="regPassword2">Confirmer mot de passe</label>
@@ -84,7 +84,7 @@ button{flex:1;border:0;padding:12px;border-radius:10px;cursor:pointer;font-weigh
       <div class="error" id="securityCodeError"></div>
     </div>
     <div class="btns">
-      <button type="button" class="btn-primary" id="registerBtn">Créer un compte</button>
+      <button type="submit" class="btn-primary" id="registerBtn">Créer un compte</button>
       <button type="button" class="btn-secondary" id="backToLogin">Retour</button>
     </div>
     <div class="success" id="regSuccess"></div>
@@ -121,103 +121,86 @@ function saveUsers(users) {
   localStorage.setItem(USERS_KEY, JSON.stringify(users));
 }
 
-function handleLogin(e) {
+async function handleLogin(e) {
   e.preventDefault();
-  console.log("[v0] Login form submitted");
   
   const email = document.getElementById('loginEmail').value.trim();
   const password = document.getElementById('loginPassword').value;
-  const errorEl = document.getElementById('loginError');
-
-  errorEl.style.display = 'none';
-
+  const errorDiv = document.getElementById('loginError');
+  
+  errorDiv.style.display = 'none';
+  
   if (!email || !password) {
-    errorEl.textContent = 'Veuillez remplir tous les champs.';
-    errorEl.style.display = 'block';
+    errorDiv.textContent = 'Veuillez remplir tous les champs';
+    errorDiv.style.display = 'block';
     return;
   }
 
-  const users = getUsers();
-  console.log("[v0] Checking credentials");
-  
-  const user = users.find(u => {
-    return u.email === email && u.password === password;
-  });
+  try {
+    const formData = new FormData();
+    formData.append('email', email);
+    formData.append('password', password);
 
-  if (!user) {
-    errorEl.textContent = 'Email ou mot de passe incorrect.';
-    errorEl.style.display = 'block';
-    return;
+    const response = await fetch('/api/auth/login', {
+      method: 'POST',
+      body: formData
+    });
+
+    const data = await response.json();
+
+    if (data.success && data.redirectUrl) {
+      // Use top-level window navigation
+      window.top.location.href = data.redirectUrl;
+    } else {
+      errorDiv.textContent = data.error || 'Erreur de connexion';
+      errorDiv.style.display = 'block';
+    }
+  } catch (error) {
+    errorDiv.textContent = 'Erreur de connexion au serveur';
+    errorDiv.style.display = 'block';
   }
-
-  console.log("[v0] User found, redirecting...");
-  localStorage.setItem(AUTH_KEY, JSON.stringify(user));
-  
-  const redirectPage = user.role === 'admin' ? '/admin.html' : '/dashboard.html';
-  console.log("[v0] Redirecting to:", redirectPage);
-  window.location.href = redirectPage;
 }
 
-function handleRegister(event) {
-  event.preventDefault();
-
-  const name = $('#regName').value.trim();
-  const email = $('#regEmail').value.trim();
-  const password = $('#regPassword').value.trim();
-  const confirmPassword = $('#regPassword2').value.trim();
-  const role = $('#regRole').value;
-
-  const errorEl = $('#regError');
-  const securityCodeErrorEl = $('#securityCodeError');
-
-  errorEl.style.display = 'none';
-  securityCodeErrorEl.style.display = 'none';
-
-  if (!name || !email || !password || !confirmPassword) {
-    errorEl.textContent = 'Veuillez remplir tous les champs.';
-    errorEl.style.display = 'block';
+async function handleRegister(e) {
+  e.preventDefault();
+  
+  const name = document.getElementById('regName').value.trim();
+  const email = document.getElementById('regEmail').value.trim();
+  const password = document.getElementById('regPassword').value;
+  const errorDiv = document.getElementById('regError');
+  
+  errorDiv.style.display = 'none';
+  
+  if (!name || !email || !password) {
+    errorDiv.textContent = 'Veuillez remplir tous les champs';
+    errorDiv.style.display = 'block';
     return;
   }
 
-  if (password !== confirmPassword) {
-    errorEl.textContent = 'Les mots de passe ne correspondent pas.';
-    errorEl.style.display = 'block';
-    return;
-  }
+  try {
+    const formData = new FormData();
+    formData.append('name', name);
+    formData.append('email', email);
+    formData.append('password', password);
 
-  if (role === 'admin') {
-    const securityCode = $('#securityCode').value.trim();
-    if (securityCode !== ADMIN_SECURITY_CODE) {
-      securityCodeErrorEl.textContent = 'Code de sécurité incorrect.';
-      securityCodeErrorEl.style.display = 'block';
-      return;
+    const response = await fetch('/api/auth/register', {
+      method: 'POST',
+      body: formData
+    });
+
+    const data = await response.json();
+
+    if (data.success && data.redirectUrl) {
+      // Use top-level window navigation
+      window.top.location.href = data.redirectUrl;
+    } else {
+      errorDiv.textContent = data.error || 'Erreur d\'inscription';
+      errorDiv.style.display = 'block';
     }
+  } catch (error) {
+    errorDiv.textContent = 'Erreur de connexion au serveur';
+    errorDiv.style.display = 'block';
   }
-
-  const users = getUsers();
-  if (users.some(u => u.email === email)) {
-    errorEl.textContent = 'Cet email est déjà utilisé.';
-    errorEl.style.display = 'block';
-    return;
-  }
-
-  const newUser = {
-    id: 'user_' + Date.now(),
-    name,
-    email,
-    password,
-    role
-  };
-
-  users.push(newUser);
-  saveUsers(users);
-  
-  localStorage.setItem(AUTH_KEY, JSON.stringify(newUser));
-  
-  const baseUrl = 'https://v0-francais-exercices.vercel.app';
-  const redirectPage = newUser.role === 'admin' ? 'admin.html' : 'dashboard.html';
-  console.log("[v0] Redirecting to:", redirectPage);
-  window.location.href = `${baseUrl}/${redirectPage}`;
 }
 
 document.getElementById('regRole').addEventListener('change', (e) => {
@@ -244,10 +227,8 @@ document.getElementById('backToLogin').addEventListener('click', () => {
   document.getElementById('securityCodeGroup').style.display = 'none';
 });
 
-document.getElementById('loginBtn').addEventListener('click', handleLogin);
-document.getElementById('registerBtn').addEventListener('click', handleRegister);
-
-initUsersDB();
+document.getElementById('loginForm').addEventListener('submit', handleLogin);
+document.getElementById('registerForm').addEventListener('submit', handleRegister);
 
 const currentUser = localStorage.getItem(AUTH_KEY);
 if (currentUser) {
