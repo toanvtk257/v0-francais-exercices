@@ -323,6 +323,11 @@ h1 {
             <label>Thème</label>
             <input id="addTheme" placeholder="ex. Salutations">
           </div>
+          <!-- Added exercise number field like in builder.html -->
+          <div>
+            <label>N° exercice</label>
+            <input type="number" id="addExerciseNumber" min="1" placeholder="ex. 1">
+          </div>
           <div>
             <label>Titre</label>
             <input id="addTitle" placeholder="ex. Leçon 01">
@@ -914,7 +919,6 @@ function updateExercisesTable() {
   attachExerciseActionListeners();
 }
 
-/** rest of code here **/
 function attachExerciseActionListeners() {
   document.querySelectorAll('.edit-exercise-btn').forEach(btn => {
     btn.addEventListener('click', (e) => {
@@ -1390,14 +1394,15 @@ function addExercise() { // Renamed from addFormExercise to match original
   const level = $('#addLevel').value;
   const theme = $('#addTheme').value.trim();
   const title = $('#addTitle').value.trim();
-  const id = editingExerciseId || `${type}_${level}_${Date.now()}`;
+  const exerciseNumber = $('#addExerciseNumber').value.trim(); // Get exercise number
+  const id = editingExerciseId || `${type}_${level}_${theme.replace(/\s+/g, '_')}_${exerciseNumber || Date.now()}`; // Construct ID including number
 
-  if (!theme || !title) {
-    alert('Veuillez remplir le thème et le titre');
+  if (!theme || !title || !exerciseNumber) { // Added exerciseNumber to validation
+    alert('Veuillez remplir le thème, le titre et le numéro d\'exercice');
     return;
   }
 
-  const exercice = {id, niveau: level, theme, titre: title}; // Corrected keys
+  const exercice = {id, niveau: level, theme, titre: title, number: exerciseNumber}; // Added number field
 
   // Handle CE with image or text
   if (type === 'lecture') {
@@ -1544,9 +1549,11 @@ function addExercise() { // Renamed from addFormExercise to match original
   $('#audioFileName').textContent = '';
   $('#audioFileName').style.display = 'none';
   $('#audioDropText').style.display = 'block';
+  $('#audioPreview').removeAttribute('src'); // Clear audio preview
 
   $('#addTheme').value = '';
   $('#addTitle').value = '';
+  $('#addExerciseNumber').value = ''; // Clear exercise number field
   $('#cancelEditBtn').style.display = 'none';
   editingExerciseId = null;
   
@@ -1616,6 +1623,7 @@ function updateAddForm() {
           <p style="margin:4px 0 0;font-size:.85rem;color:#999">Formats acceptés: MP3, WAV, OGG</p>
         </div>
         <div id="audioFileName" style="display:none;color:var(--success);font-weight:600"></div>
+        <audio id="audioPreview" controls style="width:100%;margin-top:10px;display:none"></audio>
       </div>
       <input type="hidden" id="addAudio" value=""> <!-- This will store the path like 'audio/filename.mp3' -->
     </div>
@@ -1743,7 +1751,7 @@ function addBulkExercise() {
   let audioPath = $('#bulkAudio').value;
 
   const newExercises = [];
-  const baseId = `${type}_${level}_${Date.now()}`;
+  const baseId = `${type}_${level}_${theme.replace(/\s+/g, '_')}_${Date.now()}`; // Use theme and timestamp for uniqueness
 
   // Parse QCMs
   const parsedQcm = qcmText ? parseBulkQCM(qcmText) : [];
@@ -1769,7 +1777,7 @@ function addBulkExercise() {
   // Create a single exercise if there's content, otherwise handle multiple based on QCM/VF lines
   if (parsedQcm.length > 0 || parsedVf.length > 0 || parsedCloze || (type === 'lecture' && formattedPassage) || (type === 'ecoute' && audioPath)) {
     const exercise = {
-      id: `${baseId}_0`,
+      id: `${baseId}_0`, // Assign index 0 for now, will be updated if multiple are added by parsing
       niveau: level,
       theme: theme,
       titre: title,
@@ -1850,6 +1858,7 @@ function editExercise(id) {
   $('#addLevel').value = exercise.niveau;
   $('#addTheme').value = exercise.theme;
   $('#addTitle').value = exercise.titre;
+  $('#addExerciseNumber').value = exercise.number || ''; // Populate exercise number
   
   updateAddForm(); // This will render the correct fields based on type
   
@@ -2033,9 +2042,14 @@ function editExercise(id) {
       $('#addAudio').value = exercise.audio;
       const fileNameDisplay = $('#audioFileName');
       const audioDropText = $('#audioDropText');
+      const audioPreview = $('#audioPreview');
+      
       audioDropText.style.display = 'none';
       fileNameDisplay.textContent = exercise.audio.split('/').pop(); // Display just the file name
       fileNameDisplay.style.display = 'block';
+      fileNameDisplay.style.color = '#10b981';
+      audioPreview.src = exercise.audio; // Set audio preview src
+      audioPreview.style.display = 'block';
     }
   }
   
@@ -2047,6 +2061,7 @@ function cancelEdit() {
   $('#cancelEditBtn').style.display = 'none';
   $('#addTheme').value = '';
   $('#addTitle').value = '';
+  $('#addExerciseNumber').value = ''; // Clear exercise number field
   
   // Reset form question counters and clear questions
   formQcmCounter = 0;
@@ -2075,6 +2090,8 @@ function cancelEdit() {
   $('#audioFileName').textContent = '';
   $('#audioFileName').style.display = 'none';
   $('#audioDropText').style.display = 'block';
+  $('#audioPreview').removeAttribute('src'); // Clear audio preview
+  $('#audioPreview').style.display = 'none';
 
   updateAddForm(); // Re-renders the form fields based on default type
 }
@@ -2506,8 +2523,7 @@ async function uploadToCloudinary(file, resourceType = 'auto') {
   const formData = new FormData();
   formData.append('file', file);
   formData.append('upload_preset', CLOUDINARY_UPLOAD_PRESET);
-  formData.append('folder', 'french-audio'); // Specific folder for audio/images
-  formData.append('resource_type', resourceType);
+  formData.append('folder', 'french-audio');
 
   const url = `https://api.cloudinary.com/v1_1/${CLOUDINARY_CLOUD_NAME}/${resourceType}/upload`;
 
@@ -2520,19 +2536,27 @@ async function uploadToCloudinary(file, resourceType = 'auto') {
     if (!response.ok) {
       const errorData = await response.json();
       console.error('[v0] Cloudinary error response:', errorData);
-      throw new Error(errorData.error?.message || `HTTP Error ${response.status}: ${response.statusText}`);
+      
+      let errorMsg = `Erreur Cloudinary: ${errorData.error?.message || response.statusText}\n\n`;
+      errorMsg += `Vérifiez:\n`;
+      errorMsg += `- Votre upload preset "${CLOUDINARY_UPLOAD_PRESET}" existe et est "unsigned"\n`;
+      errorMsg += `- Votre cloud name est correct: ${CLOUDINARY_CLOUD_NAME}\n`;
+      errorMsg += `- Le fichier ne dépasse pas les limites de votre plan Cloudinary`;
+      
+      throw new Error(errorMsg);
     }
 
     const data = await response.json();
     return data.secure_url;
   } catch (error) {
     console.error('[v0] Cloudinary upload error:', error);
+    alert(error.message || 'Erreur lors de l\'upload vers Cloudinary');
     throw error;
   }
 }
 
 // Helper function for handling audio file uploads
-function handleAudioFile(file, inputElement, fileNameDisplay, hiddenAudioInput) {
+async function handleAudioFile(file, inputElement, fileNameDisplay, hiddenAudioInput) {
   if (!file) return;
   
   const allowedTypes = ['audio/mpeg', 'audio/wav', 'audio/ogg'];
@@ -2542,56 +2566,64 @@ function handleAudioFile(file, inputElement, fileNameDisplay, hiddenAudioInput) 
     return;
   }
 
-  // Get form values for automatic filename generation
   const niveau = $('#addLevel')?.value || '';
   const theme = $('#addTheme')?.value?.trim() || '';
-  const titre = $('#addTitle')?.value?.trim() || '';
+  const exerciseNum = $('#addExerciseNumber')?.value?.trim() || '';
   
-  if (!niveau || !theme) {
-    alert('Veuillez d\'abord remplir le Niveau et le Thème avant d\'importer un fichier audio.');
+  if (!niveau || !theme || !exerciseNum) {
+    alert('Veuillez d\'abord remplir le Niveau, le Thème et le N° exercice avant d\'importer un fichier audio.');
     inputElement.value = '';
     return;
   }
   
-  // Clean theme and title for filename
   const cleanTheme = theme.replace(/[^a-zA-Z0-9À-ÿ\s]/g, '').replace(/\s+/g, '_');
-  const cleanTitre = titre.replace(/[^a-zA-Z0-9À-ÿ\s]/g, '').replace(/\s+/g, '_');
   const originalExt = file.name.split('.').pop().toLowerCase();
+  const newFileName = `${niveau}_${cleanTheme}_Exo${exerciseNum}.${originalExt}`;
   
-  // Generate new filename: niveau_theme_titre.ext or niveau_theme.ext
-  const newFileName = titre 
-    ? `${niveau}_${cleanTheme}_${cleanTitre}.${originalExt}`
-    : `${niveau}_${cleanTheme}.${originalExt}`;
+  const renamedFile = new File([file], newFileName, { type: file.type });
   
-  // Show uploading status
-  fileNameDisplay.textContent = `⏳ Upload en cours: ${newFileName}...`;
-  fileNameDisplay.style.display = 'block';
-  fileNameDisplay.style.color = '#f59e0b';
-  document.getElementById('audioDropText').style.display = 'none';
+  // Display filename and upload status
+  if (fileNameDisplay) {
+    fileNameDisplay.textContent = `📁 ${newFileName} - ⏳ Upload en cours...`;
+    fileNameDisplay.style.color = '#f59e0b';
+    document.getElementById('audioDropText').style.display = 'none';
+  }
   
-  console.log('[v0] Uploading audio to Cloudinary:', newFileName);
-  
-  (async () => { // Use an async IIFE for await
-    try {
-      // Create a new file with the custom name
-      const renamedFile = new File([file], newFileName, { type: file.type });
-      const cloudinaryUrl = await uploadToCloudinary(renamedFile, 'video'); // Use 'video' for audio files
-      
-      console.log('[v0] Audio uploaded to Cloudinary:', cloudinaryUrl);
-      
-      // Store the Cloudinary URL in the hidden input
-      hiddenAudioInput.value = cloudinaryUrl;
-      fileNameDisplay.textContent = `✓ ${newFileName}`;
+  try {
+    const cloudinaryUrl = await uploadToCloudinary(renamedFile, 'video');
+    
+    console.log('[v0] Audio uploaded successfully to Cloudinary:', cloudinaryUrl);
+    
+    // Update display with success message
+    if (fileNameDisplay) {
+      fileNameDisplay.textContent = `✅ ${newFileName} - Uploadé vers Cloudinary`;
       fileNameDisplay.style.color = '#10b981';
-    } catch (err) {
-      console.error('[v0] Error uploading audio to Cloudinary:', err);
-      fileNameDisplay.textContent = `❌ Erreur: ${err.message}`;
-      fileNameDisplay.style.color = '#ef4444';
-      alert(`Erreur Cloudinary: ${err.message}\n\nVérifiez:\n- Votre upload preset "francais_exercices" existe et est "unsigned"\n- Votre cloud name est correct: ${CLOUDINARY_CLOUD_NAME}\n- Le fichier ne dépasse pas les limites de votre plan Cloudinary`);
     }
-  })();
-  
-  inputElement.value = '';
+    
+    // Store Cloudinary URL in hidden input
+    if (hiddenAudioInput) {
+      hiddenAudioInput.value = cloudinaryUrl;
+    }
+    
+    // Preview audio
+    const reader = new FileReader();
+    reader.onload = e => {
+      const audioPreview = document.querySelector('#audioPreview');
+      if (audioPreview) {
+        audioPreview.src = e.target.result;
+        audioPreview.style.display = 'block';
+      }
+    };
+    reader.readAsDataURL(file);
+    
+  } catch (error) {
+    console.error('[v0] Error uploading audio:', error);
+    if (fileNameDisplay) {
+      fileNameDisplay.textContent = `❌ Erreur lors de l'upload`;
+      fileNameDisplay.style.color = '#ef4444';
+    }
+    inputElement.value = '';
+  }
 }
 
 function addResource() {
