@@ -34,42 +34,42 @@ button{flex:1;border:0;padding:12px;border-radius:10px;cursor:pointer;font-weigh
   <p class="subtitle">Connexion à la plateforme</p>
 
   <!-- Login form -->
-  <form id="loginForm" autocomplete="off">
+  <div id="loginForm">
     <div class="form-group">
       <label for="loginEmail">Email ou ID étudiant</label>
-      <input type="text" id="loginEmail" name="email" placeholder="ex. etudiant@example.com" required autocomplete="off">
+      <input type="text" id="loginEmail" name="email" placeholder="ex. etudiant@example.com" autocomplete="off">
       <div class="error" id="loginError"></div>
     </div>
     <div class="form-group">
       <label for="loginPassword">Mot de passe</label>
-      <input type="password" id="loginPassword" name="password" placeholder="••••••••" required autocomplete="new-password">
+      <input type="password" id="loginPassword" name="password" placeholder="••••••••" autocomplete="new-password">
     </div>
     <div class="btns">
-      <button type="submit" class="btn-primary" id="loginBtn">Connexion</button>
+      <button type="button" class="btn-primary" id="loginBtn">Connexion</button>
     </div>
-  </form>
+  </div>
 
   <!-- Registration form (hidden by default) -->
-  <form id="registerForm" style="display:none">
+  <div id="registerForm" style="display:none">
     <div class="info-box">
       Créez un compte pour commencer vos exercices de français.
     </div>
     <div class="form-group">
       <label for="regName">Nom complet</label>
-      <input type="text" id="regName" name="name" placeholder="ex. Jean Dupont" required>
+      <input type="text" id="regName" name="name" placeholder="ex. Jean Dupont">
     </div>
     <div class="form-group">
       <label for="regEmail">Email ou ID étudiant</label>
-      <input type="text" id="regEmail" name="email" placeholder="ex. jean@example.com" required>
+      <input type="text" id="regEmail" name="email" placeholder="ex. jean@example.com">
       <div class="error" id="regError"></div>
     </div>
     <div class="form-group">
       <label for="regPassword">Mot de passe</label>
-      <input type="password" id="regPassword" name="password" placeholder="••••••••" required>
+      <input type="password" id="regPassword" name="password" placeholder="••••••••">
     </div>
     <div class="form-group">
       <label for="regPassword2">Confirmer mot de passe</label>
-      <input type="password" id="regPassword2" placeholder="••••••••" required>
+      <input type="password" id="regPassword2" placeholder="••••••••">
     </div>
     <div class="form-group">
       <label for="regRole">Rôle</label>
@@ -84,11 +84,11 @@ button{flex:1;border:0;padding:12px;border-radius:10px;cursor:pointer;font-weigh
       <div class="error" id="securityCodeError"></div>
     </div>
     <div class="btns">
-      <button type="submit" class="btn-primary" id="registerBtn">Créer un compte</button>
+      <button type="button" class="btn-primary" id="registerBtn">Créer un compte</button>
       <button type="button" class="btn-secondary" id="backToLogin">Retour</button>
     </div>
     <div class="success" id="regSuccess"></div>
-  </form>
+  </div>
 
   <div class="toggle-form">
     <span id="toggleText">Pas encore de compte ? <a id="showRegister">S'inscrire</a></span>
@@ -101,7 +101,6 @@ const $ = s => document.querySelector(s);
 const AUTH_KEY = 'fr_auth_user';
 const USERS_KEY = 'fr_users_db';
 const ADMIN_SECURITY_CODE = '250784';
-const STORAGE_KEY = 'fr_users_db';
 
 function initUsersDB() {
   if (!localStorage.getItem(USERS_KEY)) {
@@ -113,20 +112,17 @@ function initUsersDB() {
 }
 
 function getUsers() {
-  const users = JSON.parse(localStorage.getItem(USERS_KEY) || '[]');
-  return users;
+  return JSON.parse(localStorage.getItem(USERS_KEY) || '[]');
 }
 
 function saveUsers(users) {
   localStorage.setItem(USERS_KEY, JSON.stringify(users));
 }
 
-async function handleLogin(e) {
-  e.preventDefault();
-  
-  const email = document.getElementById('loginEmail').value.trim();
-  const password = document.getElementById('loginPassword').value;
-  const errorDiv = document.getElementById('loginError');
+function handleLogin() {
+  const email = $('#loginEmail').value.trim();
+  const password = $('#loginPassword').value;
+  const errorDiv = $('#loginError');
   
   errorDiv.style.display = 'none';
   
@@ -136,99 +132,109 @@ async function handleLogin(e) {
     return;
   }
 
-  try {
-    const formData = new FormData();
-    formData.append('email', email);
-    formData.append('password', password);
-
-    const response = await fetch('/api/auth/login', {
-      method: 'POST',
-      body: formData
-    });
-
-    const data = await response.json();
-
-    if (data.success && data.redirectUrl) {
-      // Use top-level window navigation
-      window.top.location.href = data.redirectUrl;
-    } else {
-      errorDiv.textContent = data.error || 'Erreur de connexion';
-      errorDiv.style.display = 'block';
-    }
-  } catch (error) {
-    errorDiv.textContent = 'Erreur de connexion au serveur';
+  const users = getUsers();
+  const user = users.find(u => u.email === email && u.password === password);
+  
+  if (user) {
+    localStorage.setItem(AUTH_KEY, JSON.stringify(user));
+    
+    // Direct navigation using absolute path
+    const redirectPage = user.role === 'admin' ? '/admin.html' : '/dashboard.html';
+    window.location.href = redirectPage;
+  } else {
+    errorDiv.textContent = 'Email ou mot de passe incorrect';
     errorDiv.style.display = 'block';
   }
 }
 
-async function handleRegister(e) {
-  e.preventDefault();
-  
-  const name = document.getElementById('regName').value.trim();
-  const email = document.getElementById('regEmail').value.trim();
-  const password = document.getElementById('regPassword').value;
-  const errorDiv = document.getElementById('regError');
+function handleRegister() {
+  const name = $('#regName').value.trim();
+  const email = $('#regEmail').value.trim();
+  const password = $('#regPassword').value;
+  const password2 = $('#regPassword2').value;
+  const role = $('#regRole').value;
+  const errorDiv = $('#regError');
+  const securityCodeErrorDiv = $('#securityCodeError');
   
   errorDiv.style.display = 'none';
+  securityCodeErrorDiv.style.display = 'none';
   
-  if (!name || !email || !password) {
+  if (!name || !email || !password || !password2) {
     errorDiv.textContent = 'Veuillez remplir tous les champs';
     errorDiv.style.display = 'block';
     return;
   }
-
-  try {
-    const formData = new FormData();
-    formData.append('name', name);
-    formData.append('email', email);
-    formData.append('password', password);
-
-    const response = await fetch('/api/auth/register', {
-      method: 'POST',
-      body: formData
-    });
-
-    const data = await response.json();
-
-    if (data.success && data.redirectUrl) {
-      // Use top-level window navigation
-      window.top.location.href = data.redirectUrl;
-    } else {
-      errorDiv.textContent = data.error || 'Erreur d\'inscription';
-      errorDiv.style.display = 'block';
-    }
-  } catch (error) {
-    errorDiv.textContent = 'Erreur de connexion au serveur';
+  
+  if (password !== password2) {
+    errorDiv.textContent = 'Les mots de passe ne correspondent pas';
     errorDiv.style.display = 'block';
+    return;
   }
+  
+  if (role === 'admin') {
+    const securityCode = $('#securityCode').value;
+    if (securityCode !== ADMIN_SECURITY_CODE) {
+      securityCodeErrorDiv.textContent = 'Code de sécurité incorrect';
+      securityCodeErrorDiv.style.display = 'block';
+      return;
+    }
+  }
+  
+  const users = getUsers();
+  if (users.find(u => u.email === email)) {
+    errorDiv.textContent = 'Cet email est déjà utilisé';
+    errorDiv.style.display = 'block';
+    return;
+  }
+  
+  const newUser = {
+    id: 'user_' + Date.now(),
+    name,
+    email,
+    password,
+    role
+  };
+  
+  users.push(newUser);
+  saveUsers(users);
+  localStorage.setItem(AUTH_KEY, JSON.stringify(newUser));
+  
+  // Direct navigation using absolute path
+  const redirectPage = role === 'admin' ? '/admin.html' : '/dashboard.html';
+  window.location.href = redirectPage;
 }
 
-document.getElementById('regRole').addEventListener('change', (e) => {
-  const securityCodeGroup = document.getElementById('securityCodeGroup');
+$('#regRole').addEventListener('change', (e) => {
+  const securityCodeGroup = $('#securityCodeGroup');
   if (e.target.value === 'admin') {
     securityCodeGroup.style.display = 'block';
   } else {
     securityCodeGroup.style.display = 'none';
-    document.getElementById('securityCode').value = '';
+    $('#securityCode').value = '';
   }
 });
 
-document.getElementById('showRegister').addEventListener('click', () => {
-  document.getElementById('loginForm').style.display = 'none';
-  document.getElementById('registerForm').style.display = 'block';
-  document.getElementById('toggleText').style.display = 'none';
+$('#showRegister').addEventListener('click', () => {
+  $('#loginForm').style.display = 'none';
+  $('#registerForm').style.display = 'block';
+  $('#toggleText').style.display = 'none';
 });
 
-document.getElementById('backToLogin').addEventListener('click', () => {
-  document.getElementById('registerForm').style.display = 'none';
-  document.getElementById('loginForm').style.display = 'block';
-  document.getElementById('toggleText').style.display = 'block';
-  document.getElementById('registerForm').reset();
-  document.getElementById('securityCodeGroup').style.display = 'none';
+$('#backToLogin').addEventListener('click', () => {
+  $('#registerForm').style.display = 'none';
+  $('#loginForm').style.display = 'block';
+  $('#toggleText').style.display = 'block';
+  $('#securityCodeGroup').style.display = 'none';
 });
 
-document.getElementById('loginForm').addEventListener('submit', handleLogin);
-document.getElementById('registerForm').addEventListener('submit', handleRegister);
+$('#loginBtn').addEventListener('click', handleLogin);
+$('#registerBtn').addEventListener('click', handleRegister);
+
+$('#loginPassword').addEventListener('keypress', (e) => {
+  if (e.key === 'Enter') handleLogin();
+});
+
+initUsersDB();
 
 const currentUser = localStorage.getItem(AUTH_KEY);
 if (currentUser) {
