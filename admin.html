@@ -167,13 +167,12 @@ h1 {
 
 <main>
   <div class="tabs">
-    <button class="tab-btn active" onclick="switchTab('dashboard')">Tableau de bord</button>
-    <button class="tab-btn" onclick="switchTab('exercises')">Exercices</button>
-    <button class="tab-btn" onclick="switchTab('users')">Utilisateurs</button>
-    <button class="tab-btn" onclick="switchTab('builder')">Créateur</button>
-    <!-- Added new tabs for resources and chat -->
-    <button class="tab-btn" onclick="switchTab('resources')">Ressources externes</button>
-    <button class="tab-btn" onclick="switchTab('chat')">Messages</button>
+    <button class="tab-btn active" data-tab="dashboard">Tableau de bord</button>
+    <button class="tab-btn" data-tab="exercises">Exercices</button>
+    <button class="tab-btn" data-tab="users">Utilisateurs</button>
+    <button class="tab-btn" data-tab="builder">Créateur</button>
+    <button class="tab-btn" data-tab="resources">Ressources externes</button>
+    <button class="tab-btn" data-tab="chat">Messages</button>
   </div>
 
   <!-- Dashboard Tab -->
@@ -623,7 +622,7 @@ async function loadBank() {
 }
 
 
-function loadFromCloudinary() {
+async function loadFromCloudinary() {
   // First, check if we have a valid cached index and if it's recent enough
   const cachedIndex = localStorage.getItem(CLOUDINARY_FILES_KEY);
   const cachedIndexData = cachedIndex ? JSON.parse(cachedIndex) : null;
@@ -664,7 +663,7 @@ function loadFromCloudinary() {
   }
 }
 
-function loadBankDataFromIndex(fileNames) {
+async function loadBankDataFromIndex(fileNames) {
   if (fileNames.length === 0) {
     console.log('[v0] No files to load from Cloudinary index.');
     return null;
@@ -1525,7 +1524,8 @@ function updateBulkForm() {
       </div>
       <div class="form-group">
         <label>Texte principal (chaque ligne sera un paragraphe)</label>
-        <textarea id="bulkPassage" placeholder="Exemple: La Tour Eiffel est un monument.\nElle se trouve à Paris."></textarea>
+        <textarea id="bulkPassage" placeholder="Exemple: La Tour Eiffel est un monument.
+Elle se trouve à Paris."></textarea>
       </div>
       <div class="form-group">
         <label>Source (affichée en italique à droite)</label>
@@ -1648,7 +1648,7 @@ function addBulkExercise() {
 
     newExercises.push(exercise);
   } else {
-    alert('Aucun contenu valide trouvé pour l\'importation.');
+    alert('Aucun contenu valideFound for import.');
     return;
   }
 
@@ -2334,7 +2334,7 @@ function deleteUser(userId) {
   
   // Remove user from users list
   const updatedUsers = users.filter(u => u.id !== userId);
-  localStorage.setItem(USERS_KEY, JSON.JSON.stringify(updatedUsers));
+  localStorage.setItem(USERS_KEY, JSON.stringify(updatedUsers));
   
   // Remove user statistics
   const allStats = JSON.parse(localStorage.getItem('fr_stats_db') || '{}');
