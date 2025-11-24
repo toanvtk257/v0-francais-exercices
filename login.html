@@ -34,15 +34,15 @@ button{flex:1;border:0;padding:12px;border-radius:10px;cursor:pointer;font-weigh
   <p class="subtitle">Connexion à la plateforme</p>
 
   <!-- Login form -->
-  <form id="loginForm">
+  <form id="loginForm" autocomplete="off">
     <div class="form-group">
       <label for="loginEmail">Email ou ID étudiant</label>
-      <input type="text" id="loginEmail" placeholder="ex. etudiant@example.com" required>
+      <input type="text" id="loginEmail" placeholder="ex. etudiant@example.com" required autocomplete="off">
       <div class="error" id="loginError"></div>
     </div>
     <div class="form-group">
       <label for="loginPassword">Mot de passe</label>
-      <input type="password" id="loginPassword" placeholder="••••••••" required>
+      <input type="password" id="loginPassword" placeholder="••••••••" required autocomplete="new-password">
     </div>
     <div class="btns">
       <button type="button" class="btn-primary" id="loginBtn">Connexion</button>
