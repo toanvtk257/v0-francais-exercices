@@ -107,6 +107,42 @@ button:hover{opacity:.9}
 const ADMIN_SECRET_CODE = '250784';
 const USERS_STORAGE_KEY = 'fr_users_db';
 
+function migrateOldAccounts() {
+  if (!isLocalStorageAvailable()) return;
+  
+  try {
+    const usersJson = localStorage.getItem(USERS_STORAGE_KEY);
+    if (!usersJson) return;
+    
+    let users = JSON.parse(usersJson);
+    let migrated = false;
+    
+    // Convert all users with "password" field to "pin" field
+    users = users.map(user => {
+      if (user.password && !user.pin) {
+        console.log('[v0] Migrating user from password to PIN:', user.email);
+        // For old accounts, we'll reset them to use the default PIN
+        const migratedUser = {
+          ...user,
+          pin: '250784', // Default PIN for migrated accounts
+        };
+        delete migratedUser.password; // Remove old password field
+        migrated = true;
+        return migratedUser;
+      }
+      return user;
+    });
+    
+    if (migrated) {
+      localStorage.setItem(USERS_STORAGE_KEY, JSON.stringify(users));
+      console.log('[v0] Account migration completed. All accounts now use PIN format.');
+      alert('Vos anciens comptes ont été migrés vers le nouveau système de code PIN à 6 chiffres. Le code PIN par défaut est 250784. Veuillez le changer après la première connexion.');
+    }
+  } catch (error) {
+    console.error('[v0] Error during account migration:', error);
+  }
+}
+
 function initializeDefaultAccounts() {
   if (!isLocalStorageAvailable()) return;
   
@@ -114,6 +150,7 @@ function initializeDefaultAccounts() {
     const usersJson = localStorage.getItem(USERS_STORAGE_KEY);
     let users = JSON.parse(usersJson || '[]');
     
+    // Remove old default accounts if they exist
     users = users.filter(u => u.id !== 'admin_default' && u.id !== 'user_toanvtk');
     
     const defaultAccounts = [
@@ -327,6 +364,7 @@ function handleRegister() {
 }
 
 document.addEventListener('DOMContentLoaded', function() {
+  migrateOldAccounts();
   initializeDefaultAccounts();
   
   document.getElementById('login-pin').addEventListener('keypress', function(e) {
