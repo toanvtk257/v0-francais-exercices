@@ -185,6 +185,9 @@ function handleRegister() {
   const role = document.getElementById('register-role').value;
   const errorDiv = document.getElementById('register-error');
   
+  console.log('[v0] Starting registration process');
+  console.log('[v0] Name:', name, 'Email:', username, 'Role:', role);
+  
   if (!name || !username || !pin) {
     errorDiv.textContent = 'Veuillez remplir tous les champs';
     errorDiv.style.display = 'block';
@@ -214,6 +217,7 @@ function handleRegister() {
   }
   
   const users = JSON.parse(localStorage.getItem(USERS_STORAGE_KEY) || '[]');
+  console.log('[v0] Existing users before registration:', users);
   
   if (users.find(u => u.email === username)) {
     errorDiv.textContent = 'Cet email est déjà utilisé';
@@ -233,6 +237,10 @@ function handleRegister() {
   users.push(newUser);
   localStorage.setItem(USERS_STORAGE_KEY, JSON.stringify(users));
   
+  const savedUsers = JSON.parse(localStorage.getItem(USERS_STORAGE_KEY) || '[]');
+  console.log('[v0] Users after registration:', savedUsers);
+  console.log('[v0] New user saved successfully:', newUser);
+  
   const userData = {
     id: userId,
     name: name,
@@ -242,6 +250,7 @@ function handleRegister() {
   localStorage.setItem('fr_auth_user', JSON.stringify(userData));
   localStorage.setItem('fr_current_user', userId);
   
+  console.log('[v0] Redirecting to:', role === 'admin' ? 'admin.html' : 'dashboard.html');
   window.location.href = role === 'admin' ? 'admin.html' : 'dashboard.html';
 }
 
