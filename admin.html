@@ -530,7 +530,7 @@ const $ = s => document.querySelector(s);
 const $$ = s => [...document.querySelectorAll(s)];
 const AUTH_KEY = 'fr_auth_user';
 const BANK_KEY = 'fr_bank_data';
-const USERS_KEY = 'fr_users_db';
+const USERS_KEY = 'fr_users_db'; // Note: This seems to conflict with the inline script's `fr_users`
 const CLOUDINARY_CLOUD_NAME = 'dvbsn45rk';
 const CLOUDINARY_FOLDER = 'french-json';
 const CLOUDINARY_FILES_KEY = 'fr_cloudinary_files';
@@ -1019,14 +1019,14 @@ function addFormQcmQuestion() {
   div.innerHTML = `
     <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
       <span style="font-weight:600;color:var(--brand)">Question ${formQcmCounter}</span>
-      <button class="btn-danger remove-form-qcm-btn" data-qcm-id="${formQcmCounter}" style="padding:6px 10px;font-size:.85rem">Supprimer</button>
+      <button class="btn-danger remove-form-qcm-question-btn" data-qcm-id="${formQcmCounter}" style="padding:6px 10px;font-size:.85rem">Supprimer</button>
     </div>
     <label>Question</label>
     <input class="form-qcm-question" placeholder="Quelle est la capitale de la France ?" style="width:100%;padding:10px;border:1px solid #ddd;border-radius:8px;font-size:.95rem;box-sizing:border-box;margin-bottom:8px">
     
     <div class="form-qcm-options-container"></div>
     
-    <button class="btn-secondary add-form-qcm-option-btn" data-qcm-id="${formQcmCounter}" style="margin-bottom:8px;padding:6px 10px;font-size:.85rem">+ Ajouter une réponse</button>
+    <button class="btn-secondary add-form-option-btn" data-qcm-id="${formQcmCounter}" style="margin-bottom:8px;padding:6px 10px;font-size:.85rem">+ Ajouter une réponse</button>
     
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:8px">
       <div>
@@ -1055,6 +1055,33 @@ function addFormQcmQuestion() {
   attachFormQcmEventListeners();
 }
 
+function attachFormQcmEventListeners() {
+  // Attach event listeners to all "Add response" buttons
+  document.querySelectorAll('.add-form-option-btn').forEach(btn => {
+    btn.onclick = function() {
+      const questionId = this.dataset.qcmId;
+      addFormQcmOption(parseInt(questionId));
+    };
+  });
+  
+  // Attach event listeners to all "Remove" buttons (X)
+  document.querySelectorAll('.remove-form-option-btn').forEach(btn => {
+    btn.onclick = function() {
+      const questionId = this.dataset.qcmId;
+      const optionIdx = this.dataset.optIdx;
+      removeFormQcmOption(parseInt(questionId), optionIdx);
+    };
+  });
+  
+  // Attach event listeners to all "Delete question" buttons
+  document.querySelectorAll('.remove-form-qcm-question-btn').forEach(btn => {
+    btn.onclick = function() {
+      const questionId = this.dataset.qcmId;
+      removeFormQcmQuestion(parseInt(questionId));
+    };
+  });
+}
+
 
 window.addFormQcmOption = function(questionId) {
   const questionDiv = document.querySelector(`[data-form-qcm-id="${questionId}"]`);
@@ -1072,7 +1099,7 @@ window.addFormQcmOption = function(questionId) {
   
   optionDiv.innerHTML = `
     <label style="margin:0;font-weight:600;min-width:60px">Choix ${optionLetter.toUpperCase()}</label>
-    <input class="form-qcm-option" data-option-letter="${optionLetter}" placeholder="Réponse ${optionLetter.toUpperCase()}" style="flex:1;padding:10px;border:1px solid #ddd;border-radius:8px;font-size:.95rem;box-sizing:border-box">
+    <input class="form-qcm-option" data-option-letter="${letter}" placeholder="Réponse ${optionLetter.toUpperCase()}" style="flex:1;padding:10px;border:1px solid #ddd;border-radius:8px;font-size:.95rem;box-sizing:border-box">
     <button class="btn-danger remove-form-option-btn" data-qcm-id="${questionId}" data-opt-idx="${optionIndex}" style="background:#e53e3e;color:#fff;border:none;padding:8px 12px;border-radius:6px;cursor:pointer;font-size:.85rem">✕</button>
   `;
   container.appendChild(optionDiv);
@@ -1801,14 +1828,14 @@ function editExercise(id) {
       questionDiv.innerHTML = `
         <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
           <span style="font-weight:600;color:var(--brand)">Question ${formQcmCounter}</span>
-          <button class="btn-danger remove-form-qcm-btn" data-qcm-id="${formQcmCounter}" style="padding:6px 10px;font-size:.85rem">Supprimer</button>
+          <button class="btn-danger remove-form-qcm-question-btn" data-qcm-id="${formQcmCounter}" style="padding:6px 10px;font-size:.85rem">Supprimer</button>
         </div>
         <label>Question</label>
         <input class="form-qcm-question" placeholder="Quelle est la capitale de la France ?" style="width:100%;padding:10px;border:1px solid #ddd;border-radius:8px;font-size:.95rem;box-sizing:border-box;margin-bottom:8px" value="${q.question}">
         
         <div class="form-qcm-options-container"></div>
         
-        <button class="btn-secondary add-form-qcm-option-btn" data-qcm-id="${formQcmCounter}" style="margin-bottom:8px;padding:6px 10px;font-size:.85rem">+ Ajouter une réponse</button>
+        <button class="btn-secondary add-form-option-btn" data-qcm-id="${formQcmCounter}" style="margin-bottom:8px;padding:6px 10px;font-size:.85rem">+ Ajouter une réponse</button>
         
         <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:8px">
           <div>
@@ -2388,7 +2415,7 @@ function resetUserPassword(userId) {
   }
   
   users[userIndex].pin = newPin;
-  localStorage.setItem(USERS_KEY, JSON.stringify(users));
+  localStorage.setItem(USERS_KEY, JSON.JSON.stringify(users));
   
   alert(`Code PIN réinitialisé avec succès pour ${user.name}`);
 }
@@ -2676,7 +2703,7 @@ function deleteAdminChatHistory() {
   
   const messages = JSON.parse(localStorage.getItem('fr_messages') || '{}');
   delete messages[selectedChatUserId];
-  localStorage.setItem('fr_messages', JSON.stringify(messages));
+  localStorage.setItem('fr_messages', JSON.JSON.stringify(messages));
   
   // Reset UI
   $('#chatMessagesArea').innerHTML = '<div class="empty-state">Historique supprimé</div>';
@@ -2734,6 +2761,87 @@ checkAuth();
 
 // Moved user table update here to ensure it's called after bank loading if needed
 updateUsersTable(); 
+
+function updateUsersTable() {
+  console.log('[v0] Updating users table');
+  
+  const tbody = document.getElementById('usersBody');
+  if (!tbody) return;
+  
+  // Get users from localStorage
+  const usersData = localStorage.getItem('fr_users'); // Assuming 'fr_users' is the correct key
+  if (!usersData) {
+    tbody.innerHTML = '<tr><td colspan="6" class="empty-state">Aucun utilisateur</td></tr>';
+    return;
+  }
+  
+  try {
+    const users = JSON.parse(usersData);
+    const userEmails = Object.keys(users);
+    
+    if (userEmails.length === 0) {
+      tbody.innerHTML = '<tr><td colspan="6" class="empty-state">Aucun utilisateur</td></tr>';
+      return;
+    }
+    
+    let html = '';
+    userEmails.forEach(email => {
+      const user = users[email];
+      const name = user.name || email.split('@')[0];
+      const role = user.role || 'étudiant';
+      
+      // Calculate completed lessons and average score from user progress
+      const progressData = localStorage.getItem(`fr_progress_${email}`); // Assuming progress is stored per email
+      let completedLessons = 0;
+      let avgScore = 0;
+      
+      if (progressData) {
+        try {
+          const progress = JSON.parse(progressData);
+          completedLessons = Object.keys(progress).length;
+          
+          // Calculate average score across all lessons for this user
+          const scores = Object.values(progress).map(p => {
+            // Ensure 'p' is an object and has 'attempts'
+            if (p && p.attempts && Array.isArray(p.attempts)) {
+              return p.attempts.map(att => att.percentage || 0);
+            }
+            return 0;
+          }).flat(); // Flatten the array of scores from multiple attempts/lessons
+
+          if (scores.length > 0) {
+            avgScore = Math.round(scores.reduce((a, b) => a + b, 0) / scores.length);
+          }
+        } catch (e) {
+          console.error('[v0] Error parsing progress for', email, e);
+        }
+      }
+      
+      html += `
+        <tr>
+          <td>${name}</td>
+          <td>${email}</td>
+          <td><span class="badge badge-a1">${role}</span></td>
+          <td>${completedLessons}</td>
+          <td>${avgScore}%</td>
+          <td class="action-btns">
+            <button class="btn-secondary" onclick="viewUserStats('${user.id || email}')">Voir détails</button> 
+            <button class="btn-danger" onclick="deleteUser('${user.id || email}')">Supprimer</button>
+          </td>
+        </tr>
+      `;
+    });
+    
+    tbody.innerHTML = html;
+    
+    // Update dashboard total users count
+    document.getElementById('totalUsers').textContent = userEmails.length;
+    
+  } catch (error) {
+    console.error('[v0] Error updating users table:', error);
+    tbody.innerHTML = '<tr><td colspan="6" class="empty-state">Erreur lors du chargement des utilisateurs</td></tr>';
+  }
+}
 
 </script>
 </body>
