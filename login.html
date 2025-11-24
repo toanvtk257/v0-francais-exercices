@@ -23,9 +23,22 @@ button:hover{opacity:.9}
 .tab.active{background:var(--brand);color:#fff}
 .tab-content{display:none}
 .tab-content.active{display:block}
-.link{text-align:center;margin-top:16px;font-size:.9rem}
-.link a{color:var(--brand);text-decoration:none}
-.link a:hover{text-decoration:underline}
+/* Added PIN input styling */
+.pin-input{
+  text-align:center;
+  font-size:1.5rem;
+  letter-spacing:8px;
+  font-weight:600;
+}
+.info-box{
+  background:#e8f5e9;
+  border-left:4px solid var(--brand);
+  padding:12px;
+  margin-bottom:16px;
+  border-radius:6px;
+  font-size:.9rem;
+  color:var(--ink);
+}
 </style>
 </head>
 <body>
@@ -33,13 +46,12 @@ button:hover{opacity:.9}
   <h1>Entraînement au français - <em>espace numérique</em></h1>
   <p class="subtitle">Connexion à la plateforme</p>
 
-  <!-- Added tabs for Login and Register -->
   <div class="tabs">
     <button class="tab active" onclick="switchTab('login')">Connexion</button>
     <button class="tab" onclick="switchTab('register')">Inscription</button>
   </div>
 
-  <!-- Login form with email and password -->
+  <!-- Replaced password with PIN code -->
   <div id="login-tab" class="tab-content active">
     <div class="form-group">
       <label for="login-email">Email ou ID étudiant</label>
@@ -47,16 +59,20 @@ button:hover{opacity:.9}
     </div>
 
     <div class="form-group">
-      <label for="login-password">Mot de passe</label>
-      <input type="password" id="login-password" autocomplete="off" placeholder="••••••••">
+      <label for="login-pin">Code PIN (4 chiffres)</label>
+      <input type="tel" id="login-pin" class="pin-input" autocomplete="off" placeholder="••••" maxlength="4" pattern="[0-9]*" inputmode="numeric">
     </div>
 
     <button type="button" onclick="handleLogin()">Connexion</button>
     <div id="login-error" class="error"></div>
   </div>
 
-  <!-- Register form with name, email, password and role -->
+  <!-- Updated registration to use PIN instead of password -->
   <div id="register-tab" class="tab-content">
+    <div class="info-box">
+      Version de démonstration : créez un compte avec un code PIN à 4 chiffres pour accéder à la plateforme.
+    </div>
+    
     <div class="form-group">
       <label for="register-name">Nom complet</label>
       <input type="text" id="register-name" autocomplete="off" placeholder="Jean Dupont">
@@ -68,8 +84,8 @@ button:hover{opacity:.9}
     </div>
 
     <div class="form-group">
-      <label for="register-password">Mot de passe</label>
-      <input type="password" id="register-password" autocomplete="off" placeholder="••••••••">
+      <label for="register-pin">Code PIN (4 chiffres)</label>
+      <input type="tel" id="register-pin" class="pin-input" autocomplete="off" placeholder="••••" maxlength="4" pattern="[0-9]*" inputmode="numeric">
     </div>
 
     <div class="form-group">
@@ -85,7 +101,6 @@ button:hover{opacity:.9}
   </div>
 </div>
 
-<!-- Added proper authentication with localStorage -->
 <script>
 function switchTab(tab) {
   const loginTab = document.getElementById('login-tab');
@@ -104,33 +119,36 @@ function switchTab(tab) {
     tabs[1].classList.add('active');
   }
   
-  // Clear errors
   document.getElementById('login-error').style.display = 'none';
   document.getElementById('register-error').style.display = 'none';
 }
 
 function handleLogin() {
   const email = document.getElementById('login-email').value.trim();
-  const password = document.getElementById('login-password').value;
+  const pin = document.getElementById('login-pin').value;
   const errorDiv = document.getElementById('login-error');
   
-  if (!email || !password) {
+  if (!email || !pin) {
     errorDiv.textContent = 'Veuillez remplir tous les champs';
     errorDiv.style.display = 'block';
     return;
   }
   
-  // Get stored users
-  const users = JSON.parse(localStorage.getItem('fr_users') || '{}');
-  const user = users[email];
-  
-  if (!user || user.password !== password) {
-    errorDiv.textContent = 'Email ou mot de passe incorrect';
+  if (pin.length !== 4 || !/^\d{4}$/.test(pin)) {
+    errorDiv.textContent = 'Le code PIN doit contenir exactement 4 chiffres';
     errorDiv.style.display = 'block';
     return;
   }
   
-  // Store authentication data
+  const users = JSON.parse(localStorage.getItem('fr_users') || '{}');
+  const user = users[email];
+  
+  if (!user || user.pin !== pin) {
+    errorDiv.textContent = 'Email ou code PIN incorrect';
+    errorDiv.style.display = 'block';
+    return;
+  }
+  
   const userData = {
     id: user.id,
     name: user.name,
@@ -140,47 +158,47 @@ function handleLogin() {
   localStorage.setItem('fr_auth_user', JSON.stringify(userData));
   localStorage.setItem('fr_current_user', user.id);
   
-  // Navigate based on role
   window.location.href = user.role === 'admin' ? 'admin.html' : 'dashboard.html';
 }
 
 function handleRegister() {
   const name = document.getElementById('register-name').value.trim();
   const email = document.getElementById('register-email').value.trim();
-  const password = document.getElementById('register-password').value;
+  const pin = document.getElementById('register-pin').value;
   const role = document.getElementById('register-role').value;
   const errorDiv = document.getElementById('register-error');
   
-  if (!name || !email || !password) {
+  if (!name || !email || !pin) {
     errorDiv.textContent = 'Veuillez remplir tous les champs';
     errorDiv.style.display = 'block';
     return;
   }
   
-  // Get existing users
+  if (pin.length !== 4 || !/^\d{4}$/.test(pin)) {
+    errorDiv.textContent = 'Le code PIN doit contenir exactement 4 chiffres';
+    errorDiv.style.display = 'block';
+    return;
+  }
+  
   const users = JSON.parse(localStorage.getItem('fr_users') || '{}');
   
-  // Check if user already exists
   if (users[email]) {
     errorDiv.textContent = 'Cet email est déjà enregistré';
     errorDiv.style.display = 'block';
     return;
   }
   
-  // Create new user
   const userId = 'user_' + Date.now();
   users[email] = {
     id: userId,
     name: name,
     email: email,
-    password: password,
+    pin: pin,
     role: role
   };
   
-  // Save to localStorage
   localStorage.setItem('fr_users', JSON.stringify(users));
   
-  // Auto-login after registration
   const userData = {
     id: userId,
     name: name,
@@ -190,18 +208,23 @@ function handleRegister() {
   localStorage.setItem('fr_auth_user', JSON.stringify(userData));
   localStorage.setItem('fr_current_user', userId);
   
-  // Navigate based on role
   window.location.href = role === 'admin' ? 'admin.html' : 'dashboard.html';
 }
 
-// Allow Enter key to submit
 document.addEventListener('DOMContentLoaded', function() {
-  document.getElementById('login-password').addEventListener('keypress', function(e) {
+  document.getElementById('login-pin').addEventListener('keypress', function(e) {
     if (e.key === 'Enter') handleLogin();
   });
   
   document.getElementById('register-role').addEventListener('keypress', function(e) {
     if (e.key === 'Enter') handleRegister();
+  });
+  
+  const pinInputs = document.querySelectorAll('.pin-input');
+  pinInputs.forEach(input => {
+    input.addEventListener('input', function(e) {
+      this.value = this.value.replace(/[^0-9]/g, '');
+    });
   });
 });
 </script>
