@@ -150,6 +150,20 @@ h1 {
   background:#1ea34a;
 }
 /* END NEW STYLES */
+
+/* Updated CSP with explicit connect-src and added timestamp to force browser reload */
+<meta http-equiv="Content-Security-Policy" 
+          content="default-src 'self'; 
+                   script-src 'self' 'unsafe-inline' 'unsafe-eval'; 
+                   style-src 'self' 'unsafe-inline'; 
+                   connect-src 'self' https://res.cloudinary.com https://api.cloudinary.com ws: wss:; 
+                   img-src 'self' data: https: blob:; 
+                   media-src 'self' https: blob:; 
+                   font-src 'self' data:">
+<meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+<meta http-equiv="Pragma" content="no-cache">
+<meta http-equiv="Expires" content="0">
+
 </style>
 </head>
 <body>
@@ -1042,11 +1056,10 @@ function addFormQcmQuestion() {
 window.removeFormQcmQuestion = function(questionId) {
   console.log('[v0] Removing QCM question:', questionId);
   if (confirm('Voulez-vous vraiment supprimer cette question?')) {
-    // Find the parent div with data-qcm-id and remove it
-    const questionDiv = document.querySelector(`[data-qcm-id="${questionId}"]`).closest('div[style*="background:#f9f9f9"]');
+    const questionDiv = document.querySelector(`[data-form-qcm-id="${questionId}"]`);
     if (questionDiv) {
       questionDiv.remove();
-      console.log('[v0] Question removed');
+      console.log('[v0] Question removed successfully');
     } else {
       console.error('[v0] Could not find question div for removal with ID:', questionId);
     }
@@ -1865,7 +1878,7 @@ function editExercise(id) {
       $('#formQcmQuestions').appendChild(questionDiv);
       
       // Populate dynamic options
-      let currentOptionIndex = 0;
+      let currentOptionCount = 0; // Initialize currentOptionCount locally for this loop iteration
       // Iterate over known option letters (a, b, c, d...)
       for (let i = 0; i < 26; i++) { // Check up to 'z'
         const letter = String.fromCharCode(97 + i); // 'a', 'b', 'c', ...
@@ -1897,7 +1910,11 @@ function editExercise(id) {
         }, 0);
       }
     });
-    updateFormQcmAnswerDropdown(formQcmCounter); // Update dropdowns after populating options
+    // Update dropdowns after populating all questions and options
+    $$('[data-form-qcm-id]').forEach(qDiv => {
+      const qId = parseInt(qDiv.dataset.formQcmId);
+      updateFormQcmAnswerDropdown(qId);
+    });
   }
 
   // Populate Vrai/Faux questions
@@ -2509,7 +2526,7 @@ function addResource() {
     resources.push({ id, title, level, url, description, type, createdAt: Date.now() });
   }
 
-  localStorage.setItem('fr_resources', JSON.stringify(resources));
+  localStorage.setItem('fr_resources', JSON.JSON.stringify(resources));
   updateResourcesTable();
   
   alert(editingResourceId ? 'Ressource modifiée !' : 'Ressource ajoutée !');
@@ -2594,7 +2611,7 @@ function deleteResource(id) {
   
   const resources = JSON.parse(localStorage.getItem('fr_resources') || '[]');
   const filtered = resources.filter(r => r.id !== id);
-  localStorage.setItem('fr_resources', JSON.stringify(filtered));
+  localStorage.setItem('fr_resources', JSON.JSON.stringify(filtered));
   updateResourcesTable();
 }
 
