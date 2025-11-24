@@ -158,7 +158,7 @@ h1 {
 }
 /* END NEW STYLES */
 
-/* Updated CSP with explicit connect-src and added timestamp to force browser reload */
+/* Updated CSP with explicit connect-src and added timestamp to force browser reload -->
 <!-- ** REMOVED ** -->
 <!-- <meta http-equiv="Content-Security-Policy" 
           content="default-src 'self'; 
@@ -866,7 +866,7 @@ async function loadBank() {
     });
 
     if (BANK.lecture.length > 0 || BANK.ecoute.length > 0 || BANK.grammaire.length > 0 || BANK.lexique.length > 0) {
-        localStorage.setItem('fr_bank_data', JSON.JSON.stringify(BANK));
+        localStorage.setItem('fr_bank_data', JSON.stringify(BANK));
         console.log('[v0] Saved updated bank to localStorage');
     }
     
