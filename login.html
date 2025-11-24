@@ -119,7 +119,13 @@ function saveUsers(users) {
   localStorage.setItem(USERS_KEY, JSON.stringify(users));
 }
 
-function handleLogin() {
+function handleLogin(e) {
+  if (e) {
+    e.preventDefault();
+    e.stopPropagation();
+  }
+  console.log('[v0] handleLogin called');
+  
   const email = $('#loginEmail').value.trim();
   const password = $('#loginPassword').value;
   const errorDiv = $('#loginError');
@@ -129,25 +135,37 @@ function handleLogin() {
   if (!email || !password) {
     errorDiv.textContent = 'Veuillez remplir tous les champs';
     errorDiv.style.display = 'block';
-    return;
+    return false;
   }
 
   const users = getUsers();
   const user = users.find(u => u.email === email && u.password === password);
   
   if (user) {
+    console.log('[v0] User found, redirecting...');
     localStorage.setItem(AUTH_KEY, JSON.stringify(user));
     
-    // Direct navigation using absolute path
-    const redirectPage = user.role === 'admin' ? '/admin.html' : '/dashboard.html';
-    window.location.href = redirectPage;
+    const redirectPage = user.role === 'admin' ? 'admin.html' : 'dashboard.html';
+    console.log('[v0] Redirect to:', redirectPage);
+    
+    setTimeout(() => {
+      window.location.href = redirectPage;
+    }, 100);
   } else {
     errorDiv.textContent = 'Email ou mot de passe incorrect';
     errorDiv.style.display = 'block';
   }
+  
+  return false;
 }
 
-function handleRegister() {
+function handleRegister(e) {
+  if (e) {
+    e.preventDefault();
+    e.stopPropagation();
+  }
+  console.log('[v0] handleRegister called');
+  
   const name = $('#regName').value.trim();
   const email = $('#regEmail').value.trim();
   const password = $('#regPassword').value;
@@ -162,13 +180,13 @@ function handleRegister() {
   if (!name || !email || !password || !password2) {
     errorDiv.textContent = 'Veuillez remplir tous les champs';
     errorDiv.style.display = 'block';
-    return;
+    return false;
   }
   
   if (password !== password2) {
     errorDiv.textContent = 'Les mots de passe ne correspondent pas';
     errorDiv.style.display = 'block';
-    return;
+    return false;
   }
   
   if (role === 'admin') {
@@ -176,7 +194,7 @@ function handleRegister() {
     if (securityCode !== ADMIN_SECURITY_CODE) {
       securityCodeErrorDiv.textContent = 'Code de sécurité incorrect';
       securityCodeErrorDiv.style.display = 'block';
-      return;
+      return false;
     }
   }
   
@@ -184,7 +202,7 @@ function handleRegister() {
   if (users.find(u => u.email === email)) {
     errorDiv.textContent = 'Cet email est déjà utilisé';
     errorDiv.style.display = 'block';
-    return;
+    return false;
   }
   
   const newUser = {
@@ -199,9 +217,14 @@ function handleRegister() {
   saveUsers(users);
   localStorage.setItem(AUTH_KEY, JSON.stringify(newUser));
   
-  // Direct navigation using absolute path
-  const redirectPage = role === 'admin' ? '/admin.html' : '/dashboard.html';
-  window.location.href = redirectPage;
+  const redirectPage = role === 'admin' ? 'admin.html' : 'dashboard.html';
+  console.log('[v0] Redirect to:', redirectPage);
+  
+  setTimeout(() => {
+    window.location.href = redirectPage;
+  }, 100);
+  
+  return false;
 }
 
 $('#regRole').addEventListener('change', (e) => {
@@ -231,7 +254,10 @@ $('#loginBtn').addEventListener('click', handleLogin);
 $('#registerBtn').addEventListener('click', handleRegister);
 
 $('#loginPassword').addEventListener('keypress', (e) => {
-  if (e.key === 'Enter') handleLogin();
+  if (e.key === 'Enter') {
+    e.preventDefault();
+    handleLogin(e);
+  }
 });
 
 initUsersDB();
@@ -240,7 +266,7 @@ const currentUser = localStorage.getItem(AUTH_KEY);
 if (currentUser) {
   try {
     const user = JSON.parse(currentUser);
-    const redirectPage = user.role === 'admin' ? '/admin.html' : '/dashboard.html';
+    const redirectPage = user.role === 'admin' ? 'admin.html' : 'dashboard.html';
     window.location.href = redirectPage;
   } catch (error) {
     localStorage.removeItem(AUTH_KEY);
