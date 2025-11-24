@@ -533,11 +533,16 @@ const BANK_KEY = 'fr_bank_data';
 const USERS_KEY = 'fr_users'; // Changed from fr_users_db to fr_users for consistency
 const CLOUDINARY_CLOUD_NAME = 'dvbsn45rk';
 const CLOUDINARY_FOLDER = 'french-json';
-const CLOUDINARY_FILES_KEY = 'fr_cloudinary_files';
+const CLOUDINARY_FILES_KEY = 'fr_cloudinary_files'; // Renamed from FILES_INDEX_KEY
 const CACHE_DURATION = 24 * 60 * 60 * 1000;
+// Define CLOUDINARY_BASE_URL and BANK/BANK_KEY as global constants
+const CLOUDINARY_BASE_URL = `https://res.cloudinary.com/${CLOUDINARY_CLOUD_NAME}/raw/upload`;
+
+// These are assumed to be global or initialized elsewhere
+let BANK = { lecture: [], ecoute: [], grammaire: [], lexique: [] }; // Initialize BANK globally
 
 let currentUser = null;
-let bank = null;
+// let bank = null; // Redundant, BANK is used
 let editingExerciseId = null;
 
 // Added counters and reset for form questions
@@ -577,7 +582,7 @@ document.addEventListener('DOMContentLoaded', async () => {
       syncBtn.disabled = true;
       syncBtn.textContent = 'Synchronisation...';
       try {
-        await loadBank();
+        await loadBank(); // Load the bank which now includes Cloudinary sync logic
         alert('Synchronisation avec Cloudinary terminée!');
       } catch (error) {
         console.error('[v0] Sync failed:', error);
@@ -621,7 +626,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   
   // Load initial data
   console.log('[v0] Loading initial bank data...');
-  await loadBank();
+  await loadBank(); // This function now handles both localStorage and Cloudinary
   console.log('[v0] Initial load complete');
   
   console.log('[v0] Admin page loaded');
@@ -660,49 +665,69 @@ function checkAuth() {
 async function loadBank() {
   console.log('[v0] === STARTING BANK LOADING ===');
   
-  // Load from localStorage as fallback
-  const stored = localStorage.getItem(BANK_KEY);
-  if (stored) {
-    bank = JSON.parse(stored);
-    console.log('[v0] Loaded from localStorage:', bank);
+  // Load from localStorage first if available and not expired
+  const storedBank = localStorage.getItem(BANK_KEY);
+  const cachedIndex = localStorage.getItem(CLOUDINARY_FILES_KEY);
+  const cachedIndexData = cachedIndex ? JSON.parse(cachedIndex) : null;
+
+  if (storedBank) {
+    BANK = JSON.parse(storedBank);
+    console.log('[v0] Loaded from localStorage:', BANK);
     console.log('[v0] localStorage bank structure:', {
-      lecture: bank.lecture?.length || 0,
-      ecoute: bank.ecoute?.length || 0,
-      grammaire: bank.grammaire?.length || 0,
-      lexique: bank.lexique?.length || 0
+      lecture: BANK.lecture?.length || 0,
+      ecoute: BANK.ecoute?.length || 0,
+      grammaire: BANK.grammaire?.length || 0,
+      lexique: BANK.lexique?.length || 0
     });
   } else {
-    bank = { lecture: [], ecoute: [], grammaire: [], lexique: [] };
-    console.log('[v0] No localStorage data, using empty bank');
+    BANK = { lecture: [], ecoute: [], grammaire: [], lexique: [] };
+    console.log('[v0] No localStorage data, starting with empty bank');
   }
 
-  // Try to load from Cloudinary
-  try {
-    console.log('[v0] Attempting to load from Cloudinary...');
-    const cloudinaryBank = await loadFromCloudinary();
-    if (cloudinaryBank) {
-      bank = cloudinaryBank;
-      localStorage.setItem(BANK_KEY, JSON.stringify(bank));
-      console.log('[v0] SUCCESS: Loaded from Cloudinary:', bank);
-      console.log('[v0] Cloudinary bank structure:', {
-        lecture: bank.lecture?.length || 0,
-        ecoute: bank.ecoute?.length || 0,
-        grammaire: bank.grammaire?.length || 0,
-        lexique: bank.lexique?.length || 0
-      });
-    } else {
-      console.log('[v0] No data returned from Cloudinary, using cached/empty bank');
+  // Try to load from Cloudinary if index exists and is recent
+  if (cachedIndexData && cachedIndexData.timestamp && (Date.now() - cachedIndexData.timestamp < CACHE_DURATION)) {
+    console.log('[v0] Using cached Cloudinary files index.');
+    // Attempt to load bank data from the cached index
+    await loadBankDataFromIndex(cachedIndexData.files);
+    // If Cloudinary load was successful, it will overwrite BANK.
+    // If it fails or returns nothing, the localStorage data (or initial empty BANK) remains.
+  } else {
+    // If index is old or missing, fetch a fresh index
+    console.log('[v0] Fetching Cloudinary files index...');
+    try {
+      const response = await fetch(`https://res.cloudinary.com/${CLOUDINARY_CLOUD_NAME}/raw/list/${CLOUDINARY_FOLDER}.json`);
+      if (!response.ok) {
+        console.warn(`[v0] Failed to fetch Cloudinary index: ${response.status}`);
+      } else {
+        const data = await response.json();
+        const fileNames = data.resources.map(r => r.public_id.split('/').pop()); // Get filename without folder path
+        const jsonFileNames = fileNames.filter(name => name.endsWith('.json'));
+
+        if (jsonFileNames.length > 0) {
+          localStorage.setItem(CLOUDINARY_FILES_KEY, JSON.JSON.stringify({ files: jsonFileNames, timestamp: Date.now() }));
+          console.log('[v0] Fetched and cached Cloudinary files index.');
+          // Load bank data from the new index
+          await loadBankDataFromIndex(jsonFileNames);
+        } else {
+          console.log('[v0] No JSON files found in Cloudinary folder.');
+          localStorage.removeItem(CLOUDINARY_FILES_KEY); // Clear old index if no json files
+        }
+      }
+    } catch (error) {
+      console.error('[v0] Error fetching Cloudinary index:', error);
     }
-  } catch (error) {
-    console.error('[v0] ERROR loading from Cloudinary:', error);
   }
+
+  // After attempting Cloudinary load, save the final merged bank to localStorage
+  localStorage.setItem(BANK_KEY, JSON.stringify(BANK));
   
   console.log('[v0] === FINAL BANK STATE ===');
-  console.log('[v0] Total exercises:', {
-    lecture: bank.lecture?.length || 0,
-    ecoute: bank.ecoute?.length || 0,
-    grammaire: bank.grammaire?.length || 0,
-    lexique: bank.lexique?.length || 0
+  console.log('[v0] Bank from Cloudinary/localStorage:', BANK);
+  console.log('[v0] Totals:', {
+    lecture: BANK.lecture?.length || 0,
+    ecoute: BANK.ecoute?.length || 0,
+    grammaire: BANK.grammaire?.length || 0,
+    lexique: BANK.lexique?.length || 0
   });
   
   updateExercisesTable();
@@ -711,120 +736,68 @@ async function loadBank() {
 }
 
 
-async function loadFromCloudinary() {
-  // First, check if we have a valid cached index and if it's recent enough
-  const cachedIndex = localStorage.getItem(CLOUDINARY_FILES_KEY);
-  const cachedIndexData = cachedIndex ? JSON.parse(cachedIndex) : null;
-
-  if (cachedIndexData && cachedIndexData.timestamp && (Date.now() - cachedIndexData.timestamp < CACHE_DURATION)) {
-    console.log('[v0] Using cached Cloudinary files index.');
-    return await loadBankDataFromIndex(cachedIndexData.files);
-  }
-
-  console.log('[v0] Fetching Cloudinary files index...');
-  try {
-    const response = await fetch(`https://res.cloudinary.com/${CLOUDINARY_CLOUD_NAME}/raw/list/${CLOUDINARY_FOLDER}.json`);
-    if (!response.ok) {
-      console.warn(`[v0] Failed to fetch Cloudinary index: ${response.status}`);
-      return null;
-    }
-    
-    const data = await response.json();
-    const fileNames = data.resources.map(r => r.public_id.split('/').pop()); // Get filename without folder path
-    
-    // Filter for JSON files specifically
-    const jsonFileNames = fileNames.filter(name => name.endsWith('.json'));
-
-    if (jsonFileNames.length === 0) {
-      console.log('[v0] No JSON files found in Cloudinary folder.');
-      localStorage.removeItem(CLOUDINARY_FILES_KEY); // Clear old index if no json files
-      return null;
-    }
-
-    // Cache the index with a timestamp
-    localStorage.setItem(CLOUDINARY_FILES_KEY, JSON.stringify({ files: jsonFileNames, timestamp: Date.now() }));
-    console.log('[v0] Fetched and cached Cloudinary files index.');
-    return await loadBankDataFromIndex(jsonFileNames);
-
-  } catch (error) {
-    console.error('[v0] Error fetching Cloudinary index:', error);
-    return null;
-  }
-}
-
 async function loadBankDataFromIndex(fileNames) {
-  if (fileNames.length === 0) {
-    console.log('[v0] No files to load from Cloudinary index.');
-    return null;
-  }
-
-  console.log('[v0] === LOADING FILES FROM CLOUDINARY ===');
-  console.log('[v0] Files to load:', fileNames);
-
-  const mergedBank = { lecture: [], ecoute: [], grammaire: [], lexique: [] };
+  console.log('[v0] loadBankDataFromIndex called with', fileNames.length, 'files');
   
-  const promises = fileNames.map(async (fileName) => {
+  for (const filename of fileNames) {
     try {
-      const url = `https://res.cloudinary.com/${CLOUDINARY_CLOUD_NAME}/raw/upload/${CLOUDINARY_FOLDER}/${fileName}`;
-      console.log(`[v0] Fetching ${fileName} from:`, url);
+      console.log('[v0] Fetching file:', filename);
+      const url = `${CLOUDINARY_BASE_URL}/${CLOUDINARY_FOLDER}/${filename}`;
+      console.log('[v0] Full URL:', url);
+      
       const response = await fetch(url);
+      console.log('[v0] Response status:', response.status);
       
       if (!response.ok) {
-        console.warn(`[v0] Failed to load ${fileName}: ${response.status}`);
-        return null;
+        console.error('[v0] Failed to fetch', filename, '- Status:', response.status);
+        continue;
       }
       
-      const data = await response.json();
-      console.log(`[v0] SUCCESS: Loaded ${fileName} with structure:`, {
-        lecture: data.lecture?.length || 0,
-        ecoute: data.ecoute?.length || 0,
-        grammaire: data.grammaire?.length || 0,
-        lexique: data.lexique?.length || 0
+      const text = await response.text();
+      console.log('[v0] Response text length:', text.length);
+      
+      const data = JSON.parse(text);
+      console.log('[v0] Parsed data for', filename, ':', {
+        hasLecture: !!data.lecture,
+        hasEcoute: !!data.ecoute,
+        hasGrammaire: !!data.grammaire,
+        hasLexique: !!data.lexique,
+        lectureCount: data.lecture ? data.lecture.length : 0,
+        ecouteCount: data.ecoute ? data.ecoute.length : 0,
+        grammaireCount: data.grammaire ? data.grammaire.length : 0,
+        lexiqueCount: data.lexique ? data.lexique.length : 0
       });
-      return data;
-    } catch (error) {
-      console.error(`[v0] Error loading ${fileName}:`, error);
-      return null;
-    }
-  });
-
-  const results = await Promise.all(promises);
-  
-  console.log('[v0] All fetch results:', results);
-  
-  results.forEach((data, index) => {
-    if (data) {
-      console.log(`[v0] Merging file ${fileNames[index]}...`);
+      
+      // Merge data into BANK
       if (data.lecture && Array.isArray(data.lecture)) {
-        console.log(`[v0] Adding ${data.lecture.length} lecture exercises`);
-        mergedBank.lecture.push(...data.lecture);
+        console.log('[v0] Adding', data.lecture.length, 'lecture exercises');
+        BANK.lecture = BANK.lecture.concat(data.lecture);
       }
       if (data.ecoute && Array.isArray(data.ecoute)) {
-        console.log(`[v0] Adding ${data.ecoute.length} ecoute exercises`);
-        mergedBank.ecoute.push(...data.ecoute);
+        console.log('[v0] Adding', data.ecoute.length, 'ecoute exercises');
+        BANK.ecoute = BANK.ecoute.concat(data.ecoute);
       }
       if (data.grammaire && Array.isArray(data.grammaire)) {
-        console.log(`[v0] Adding ${data.grammaire.length} grammaire exercises`);
-        mergedBank.grammaire.push(...data.grammaire);
+        console.log('[v0] Adding', data.grammaire.length, 'grammaire exercises');
+        BANK.grammaire = BANK.grammaire.concat(data.grammaire);
       }
       if (data.lexique && Array.isArray(data.lexique)) {
-        console.log(`[v0] Adding ${data.lexique.length} lexique exercises`);
-        mergedBank.lexique.push(...data.lexique);
+        console.log('[v0] Adding', data.lexique.length, 'lexique exercises');
+        BANK.lexique = BANK.lexique.concat(data.lexique);
       }
+    } catch (err) {
+      console.error('[v0] Error loading', filename, ':', err);
     }
-  });
-
-  console.log('[v0] === FINAL MERGED BANK ===');
-  console.log('[v0] Merged bank from Cloudinary:', mergedBank);
-  console.log('[v0] Totals:', {
-    lecture: mergedBank.lecture.length,
-    ecoute: mergedBank.ecoute.length,
-    grammaire: mergedBank.grammaire.length,
-    lexique: mergedBank.lexique.length
-  });
+  }
   
-  return mergedBank;
+  console.log('[v0] Final BANK state after merging files:', {
+    lecture: BANK.lecture.length,
+    ecoute: BANK.ecoute.length,
+    grammaire: BANK.grammaire.length,
+    lexique: BANK.lexique.length
+  });
 }
+
 
 function switchTab(tabName, event) {
   console.log('[v0] Switching to tab:', tabName);
@@ -864,8 +837,8 @@ function updateDashboard() {
   $('#totalUsers').textContent = users.length;
   // Calculate total exercises from the current bank object
   let totalExercises = 0;
-  if (bank) {
-    totalExercises = (bank.lecture?.length || 0) + (bank.ecoute?.length || 0) + (bank.grammaire?.length || 0) + (bank.lexique?.length || 0);
+  if (BANK) { // Use BANK instead of bank
+    totalExercises = (BANK.lecture?.length || 0) + (BANK.ecoute?.length || 0) + (BANK.grammaire?.length || 0) + (BANK.lexique?.length || 0);
   }
   $('#totalExercises').textContent = totalExercises;
   $('#totalAttempts').textContent = totalAttempts;
@@ -879,14 +852,14 @@ function updateDashboard() {
 
 function updateExercisesTable() {
   console.log('[v0] Updating exercises table');
-  console.log('[v0] Bank content:', bank);
+  console.log('[v0] Bank content:', BANK); // Use BANK
   
   const tbody = $('#exercisesBody');
   const allExercises = [
-    ...(bank.lecture || []).map(e => ({ ...e, type: 'lecture' })), 
-    ...(bank.ecoute || []).map(e => ({ ...e, type: 'ecoute' })),
-    ...(bank.grammaire || []).map(e => ({ ...e, type: 'grammaire' })),
-    ...(bank.lexique || []).map(e => ({ ...e, type: 'lexique' }))
+    ...(BANK.lecture || []).map(e => ({ ...e, type: 'lecture' })), // Use BANK
+    ...(BANK.ecoute || []).map(e => ({ ...e, type: 'ecoute' })), // Use BANK
+    ...(BANK.grammaire || []).map(e => ({ ...e, type: 'grammaire' })), // Use BANK
+    ...(BANK.lexique || []).map(e => ({ ...e, type: 'lexique' })) // Use BANK
   ];
 
   console.log('[v0] Total exercises found:', allExercises.length);
@@ -929,10 +902,14 @@ function updateExercisesTable() {
 function deleteExercise(id, type) {
   if (!confirm('Êtes-vous sûr de vouloir supprimer cet exercice ?')) return;
   let arr;
-  if (type === 'lecture') arr = bank.lecture;
-  else if (type === 'ecoute') arr = bank.ecoute;
-  else if (type === 'grammaire') arr = bank.grammaire;
-  else if (type === 'lexique') arr = bank.lexique;
+  if (type === 'lecture') arr = BANK.lecture; // Use BANK
+  else if (type === 'ecoute') arr = BANK.ecoute; // Use BANK
+  else if (type === 'grammaire') arr = BANK.grammaire; // Use BANK
+  else if (type === 'lexique') arr = BANK.lexique; // Use BANK
+  else {
+      console.error(`[v0] Unknown exercise type for deletion: ${type}`);
+      return;
+  }
   
   const idx = arr.findIndex(e => e.id === id);
   if (idx >= 0) {
@@ -943,7 +920,7 @@ function deleteExercise(id, type) {
 }
 
 function exportBank() {
-  const blob = new Blob([JSON.stringify(bank, null, 2)], { type: 'application/json' });
+  const blob = new Blob([JSON.stringify(BANK, null, 2)], { type: 'application/json' }); // Use BANK
   const a = document.createElement('a');
   a.href = URL.createObjectURL(blob);
   a.download = 'questions.json';
@@ -981,7 +958,7 @@ function loadDefaultBank() {
     lexique: []
   };
 
-  bank = defaultBank;
+  BANK = defaultBank; // Use BANK
   saveBank();
   updateExercisesTable();
   alert('Banque par défaut chargée !');
@@ -994,9 +971,13 @@ function switchCreatorTab(tab) {
     btn.style.borderBottomColor = 'transparent';
   });
   
-  event.target.classList.add('active');
-  event.target.style.color = 'var(--brand)';
-  event.target.style.borderBottomColor = 'var(--brand)';
+  // Find the button that was clicked and add active class to it
+  const clickedButton = event.target.closest('.tab-btn-creator');
+  if (clickedButton) {
+    clickedButton.classList.add('active');
+    clickedButton.style.color = 'var(--brand)';
+    clickedButton.style.borderBottomColor = 'var(--brand)';
+  }
   
   if (tab === 'form') {
     $('#creatorFormTab').style.display = 'block';
@@ -1009,14 +990,14 @@ function switchCreatorTab(tab) {
 
 function addFormQcmQuestion() {
   console.log('[v0] Adding form QCM question');
-  formQcmCounter++;
-  const div = document.createElement('div');
-  div.style.cssText = 'background:#f9f9f9;padding:12px;border-radius:8px;margin:8px 0;border:1px solid #e0e0e0';
-  div.dataset.formQcmId = formQcmCounter;
+  formQcmCounter++; // Increment the global counter
+  const questionDiv = document.createElement('div');
+  questionDiv.style.cssText = 'background:#f9f9f9;padding:12px;border-radius:8px;margin:8px 0;border:1px solid #e0e0e0';
+  questionDiv.dataset.formQcmId = formQcmCounter;
   
   const isGrammar = $('#addType').value === 'grammaire';
   
-  div.innerHTML = `
+  questionDiv.innerHTML = `
     <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
       <span style="font-weight:600;color:var(--brand)">Question ${formQcmCounter}</span>
       <button class="btn-danger remove-form-qcm-question-btn" data-qcm-id="${formQcmCounter}" style="padding:6px 10px;font-size:.85rem">Supprimer</button>
@@ -1045,7 +1026,10 @@ function addFormQcmQuestion() {
       <textarea class="form-qcm-explanation" placeholder="Expliquez la règle grammaticale..." style="width:100%;padding:10px;border:1px solid #ddd;border-radius:8px;font-size:.95rem;box-sizing:border-box;min-height:60px"></textarea>
     </div>
   `;
-  $('#formQcmQuestions').appendChild(div);
+  $('#formQcmQuestions').appendChild(questionDiv);
+  
+  // Initialize options counter for this new question
+  optionCounter[formQcmCounter] = 0;
   
   // Add default 3 options
   addFormQcmOption(formQcmCounter);
@@ -1068,7 +1052,7 @@ function attachFormQcmEventListeners() {
   document.querySelectorAll('.remove-form-option-btn').forEach(btn => {
     btn.onclick = function() {
       const questionId = this.dataset.qcmId;
-      const optionLetter = this.dataset.optIdx; // This now refers to the index, should be letter
+      const optionLetter = this.dataset.optIdx; // Get the letter (a, b, c, etc.)
       removeFormQcmOption(parseInt(questionId), optionLetter);
     };
   });
@@ -1090,12 +1074,14 @@ window.addFormQcmOption = function(questionId) {
   const container = questionDiv.querySelector('.form-qcm-options-container');
   if (!container) return; // Added check for container existence
   
-  const existingOptions = container.querySelectorAll('.form-qcm-option').length; // Count current options
-  const optionLetter = String.fromCharCode(97 + existingOptions); // a, b, c, etc.
+  // Get the current count for this specific questionId from optionCounter
+  let currentOptionCount = optionCounter[questionId] || 0;
+  
+  const optionLetter = String.fromCharCode(97 + currentOptionCount); // a, b, c, etc.
   
   const optionDiv = document.createElement('div');
   optionDiv.dataset.optionId = optionLetter;
-  optionDiv.dataset.optionLetter = optionLetter;
+  optionDiv.dataset.optionLetter = optionLetter; // Ensure data-option-letter is set
   optionDiv.style.cssText = 'display:flex;gap:8px;margin-bottom:8px;align-items:center';
   
   optionDiv.innerHTML = `
@@ -1104,6 +1090,9 @@ window.addFormQcmOption = function(questionId) {
     <button class="btn-danger remove-form-option-btn" data-qcm-id="${questionId}" data-opt-idx="${optionLetter}" style="background:#e53e3e;color:#fff;border:none;padding:8px 12px;border-radius:6px;cursor:pointer;font-size:.85rem">✕</button>
   `;
   container.appendChild(optionDiv);
+  
+  // Increment the counter for this questionId
+  optionCounter[questionId] = currentOptionCount + 1;
   
   // Update answer dropdown
   updateFormQcmAnswerDropdown(questionId);
@@ -1129,6 +1118,11 @@ window.removeFormQcmOption = function(questionId, optionLetter) {
     optionDivToRemove.remove();
     relabelFormQcmOptions(questionId); // Relabel remaining options
     updateFormQcmAnswerDropdown(questionId); // Update answer dropdown
+    
+    // Decrement the counter for this questionId
+    if (optionCounter[questionId] !== undefined) {
+        optionCounter[questionId]--;
+    }
   }
 };
 
@@ -1140,8 +1134,8 @@ function relabelFormQcmOptions(questionId) {
   const optionDivs = container.querySelectorAll('[data-option-id]');
   
   optionDivs.forEach((optionDiv, index) => {
-    const newIndex = index + 1;
-    const newLetter = String.fromCharCode(96 + newIndex); // a, b, c, d...
+    const newIndex = index; // Start from 0 for the letter calculation
+    const newLetter = String.fromCharCode(97 + newIndex); // a, b, c, d...
     
     optionDiv.dataset.optionId = newLetter;
     optionDiv.dataset.optionLetter = newLetter;
@@ -1331,7 +1325,7 @@ function collectClozeData() {
   const clozeText = $('#formClozeText').value;
   const transcription = $('#formClozeTranscription').value;
   
-  const processedText = clozeText.replace(/\[(.*?)\]/g, (match, p1) => p1); // Remove brackets for the main cloze field
+  const processedText = clozeText.replace(/\[(.*?)\]/g, '$1'); // Remove brackets for the main cloze field
   const clozePointsInputs = $$('.cloze-blank-points');
   const points = Array.from(clozePointsInputs).map(input => parseInt(input.value) || 1);
   
@@ -1368,10 +1362,10 @@ function addExercise() { // Renamed from addFormExercise to match original
       }
       // Ensure the image data is correctly stored
       if (editingExerciseId) {
-        const idx = bank.lecture.findIndex(e => e.id === editingExerciseId);
+        const idx = BANK.lecture.findIndex(e => e.id === editingExerciseId); // Use BANK
         if (idx >= 0) {
-          bank.lecture[idx].passage_image = passageImageData;
-          bank.lecture[idx].passage_html = undefined; // Remove html if image is used
+          BANK.lecture[idx].passage_image = passageImageData; // Use BANK
+          BANK.lecture[idx].passage_html = undefined; // Remove html if image is used
         }
       } else {
         exercice.passage_image = passageImageData;
@@ -1392,10 +1386,10 @@ function addExercise() { // Renamed from addFormExercise to match original
       }
       
       if (editingExerciseId) {
-        const idx = bank.lecture.findIndex(e => e.id === editingExerciseId);
+        const idx = BANK.lecture.findIndex(e => e.id === editingExerciseId); // Use BANK
         if (idx >= 0) {
-          bank.lecture[idx].passage_html = passage;
-          bank.lecture[idx].passage_image = undefined; // Remove image if text is used
+          BANK.lecture[idx].passage_html = passage; // Use BANK
+          BANK.lecture[idx].passage_image = undefined; // Remove image if text is used
         }
       } else {
         exercice.passage_html = passage;
@@ -1466,13 +1460,13 @@ function addExercise() { // Renamed from addFormExercise to match original
 
   // Save and update
   if (editingExerciseId) {
-    const idx = bank[type].findIndex(e => e.id === editingExerciseId);
+    const idx = BANK[type].findIndex(e => e.id === editingExerciseId); // Use BANK
     if (idx >= 0) {
-      bank[type][idx] = {...bank[type][idx], ...exercice}; // Merge with existing exercise data
+      BANK[type][idx] = {...BANK[type][idx], ...exercice}; // Merge with existing exercise data
     }
   } else {
-    if (!bank[type]) bank[type] = []; // Ensure array exists
-    bank[type].push(exercice);
+    if (!BANK[type]) BANK[type] = []; // Ensure array exists
+    BANK[type].push(exercice);
   }
   
   saveBank();
@@ -1756,8 +1750,8 @@ function addBulkExercise() {
   }
 
   // Add to bank
-  if (!bank[type]) bank[type] = [];
-  bank[type].push(...newExercises);
+  if (!BANK[type]) BANK[type] = []; // Use BANK
+  BANK[type].push(...newExercises); // Use BANK
   
   saveBank();
   updateExercisesTable();
@@ -1782,9 +1776,9 @@ function editExercise(id) {
   let type = null;
   
   // Find the exercise and its type
-  for (const exType in bank) {
-    if (bank.hasOwnProperty(exType)) {
-      const found = bank[exType].find(e => e.id === id);
+  for (const exType in BANK) { // Use BANK
+    if (BANK.hasOwnProperty(exType)) { // Use BANK
+      const found = BANK[exType].find(e => e.id === id); // Use BANK
       if (found) {
         exercise = found;
         type = exType;
@@ -1878,7 +1872,7 @@ function editExercise(id) {
           container.appendChild(optionDiv);
         }
       }
-      optionCounter[formQcmCounter] = currentOptionIndex; // Set the counter for this question
+      optionCounter[formQcmCounter] = currentOptionCount; // Set the counter for this question (was currentOptionIndex, should be derived from how many options were added)
       
       // Set the answer and update the dropdown
       if (q.answer) {
@@ -2034,7 +2028,7 @@ function cancelEdit() {
 }
 
 function saveBank() {
-  localStorage.setItem(BANK_KEY, JSON.stringify(bank));
+  localStorage.setItem(BANK_KEY, JSON.stringify(BANK)); // Use BANK
 }
 
 function parseQCM(text) {
@@ -2085,12 +2079,12 @@ function parseVF(text) {
 }
 
 function findLessonById(lessonId) {
-  if (!bank) return null;
+  if (!BANK) return null; // Use BANK
   let found = null;
   // Check all exercise types
-  for (const type in bank) {
-    if (bank.hasOwnProperty(type)) {
-      const lesson = bank[type].find(l => l.id === lessonId);
+  for (const type in BANK) { // Use BANK
+    if (BANK.hasOwnProperty(type)) { // Use BANK
+      const lesson = BANK[type].find(l => l.id === lessonId); // Use BANK
       if (lesson) {
         found = { ...lesson, type: type };
         break;
@@ -2789,7 +2783,10 @@ function updateUsersTable() {
       const role = user.role || 'étudiant';
       
       // Calculate completed lessons and average score from user progress
-      const progressData = localStorage.getItem(`fr_progress_${user.id}`); // Assuming progress is stored per user ID
+      // Dynamically construct the key based on user ID
+      const userProgressKey = `fr_progress_${user.id}`; 
+      const progressData = localStorage.getItem(userProgressKey);
+      
       let completedLessons = 0;
       let avgScore = 0;
       
