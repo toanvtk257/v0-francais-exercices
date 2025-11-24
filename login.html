@@ -101,34 +101,25 @@ const AUTH_KEY = 'fr_auth_user';
 const USERS_KEY = 'fr_users_db';
 const ADMIN_SECURITY_CODE = '250784';
 
-console.log('[v0] Checking localStorage status...');
-console.log('[v0] USERS_KEY:', localStorage.getItem(USERS_KEY));
-console.log('[v0] AUTH_KEY:', localStorage.getItem(AUTH_KEY));
-
 function initUsersDB() {
   if (!localStorage.getItem(USERS_KEY)) {
     const defaultUsers = [
       { id: 'student1', name: 'Jean Dupont', email: 'jean@example.com', password: 'student123', role: 'student' }
     ];
     localStorage.setItem(USERS_KEY, JSON.stringify(defaultUsers));
-    console.log('[v0] Initialized users database');
   }
 }
 
 function getUsers() {
-  const users = JSON.parse(localStorage.getItem(USERS_KEY) || '[]');
-  console.log('[v0] Retrieved users:', users.length);
-  return users;
+  return JSON.parse(localStorage.getItem(USERS_KEY) || '[]');
 }
 
 function saveUsers(users) {
   localStorage.setItem(USERS_KEY, JSON.stringify(users));
-  console.log('[v0] Saved users to localStorage:', users.length);
 }
 
 function handleLogin(event) {
   event.preventDefault();
-  console.log('[v0] Login attempt started');
 
   const email = $('#loginEmail').value.trim();
   const password = $('#loginPassword').value.trim();
@@ -143,7 +134,6 @@ function handleLogin(event) {
   }
 
   const users = getUsers();
-  console.log('[v0] Checking credentials for:', email);
   const user = users.find(u => u.email === email && u.password === password);
 
   if (!user) {
@@ -152,34 +142,14 @@ function handleLogin(event) {
     return;
   }
 
-  console.log('[v0] Login successful for:', user.email, 'role:', user.role);
+  localStorage.setItem(AUTH_KEY, JSON.stringify(user));
   
-  try {
-    localStorage.setItem(AUTH_KEY, JSON.stringify(user));
-    console.log('[v0] User saved to localStorage');
-    
-    const saved = localStorage.getItem(AUTH_KEY);
-    if (!saved) {
-      throw new Error('Failed to save user to localStorage');
-    }
-    
-    const baseUrl = window.location.origin;
-    const redirectUrl = user.role === 'admin' ? `${baseUrl}/admin.html` : `${baseUrl}/dashboard.html`;
-    console.log('[v0] Redirecting to:', redirectUrl);
-    
-    setTimeout(() => {
-      window.location.replace(redirectUrl);
-    }, 100);
-  } catch (error) {
-    console.error('[v0] Error during login:', error);
-    errorEl.textContent = 'Erreur lors de la connexion. Veuillez réessayer.';
-    errorEl.style.display = 'block';
-  }
+  const redirectUrl = user.role === 'admin' ? 'admin.html' : 'dashboard.html';
+  window.location.href = redirectUrl;
 }
 
 function handleRegister(event) {
   event.preventDefault();
-  console.log('[v0] Signup attempt started');
 
   const name = $('#regName').value.trim();
   const email = $('#regEmail').value.trim();
@@ -230,32 +200,11 @@ function handleRegister(event) {
   };
 
   users.push(newUser);
+  saveUsers(users);
+  localStorage.setItem(AUTH_KEY, JSON.stringify(newUser));
   
-  try {
-    localStorage.setItem(USERS_KEY, JSON.stringify(users));
-    console.log('[v0] New user created:', email, 'role:', role);
-    
-    localStorage.setItem(AUTH_KEY, JSON.stringify(newUser));
-    console.log('[v0] User saved to localStorage');
-    
-    const savedUsers = localStorage.getItem(USERS_KEY);
-    const savedAuth = localStorage.getItem(AUTH_KEY);
-    if (!savedUsers || !savedAuth) {
-      throw new Error('Failed to save to localStorage');
-    }
-    
-    const baseUrl = window.location.origin;
-    const redirectUrl = role === 'admin' ? `${baseUrl}/admin.html` : `${baseUrl}/dashboard.html`;
-    console.log('[v0] Redirecting new user to:', redirectUrl);
-    
-    setTimeout(() => {
-      window.location.replace(redirectUrl);
-    }, 100);
-  } catch (error) {
-    console.error('[v0] Error during signup:', error);
-    errorEl.textContent = 'Erreur lors de la création du compte. Veuillez réessayer.';
-    errorEl.style.display = 'block';
-  }
+  const redirectUrl = role === 'admin' ? 'admin.html' : 'dashboard.html';
+  window.location.href = redirectUrl;
 }
 
 $('#regRole').addEventListener('change', (e) => {
@@ -291,19 +240,9 @@ const currentUser = localStorage.getItem(AUTH_KEY);
 if (currentUser) {
   try {
     const user = JSON.parse(currentUser);
-    console.log('[v0] User already logged in, redirecting...', user.email);
-    const urlParams = new URLSearchParams(window.location.search);
-    if (!urlParams.has('force')) {
-      const baseUrl = window.location.origin;
-      const redirectUrl = user.role === 'admin' ? `${baseUrl}/admin.html` : `${baseUrl}/dashboard.html`;
-      console.log('[v0] Redirecting to:', redirectUrl);
-      setTimeout(() => {
-        window.location.replace(redirectUrl);
-      }, 100);
-      return;
-    }
+    const redirectUrl = user.role === 'admin' ? 'admin.html' : 'dashboard.html';
+    window.location.href = redirectUrl;
   } catch (error) {
-    console.error('[v0] Error parsing user data:', error);
     localStorage.removeItem(AUTH_KEY);
   }
 }
