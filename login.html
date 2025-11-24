@@ -45,7 +45,7 @@ button{flex:1;border:0;padding:12px;border-radius:10px;cursor:pointer;font-weigh
       <input type="password" id="loginPassword" placeholder="••••••••" required>
     </div>
     <div class="btns">
-      <button type="submit" class="btn-primary">Connexion</button>
+      <button type="button" class="btn-primary" id="loginBtn">Connexion</button>
     </div>
   </form>
 
@@ -84,7 +84,7 @@ button{flex:1;border:0;padding:12px;border-radius:10px;cursor:pointer;font-weigh
       <div class="error" id="securityCodeError"></div>
     </div>
     <div class="btns">
-      <button type="submit" class="btn-primary">Créer un compte</button>
+      <button type="button" class="btn-primary" id="registerBtn">Créer un compte</button>
       <button type="button" class="btn-secondary" id="backToLogin">Retour</button>
     </div>
     <div class="success" id="regSuccess"></div>
@@ -220,32 +220,32 @@ function handleRegister(event) {
   window.location.href = `${baseUrl}/${redirectPage}`;
 }
 
-$('#regRole').addEventListener('change', (e) => {
-  const securityCodeGroup = $('#securityCodeGroup');
+document.getElementById('regRole').addEventListener('change', (e) => {
+  const securityCodeGroup = document.getElementById('securityCodeGroup');
   if (e.target.value === 'admin') {
     securityCodeGroup.style.display = 'block';
   } else {
     securityCodeGroup.style.display = 'none';
-    $('#securityCode').value = '';
+    document.getElementById('securityCode').value = '';
   }
 });
 
-$('#showRegister').addEventListener('click', () => {
-  $('#loginForm').style.display = 'none';
-  $('#registerForm').style.display = 'block';
-  $('#toggleText').style.display = 'none';
+document.getElementById('showRegister').addEventListener('click', () => {
+  document.getElementById('loginForm').style.display = 'none';
+  document.getElementById('registerForm').style.display = 'block';
+  document.getElementById('toggleText').style.display = 'none';
 });
 
-$('#backToLogin').addEventListener('click', () => {
-  $('#registerForm').style.display = 'none';
-  $('#loginForm').style.display = 'block';
-  $('#toggleText').style.display = 'block';
-  $('#registerForm').reset();
-  $('#securityCodeGroup').style.display = 'none';
+document.getElementById('backToLogin').addEventListener('click', () => {
+  document.getElementById('registerForm').style.display = 'none';
+  document.getElementById('loginForm').style.display = 'block';
+  document.getElementById('toggleText').style.display = 'block';
+  document.getElementById('registerForm').reset();
+  document.getElementById('securityCodeGroup').style.display = 'none';
 });
 
-$('#loginForm').addEventListener('submit', handleLogin);
-$('#registerForm').addEventListener('submit', handleRegister);
+document.getElementById('loginBtn').addEventListener('click', handleLogin);
+document.getElementById('registerBtn').addEventListener('click', handleRegister);
 
 initUsersDB();
 
