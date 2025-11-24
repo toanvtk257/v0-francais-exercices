@@ -54,14 +54,12 @@ button:hover{opacity:.9}
 
   <div id="login-tab" class="tab-content active">
     <div class="form-group">
-      <label for="login-email">Email ou ID étudiant</label>
-      <!-- Changed autocomplete to "username" to avoid password manager triggers -->
-      <input type="text" id="login-email" autocomplete="username" placeholder="votre.email@exemple.fr">
+      <label for="login-username">Identifiant</label>
+      <input type="text" id="login-username" autocomplete="off" placeholder="Votre identifiant">
     </div>
 
     <div class="form-group">
       <label for="login-pin">Code PIN (6 chiffres)</label>
-      <!-- Changed to type="text" with special attributes to avoid password detection -->
       <input type="text" id="login-pin" class="pin-input" autocomplete="off" data-form-type="other" placeholder="••••••" maxlength="6" pattern="[0-9]*" inputmode="numeric">
     </div>
 
@@ -76,18 +74,16 @@ button:hover{opacity:.9}
     
     <div class="form-group">
       <label for="register-name">Nom complet</label>
-      <input type="text" id="register-name" autocomplete="name" placeholder="Jean Dupont">
+      <input type="text" id="register-name" autocomplete="off" placeholder="Jean Dupont">
     </div>
 
     <div class="form-group">
-      <label for="register-email">Email</label>
-      <!-- Changed autocomplete to "email" for proper form field identification -->
-      <input type="email" id="register-email" autocomplete="email" placeholder="jean.dupont@exemple.fr">
+      <label for="register-username">Identifiant</label>
+      <input type="text" id="register-username" autocomplete="off" placeholder="Choisissez un identifiant unique">
     </div>
 
     <div class="form-group">
       <label for="register-pin">Code PIN (6 chiffres)</label>
-      <!-- Same change: type="text" with special attributes to avoid password detection -->
       <input type="text" id="register-pin" class="pin-input" autocomplete="off" data-form-type="other" placeholder="••••••" maxlength="6" pattern="[0-9]*" inputmode="numeric">
     </div>
 
@@ -127,11 +123,11 @@ function switchTab(tab) {
 }
 
 function handleLogin() {
-  const email = document.getElementById('login-email').value.trim();
+  const username = document.getElementById('login-username').value.trim();
   const pin = document.getElementById('login-pin').value;
   const errorDiv = document.getElementById('login-error');
   
-  if (!email || !pin) {
+  if (!username || !pin) {
     errorDiv.textContent = 'Veuillez remplir tous les champs';
     errorDiv.style.display = 'block';
     return;
@@ -144,10 +140,10 @@ function handleLogin() {
   }
   
   const users = JSON.parse(localStorage.getItem('fr_users') || '{}');
-  const user = users[email];
+  const user = users[username];
   
   if (!user || user.pin !== pin) {
-    errorDiv.textContent = 'Email ou code PIN incorrect';
+    errorDiv.textContent = 'Identifiant ou code PIN incorrect';
     errorDiv.style.display = 'block';
     return;
   }
@@ -155,7 +151,7 @@ function handleLogin() {
   const userData = {
     id: user.id,
     name: user.name,
-    email: user.email,
+    username: user.username,
     role: user.role
   };
   localStorage.setItem('fr_auth_user', JSON.stringify(userData));
@@ -166,12 +162,12 @@ function handleLogin() {
 
 function handleRegister() {
   const name = document.getElementById('register-name').value.trim();
-  const email = document.getElementById('register-email').value.trim();
+  const username = document.getElementById('register-username').value.trim();
   const pin = document.getElementById('register-pin').value;
   const role = document.getElementById('register-role').value;
   const errorDiv = document.getElementById('register-error');
   
-  if (!name || !email || !pin) {
+  if (!name || !username || !pin) {
     errorDiv.textContent = 'Veuillez remplir tous les champs';
     errorDiv.style.display = 'block';
     return;
@@ -185,17 +181,17 @@ function handleRegister() {
   
   const users = JSON.parse(localStorage.getItem('fr_users') || '{}');
   
-  if (users[email]) {
-    errorDiv.textContent = 'Cet email est déjà enregistré';
+  if (users[username]) {
+    errorDiv.textContent = 'Cet identifiant est déjà utilisé';
     errorDiv.style.display = 'block';
     return;
   }
   
   const userId = 'user_' + Date.now();
-  users[email] = {
+  users[username] = {
     id: userId,
     name: name,
-    email: email,
+    username: username,
     pin: pin,
     role: role
   };
@@ -205,7 +201,7 @@ function handleRegister() {
   const userData = {
     id: userId,
     name: name,
-    email: email,
+    username: username,
     role: role
   };
   localStorage.setItem('fr_auth_user', JSON.stringify(userData));
