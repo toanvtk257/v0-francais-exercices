@@ -1763,22 +1763,22 @@ function resetUserPassword(userId) {
   }
   
   const user = users[userIndex];
-  const newPassword = prompt(`Entrez le nouveau code PIN (6 chiffres) pour ${user.name}:`);
+  const newPassword = prompt(`Entrez le nouveau mot de passe pour ${user.name}:`);
   
   if (!newPassword) {
     return; // User cancelled
   }
   
-  if (!/^\d{6}$/.test(newPassword)) {
-    alert('Le code PIN doit contenir exactement 6 chiffres');
+  if (newPassword.length < 6) {
+    alert('Le mot de passe doit contenir au moins 6 caractères');
     return;
   }
   
   // Update password
   users[userIndex].password = newPassword;
-  localStorage.setItem(USERS_KEY, JSON.JSON.stringify(users));
+  localStorage.setItem(USERS_KEY, JSON.stringify(users));
   
-  alert(`Code PIN réinitialisé avec succès pour ${user.name}`);
+  alert(`Mot de passe réinitialisé avec succès pour ${user.name}`);
 }
 
 function deleteUser(userId) {
@@ -2107,7 +2107,7 @@ function updateUsersTable() {
           <td>
             <div class="action-btns">
               ${!isCurrentUser ? `
-                <button class="btn-secondary" onclick="resetUserPassword('${user.id}')">Changer code PIN</button>
+                <button class="btn-secondary" onclick="resetUserPassword('${user.id}')">Changer mot de passe</button>
                 <button class="btn-danger" onclick="deleteAdmin('${user.id}')">Supprimer</button>
               ` : '<span style="color:#666;font-size:.85rem">Vous ne pouvez pas vous gérer</span>'}
             </div>
@@ -2127,7 +2127,7 @@ function updateUsersTable() {
           <td>
             <div class="action-btns">
               <button class="btn-secondary" onclick="viewUserStats('${user.id}')">Voir stats</button>
-              <button class="btn-secondary" onclick="resetUserPassword('${user.id}')">Réinitialiser code</button>
+              <button class="btn-secondary" onclick="resetUserPassword('${user.id}')">Réinitialiser MDP</button>
               <button class="btn-danger" onclick="deleteUser('${user.id}')">Supprimer</button>
             </div>
           </td>

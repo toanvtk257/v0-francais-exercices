@@ -3,6 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data: https:; font-src 'self' data:; connect-src 'self' ws: wss:;">
 <title>fr_exercices_pack_v2 — Connexion</title>
 <style>
 :root{--brand:#2b5;--ink:#222;--muted:#666;--bg:#f7f7f7;--card:#fff}
@@ -22,13 +23,12 @@ button:hover{opacity:.9}
 .tab.active{background:var(--brand);color:#fff}
 .tab-content{display:none}
 .tab-content.active{display:block}
-/* Added PIN input styling with masked dots */
+/* Added PIN input styling */
 .pin-input{
   text-align:center;
   font-size:1.5rem;
   letter-spacing:8px;
   font-weight:600;
-  -webkit-text-security:disc;
 }
 .info-box{
   background:#e8f5e9;
@@ -51,51 +51,49 @@ button:hover{opacity:.9}
     <button class="tab" onclick="switchTab('register')">Inscription</button>
   </div>
 
+  <!-- Replaced password with PIN code -->
   <div id="login-tab" class="tab-content active">
     <div class="form-group">
-      <!-- Changed to email input type -->
-      <label for="login-username">Email</label>
-      <input type="email" id="login-username" autocomplete="email" placeholder="votre.email@example.com">
+      <label for="login-email">Email ou ID étudiant</label>
+      <input type="text" id="login-email" autocomplete="off" placeholder="votre.email@exemple.fr">
     </div>
 
     <div class="form-group">
       <label for="login-pin">Code PIN (6 chiffres)</label>
-      <input type="text" id="login-pin" class="pin-input" autocomplete="off" data-form-type="other" placeholder="••••••" maxlength="6" pattern="[0-9]*" inputmode="numeric">
+      <input type="tel" id="login-pin" class="pin-input" autocomplete="off" placeholder="••••••" maxlength="6" pattern="[0-9]*" inputmode="numeric">
     </div>
 
     <button type="button" onclick="handleLogin()">Connexion</button>
     <div id="login-error" class="error"></div>
   </div>
 
+  <!-- Updated registration to use PIN instead of password -->
   <div id="register-tab" class="tab-content">
+    <div class="info-box">
+      Version de démonstration : créez un compte avec un code PIN à 6 chiffres pour accéder à la plateforme.
+    </div>
+    
     <div class="form-group">
       <label for="register-name">Nom complet</label>
       <input type="text" id="register-name" autocomplete="off" placeholder="Jean Dupont">
     </div>
 
     <div class="form-group">
-      <!-- Changed to email input type -->
-      <label for="register-username">Email</label>
-      <input type="email" id="register-username" autocomplete="email" placeholder="votre.email@example.com">
+      <label for="register-email">Email</label>
+      <input type="email" id="register-email" autocomplete="off" placeholder="jean.dupont@exemple.fr">
     </div>
 
     <div class="form-group">
       <label for="register-pin">Code PIN (6 chiffres)</label>
-      <input type="text" id="register-pin" class="pin-input" autocomplete="off" data-form-type="other" placeholder="••••••" maxlength="6" pattern="[0-9]*" inputmode="numeric">
+      <input type="tel" id="register-pin" class="pin-input" autocomplete="off" placeholder="••••••" maxlength="6" pattern="[0-9]*" inputmode="numeric">
     </div>
 
     <div class="form-group">
       <label for="register-role">Rôle</label>
-      <select id="register-role" onchange="toggleAdminSecretField()">
+      <select id="register-role">
         <option value="student">Étudiant - Accès aux exercices</option>
         <option value="admin">Administrateur - Gestion complète</option>
       </select>
-    </div>
-
-    <div class="form-group" id="admin-secret-field" style="display:none;">
-      <label for="admin-secret">Code secret administrateur</label>
-      <input type="text" id="admin-secret" autocomplete="off" placeholder="Code requis pour créer un compte admin">
-      <small style="color:var(--muted);font-size:.85rem;display:block;margin-top:4px;">Contactez l'administrateur pour obtenir ce code</small>
     </div>
 
     <button type="button" onclick="handleRegister()">S'inscrire</button>
@@ -104,32 +102,6 @@ button:hover{opacity:.9}
 </div>
 
 <script>
-const ADMIN_SECRET_CODE = '250784';
-const USERS_STORAGE_KEY = 'fr_users_db';
-
-function isLocalStorageAvailable() {
-  try {
-    const test = '__localStorage_test__';
-    localStorage.setItem(test, test);
-    localStorage.removeItem(test);
-    return true;
-  } catch(e) {
-    console.error('[v0] localStorage is not available:', e);
-    return false;
-  }
-}
-
-function toggleAdminSecretField() {
-  const role = document.getElementById('register-role').value;
-  const secretField = document.getElementById('admin-secret-field');
-  
-  if (role === 'admin') {
-    secretField.style.display = 'block';
-  } else {
-    secretField.style.display = 'none';
-  }
-}
-
 function switchTab(tab) {
   const loginTab = document.getElementById('login-tab');
   const registerTab = document.getElementById('register-tab');
@@ -152,17 +124,11 @@ function switchTab(tab) {
 }
 
 function handleLogin() {
-  const username = document.getElementById('login-username').value.trim();
+  const email = document.getElementById('login-email').value.trim();
   const pin = document.getElementById('login-pin').value;
   const errorDiv = document.getElementById('login-error');
   
-  if (!isLocalStorageAvailable()) {
-    errorDiv.textContent = 'Le stockage local n\'est pas disponible dans ce navigateur';
-    errorDiv.style.display = 'block';
-    return;
-  }
-  
-  if (!username || !pin) {
+  if (!email || !pin) {
     errorDiv.textContent = 'Veuillez remplir tous les champs';
     errorDiv.style.display = 'block';
     return;
@@ -174,73 +140,36 @@ function handleLogin() {
     return;
   }
   
-  try {
-    const usersJson = localStorage.getItem(USERS_STORAGE_KEY);
-    console.log('[v0] Raw users data from localStorage:', usersJson);
-    
-    const users = JSON.parse(usersJson || '[]');
-    console.log('[v0] Parsed users:', users);
-    console.log('[v0] Looking for email:', username);
-    
-    const user = users.find(u => u.email === username);
-    console.log('[v0] Found user:', user);
-    
-    if (!user) {
-      errorDiv.textContent = 'Email introuvable. Veuillez créer un compte d\'abord.';
-      errorDiv.style.display = 'block';
-      return;
-    }
-    
-    if (user.pin !== pin) {
-      console.log('[v0] PIN mismatch. Expected:', user.pin, 'Got:', pin);
-      errorDiv.textContent = 'Code PIN incorrect';
-      errorDiv.style.display = 'block';
-      return;
-    }
-    
-    const userData = {
-      id: user.id,
-      name: user.name,
-      email: user.email,
-      role: user.role
-    };
-    localStorage.setItem('fr_auth_user', JSON.stringify(userData));
-    localStorage.setItem('fr_current_user', user.id);
-    
-    console.log('[v0] Login successful, redirecting...');
-    window.location.href = user.role === 'admin' ? 'admin.html' : 'dashboard.html';
-  } catch (error) {
-    console.error('[v0] Error during login:', error);
-    errorDiv.textContent = 'Erreur de connexion: ' + error.message;
+  const users = JSON.parse(localStorage.getItem('fr_users') || '{}');
+  const user = users[email];
+  
+  if (!user || user.pin !== pin) {
+    errorDiv.textContent = 'Email ou code PIN incorrect';
     errorDiv.style.display = 'block';
+    return;
   }
+  
+  const userData = {
+    id: user.id,
+    name: user.name,
+    email: user.email,
+    role: user.role
+  };
+  localStorage.setItem('fr_auth_user', JSON.stringify(userData));
+  localStorage.setItem('fr_current_user', user.id);
+  
+  window.location.href = user.role === 'admin' ? 'admin.html' : 'dashboard.html';
 }
 
 function handleRegister() {
   const name = document.getElementById('register-name').value.trim();
-  const username = document.getElementById('register-username').value.trim();
+  const email = document.getElementById('register-email').value.trim();
   const pin = document.getElementById('register-pin').value;
   const role = document.getElementById('register-role').value;
   const errorDiv = document.getElementById('register-error');
   
-  if (!isLocalStorageAvailable()) {
-    errorDiv.textContent = 'Le stockage local n\'est pas disponible dans ce navigateur';
-    errorDiv.style.display = 'block';
-    return;
-  }
-  
-  console.log('[v0] Starting registration process');
-  console.log('[v0] Name:', name, 'Email:', username, 'Role:', role);
-  
-  if (!name || !username || !pin) {
+  if (!name || !email || !pin) {
     errorDiv.textContent = 'Veuillez remplir tous les champs';
-    errorDiv.style.display = 'block';
-    return;
-  }
-  
-  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-  if (!emailRegex.test(username)) {
-    errorDiv.textContent = 'Veuillez entrer une adresse email valide';
     errorDiv.style.display = 'block';
     return;
   }
@@ -251,69 +180,35 @@ function handleRegister() {
     return;
   }
   
-  if (role === 'admin') {
-    const adminSecret = document.getElementById('admin-secret').value.trim();
-    if (adminSecret !== ADMIN_SECRET_CODE) {
-      errorDiv.textContent = 'Code secret administrateur incorrect';
-      errorDiv.style.display = 'block';
-      return;
-    }
+  const users = JSON.parse(localStorage.getItem('fr_users') || '{}');
+  
+  if (users[email]) {
+    errorDiv.textContent = 'Cet email est déjà enregistré';
+    errorDiv.style.display = 'block';
+    return;
   }
   
-  try {
-    const usersJson = localStorage.getItem(USERS_STORAGE_KEY);
-    const users = JSON.parse(usersJson || '[]');
-    console.log('[v0] Existing users before registration:', users);
-    
-    if (users.find(u => u.email === username)) {
-      errorDiv.textContent = 'Cet email est déjà utilisé';
-      errorDiv.style.display = 'block';
-      return;
-    }
-    
-    const userId = 'user_' + Date.now();
-    const newUser = {
-      id: userId,
-      name: name,
-      email: username,
-      pin: pin,
-      role: role
-    };
-    
-    users.push(newUser);
-    console.log('[v0] About to save users:', users);
-    
-    localStorage.setItem(USERS_STORAGE_KEY, JSON.stringify(users));
-    
-    const verifyJson = localStorage.getItem(USERS_STORAGE_KEY);
-    const savedUsers = JSON.parse(verifyJson || '[]');
-    console.log('[v0] Users after registration (verified):', savedUsers);
-    
-    if (savedUsers.length !== users.length) {
-      console.error('[v0] ERROR: Save verification failed!');
-      errorDiv.textContent = 'Erreur lors de l\'enregistrement du compte';
-      errorDiv.style.display = 'block';
-      return;
-    }
-    
-    console.log('[v0] New user saved successfully:', newUser);
-    
-    const userData = {
-      id: userId,
-      name: name,
-      email: username,
-      role: role
-    };
-    localStorage.setItem('fr_auth_user', JSON.stringify(userData));
-    localStorage.setItem('fr_current_user', userId);
-    
-    console.log('[v0] Redirecting to:', role === 'admin' ? 'admin.html' : 'dashboard.html');
-    window.location.href = role === 'admin' ? 'admin.html' : 'dashboard.html';
-  } catch (error) {
-    console.error('[v0] Error during registration:', error);
-    errorDiv.textContent = 'Erreur lors de l\'inscription: ' + error.message;
-    errorDiv.style.display = 'block';
-  }
+  const userId = 'user_' + Date.now();
+  users[email] = {
+    id: userId,
+    name: name,
+    email: email,
+    pin: pin,
+    role: role
+  };
+  
+  localStorage.setItem('fr_users', JSON.stringify(users));
+  
+  const userData = {
+    id: userId,
+    name: name,
+    email: email,
+    role: role
+  };
+  localStorage.setItem('fr_auth_user', JSON.stringify(userData));
+  localStorage.setItem('fr_current_user', userId);
+  
+  window.location.href = role === 'admin' ? 'admin.html' : 'dashboard.html';
 }
 
 document.addEventListener('DOMContentLoaded', function() {
