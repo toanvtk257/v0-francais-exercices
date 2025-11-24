@@ -126,13 +126,15 @@ function saveUsers(users) {
   console.log('[v0] Saved users to localStorage:', users.length);
 }
 
-function handleLogin(e) {
-  e.preventDefault();
+function handleLogin(event) {
+  event.preventDefault();
+  console.log('[v0] Login attempt started');
+
   const email = $('#loginEmail').value.trim();
-  const password = $('#loginPassword').value;
+  const password = $('#loginPassword').value.trim();
   const errorEl = $('#loginError');
+
   errorEl.style.display = 'none';
-  errorEl.textContent = '';
 
   if (!email || !password) {
     errorEl.textContent = 'Veuillez remplir tous les champs.';
@@ -141,62 +143,64 @@ function handleLogin(e) {
   }
 
   const users = getUsers();
-  const user = users.find(u => (u.email === email || u.id === email) && u.password === password);
+  console.log('[v0] Checking credentials for:', email);
+  const user = users.find(u => u.email === email && u.password === password);
 
   if (!user) {
-    errorEl.textContent = 'Email/ID ou mot de passe incorrect.';
+    errorEl.textContent = 'Email ou mot de passe incorrect.';
     errorEl.style.display = 'block';
-    console.log('[v0] Login failed for:', email);
     return;
   }
 
-  const authData = { 
-    id: user.id, 
-    name: user.name, 
-    email: user.email, 
-    role: user.role,
-    loginTime: new Date().toISOString()
-  };
-  localStorage.setItem(AUTH_KEY, JSON.stringify(authData));
-  console.log('[v0] User logged in:', authData);
+  console.log('[v0] Login successful for:', user.email, 'role:', user.role);
   
-  setTimeout(() => {
-    if (user.role === 'admin') {
-      window.location.href = 'admin.html';
-    } else {
-      window.location.href = 'dashboard.html';
+  try {
+    localStorage.setItem(AUTH_KEY, JSON.stringify(user));
+    console.log('[v0] User saved to localStorage');
+    
+    const saved = localStorage.getItem(AUTH_KEY);
+    if (!saved) {
+      throw new Error('Failed to save user to localStorage');
     }
-  }, 100);
+    
+    const baseUrl = window.location.origin;
+    const redirectUrl = user.role === 'admin' ? `${baseUrl}/admin.html` : `${baseUrl}/dashboard.html`;
+    console.log('[v0] Redirecting to:', redirectUrl);
+    
+    setTimeout(() => {
+      window.location.replace(redirectUrl);
+    }, 100);
+  } catch (error) {
+    console.error('[v0] Error during login:', error);
+    errorEl.textContent = 'Erreur lors de la connexion. Veuillez réessayer.';
+    errorEl.style.display = 'block';
+  }
 }
 
-function handleRegister(e) {
-  e.preventDefault();
+function handleRegister(event) {
+  event.preventDefault();
+  console.log('[v0] Signup attempt started');
+
   const name = $('#regName').value.trim();
   const email = $('#regEmail').value.trim();
-  const password = $('#regPassword').value;
-  const password2 = $('#regPassword2').value;
+  const password = $('#regPassword').value.trim();
+  const confirmPassword = $('#regPassword2').value.trim();
   const role = $('#regRole').value;
+
   const errorEl = $('#regError');
-  const successEl = $('#regSuccess');
   const securityCodeErrorEl = $('#securityCodeError');
+
   errorEl.style.display = 'none';
-  successEl.style.display = 'none';
   securityCodeErrorEl.style.display = 'none';
 
-  if (!name || !email || !password) {
+  if (!name || !email || !password || !confirmPassword) {
     errorEl.textContent = 'Veuillez remplir tous les champs.';
     errorEl.style.display = 'block';
     return;
   }
 
-  if (password !== password2) {
+  if (password !== confirmPassword) {
     errorEl.textContent = 'Les mots de passe ne correspondent pas.';
-    errorEl.style.display = 'block';
-    return;
-  }
-
-  if (password.length < 6) {
-    errorEl.textContent = 'Le mot de passe doit contenir au moins 6 caractères.';
     errorEl.style.display = 'block';
     return;
   }
@@ -226,18 +230,32 @@ function handleRegister(e) {
   };
 
   users.push(newUser);
-  saveUsers(users);
-  console.log('[v0] New user registered:', newUser.email);
-
-  successEl.textContent = 'Compte créé avec succès ! Connectez-vous maintenant.';
-  successEl.style.display = 'block';
-
-  setTimeout(() => {
-    $('#registerForm').style.display = 'none';
-    $('#loginForm').style.display = 'block';
-    $('#toggleText').style.display = 'block';
-    $('#loginForm').reset();
-  }, 1500);
+  
+  try {
+    localStorage.setItem(USERS_KEY, JSON.stringify(users));
+    console.log('[v0] New user created:', email, 'role:', role);
+    
+    localStorage.setItem(AUTH_KEY, JSON.stringify(newUser));
+    console.log('[v0] User saved to localStorage');
+    
+    const savedUsers = localStorage.getItem(USERS_KEY);
+    const savedAuth = localStorage.getItem(AUTH_KEY);
+    if (!savedUsers || !savedAuth) {
+      throw new Error('Failed to save to localStorage');
+    }
+    
+    const baseUrl = window.location.origin;
+    const redirectUrl = role === 'admin' ? `${baseUrl}/admin.html` : `${baseUrl}/dashboard.html`;
+    console.log('[v0] Redirecting new user to:', redirectUrl);
+    
+    setTimeout(() => {
+      window.location.replace(redirectUrl);
+    }, 100);
+  } catch (error) {
+    console.error('[v0] Error during signup:', error);
+    errorEl.textContent = 'Erreur lors de la création du compte. Veuillez réessayer.';
+    errorEl.style.display = 'block';
+  }
 }
 
 $('#regRole').addEventListener('change', (e) => {
@@ -276,7 +294,13 @@ if (currentUser) {
     console.log('[v0] User already logged in, redirecting...', user.email);
     const urlParams = new URLSearchParams(window.location.search);
     if (!urlParams.has('force')) {
-      window.location.href = user.role === 'admin' ? 'admin.html' : 'dashboard.html';
+      const baseUrl = window.location.origin;
+      const redirectUrl = user.role === 'admin' ? `${baseUrl}/admin.html` : `${baseUrl}/dashboard.html`;
+      console.log('[v0] Redirecting to:', redirectUrl);
+      setTimeout(() => {
+        window.location.replace(redirectUrl);
+      }, 100);
+      return;
     }
   } catch (error) {
     console.error('[v0] Error parsing user data:', error);
