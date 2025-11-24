@@ -89,10 +89,16 @@ button:hover{opacity:.9}
 
     <div class="form-group">
       <label for="register-role">Rôle</label>
-      <select id="register-role">
+      <select id="register-role" onchange="toggleAdminSecretField()">
         <option value="student">Étudiant - Accès aux exercices</option>
         <option value="admin">Administrateur - Gestion complète</option>
       </select>
+    </div>
+
+    <div class="form-group" id="admin-secret-field" style="display:none;">
+      <label for="admin-secret">Code secret administrateur</label>
+      <input type="text" id="admin-secret" autocomplete="off" placeholder="Code requis pour créer un compte admin">
+      <small style="color:var(--muted);font-size:.85rem;display:block;margin-top:4px;">Contactez l'administrateur pour obtenir ce code</small>
     </div>
 
     <button type="button" onclick="handleRegister()">S'inscrire</button>
@@ -101,6 +107,19 @@ button:hover{opacity:.9}
 </div>
 
 <script>
+const ADMIN_SECRET_CODE = 'ADMIN2025';
+
+function toggleAdminSecretField() {
+  const role = document.getElementById('register-role').value;
+  const secretField = document.getElementById('admin-secret-field');
+  
+  if (role === 'admin') {
+    secretField.style.display = 'block';
+  } else {
+    secretField.style.display = 'none';
+  }
+}
+
 function switchTab(tab) {
   const loginTab = document.getElementById('login-tab');
   const registerTab = document.getElementById('register-tab');
@@ -177,6 +196,15 @@ function handleRegister() {
     errorDiv.textContent = 'Le code PIN doit contenir exactement 6 chiffres';
     errorDiv.style.display = 'block';
     return;
+  }
+  
+  if (role === 'admin') {
+    const adminSecret = document.getElementById('admin-secret').value.trim();
+    if (adminSecret !== ADMIN_SECRET_CODE) {
+      errorDiv.textContent = 'Code secret administrateur incorrect';
+      errorDiv.style.display = 'block';
+      return;
+    }
   }
   
   const users = JSON.parse(localStorage.getItem('fr_users') || '{}');
