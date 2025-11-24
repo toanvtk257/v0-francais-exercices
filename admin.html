@@ -285,8 +285,16 @@ h1 {
     <div class="card">
       <h2>Importer/Exporter la banque</h2>
       <div class="btns">
+        <!-- Added manual file import button to bypass CSP cache issue -->
+        <input type="file" id="manualJsonImport" accept=".json" style="display:none">
+        <button id="manualImportBtn" style="background:#3b82f6;color:white;border:none;padding:12px 24px;border-radius:8px;cursor:pointer;font-size:1rem;font-weight:600">Importer JSON manuellement</button>
+        <span style="font-size:0.9rem;color:#666">(Contourner le cache du navigateur)</span>
+
+        <!-- Moved original import button and removed its onclick -->
         <input type="file" id="importBank" accept=".json" style="display:none">
-        <button class="btn-primary" onclick="document.getElementById('importBank').click()">Importer JSON</button>
+        <button class="btn-primary" onclick="document.getElementById('importBank').click()">Importer JSON (via Cloudinary)</button>
+        <!-- Added Sync Cloudinary button -->
+        <button class="btn-secondary" id="syncCloudinaryBtn" style="background:var(--brand);color:white;">Synchroniser Cloudinary</button>
         <button class="btn-secondary" onclick="exportBank()">Exporter JSON</button>
         <button class="btn-secondary" onclick="loadDefaultBank()">Charger exemple</button>
       </div>
@@ -588,19 +596,50 @@ document.addEventListener('DOMContentLoaded', async () => {
     });
   });
   
+  // ** UPDATED CODE START **
+  // Attach event listeners for manual import
+  $('#manualImportBtn').addEventListener('click', () => {
+    $('#manualJsonImport').click();
+  });
+  $('#manualJsonImport').addEventListener('change', async (event) => {
+    const file = event.target.files[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = async (e) => {
+      try {
+        const content = e.target.result;
+        const importedData = JSON.parse(content);
+        
+        // Merge imported data into the current BANK
+        BANK.lecture = [...(BANK.lecture || []), ...(importedData.lecture || [])];
+        BANK.ecoute = [...(BANK.ecoute || []), ...(importedData.ecoute || [])];
+        BANK.grammaire = [...(BANK.grammaire || []), ...(importedData.grammaire || [])];
+        BANK.lexique = [...(BANK.lexique || []), ...(importedData.lexique || [])];
+        
+        saveBank(); // Save the merged bank
+        updateExercisesTable(); // Refresh the table
+        
+        alert('Fichier JSON importé avec succès!');
+        event.target.value = ''; // Reset file input
+      } catch (error) {
+        console.error('[v0] Error importing JSON:', error);
+        alert('Erreur lors de l\'importation du fichier JSON. Assurez-vous qu\'il est valide.');
+        event.target.value = ''; // Reset file input
+      }
+    };
+    reader.readAsText(file);
+  });
+
   // Attach event listener to Synchroniser Cloudinary button
-  // Dynamically add the button to the header if it doesn't exist
-  if (!$('header h1 button')) { // Simple check to avoid adding multiple buttons
-    addCloudinarySyncButton();
-  }
-  const syncBtn = $('header h1 button'); // Get the newly added button
+  const syncBtn = $('#syncCloudinaryBtn');
   if (syncBtn) {
     syncBtn.addEventListener('click', async () => {
       console.log('[v0] Sync button clicked');
       syncBtn.disabled = true;
       syncBtn.textContent = 'Synchronisation...';
       try {
-        await loadBank(); // Load the bank which now includes Cloudinary sync logic
+        await loadBank(); // This function now handles both localStorage and Cloudinary sync
         alert('Synchronisation avec Cloudinary terminée!');
       } catch (error) {
         console.error('[v0] Sync failed:', error);
@@ -611,6 +650,7 @@ document.addEventListener('DOMContentLoaded', async () => {
       }
     });
   }
+  // ** UPDATED CODE END **
   
   // Attach event listener to logout button
   const logoutBtn = $('#logoutBtn');
@@ -644,25 +684,14 @@ document.addEventListener('DOMContentLoaded', async () => {
   
   // Load initial data
   console.log('[v0] Loading initial bank data...');
-  await loadBank(); // This function now handles both localStorage and Cloudinary
+  await loadBank(); // This function now handles both localStorage and Cloudinary sync logic
   console.log('[v0] Initial load complete');
   
   console.log('[v0] Admin page loaded');
 });
 
-function addCloudinarySyncButton() {
-  const header = document.querySelector('h1'); // Targeting h1 specifically
-  if (header) {
-    const syncBtn = document.createElement('button');
-    syncBtn.id = 'syncCloudinaryBtn'; // Give it an ID for easier selection
-    syncBtn.textContent = 'Synchroniser Cloudinary';
-    syncBtn.className = 'btn-primary'; // Use existing btn-primary style
-    syncBtn.style.marginLeft = '20px';
-    syncBtn.style.padding = '8px 12px'; // Adjust padding for better appearance
-    syncBtn.style.fontSize = '.85rem'; // Match logout button font size
-    header.appendChild(syncBtn);
-  }
-}
+// Removed addCloudinarySyncButton as the button is now hardcoded in the HTML
+// function addCloudinarySyncButton() { ... }
 
 function checkAuth() {
   const auth = localStorage.getItem(AUTH_KEY);
@@ -782,7 +811,6 @@ async function loadBank() {
     updateExercisesTable();
     updateUsersTable();
 }
-
 
 function switchTab(tabName, event) {
   console.log('[v0] Switching to tab:', tabName);
@@ -905,7 +933,7 @@ function deleteExercise(id, type) {
 }
 
 function exportBank() {
-  const blob = new Blob([JSON.stringify(BANK, null, 2)], { type: 'application/json' }); // Use BANK
+  const blob = new Blob([JSON.JSON.stringify(BANK, null, 2)], { type: 'application/json' }); // Use BANK
   const a = document.createElement('a');
   a.href = URL.createObjectURL(blob);
   a.download = 'questions.json';
@@ -1084,7 +1112,7 @@ window.addFormQcmOption = function(questionId) {
   
   optionDiv.innerHTML = `
     <label style="margin:0;font-weight:600;min-width:60px">Choix ${optionLetter.toUpperCase()}</label>
-    <input class="form-qcm-option" data-option-letter="${letter}" placeholder="Réponse ${letter.toUpperCase()}" style="flex:1;padding:10px;border:1px solid #ddd;border-radius:8px;font-size:.95rem;box-sizing:border-box">
+    <input class="form-qcm-option" data-option-letter="${optionLetter}" placeholder="Réponse ${optionLetter.toUpperCase()}" style="flex:1;padding:10px;border:1px solid #ddd;border-radius:8px;font-size:.95rem;box-sizing:border-box">
     <button class="btn-danger remove-form-option-btn" data-qcm-id="${questionId}" data-opt-idx="${optionLetter}" style="background:#e53e3e;color:#fff;border:none;padding:8px 12px;border-radius:6px;cursor:pointer;font-size:.85rem">✕</button>
   `;
   container.appendChild(optionDiv);
@@ -2030,7 +2058,7 @@ function cancelEdit() {
 }
 
 function saveBank() {
-  localStorage.setItem(BANK_KEY, JSON.stringify(BANK)); // Use BANK
+  localStorage.setItem(BANK_KEY, JSON.JSON.stringify(BANK)); // Use BANK
 }
 
 function parseQCM(text) {
@@ -2438,7 +2466,7 @@ function deleteUser(userId) {
   // Remove user statistics
   const allStats = JSON.parse(localStorage.getItem('fr_stats_db') || '{}');
   delete allStats[userId];
-  localStorage.setItem('fr_stats_db', JSON.stringify(allStats));
+  localStorage.setItem('fr_stats_db', JSON.JSON.stringify(allStats));
   
   // Remove user drafts
   const allDrafts = JSON.parse(localStorage.getItem('fr_drafts_db') || '{}');
