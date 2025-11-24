@@ -192,16 +192,46 @@ hr{border:none;border-top:1px solid #e8e8e8;margin:16px 0}
   </div>
 
   <!-- Added detailed exercise list section -->
-  <div style="background: white; padding: 1.5rem; border-radius: 0.5rem; margin-bottom: 2rem; border: 1px solid #e5e7eb;">
-    <h3 style="margin-top: 0; color: #1e40af; display: flex; align-items: center; justify-content: space-between;">
-      Liste des exercices créés
-      <button onclick="toggleExerciseList()" style="background: #3b82f6; color: white; border: none; padding: 0.5rem 1rem; border-radius: 0.375rem; cursor: pointer; font-size: 0.875rem;">
+  <div id="exerciseListSection" style="background: white; padding: 1.5rem; border-radius: 0.5rem; box-shadow: 0 1px 3px rgba(0,0,0,0.1); margin-bottom: 1.5rem;">
+    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
+      <h3 style="color: #1e293b; margin: 0;">Liste des exercices créés</h3>
+      <button onclick="toggleExerciseList()" style="background: #3b82f6; color: white; border: none; padding: 0.5rem 1rem; border-radius: 0.375rem; cursor: pointer;">
         Afficher/Masquer
       </button>
-    </h3>
-    <div id="exerciseListContainer" style="display: none;">
-      <!-- Exercise lists will be inserted here -->
     </div>
+    
+    <!-- Added discipline filter dropdown -->
+    <div style="margin-bottom: 1rem;">
+      <label style="display: block; margin-bottom: 0.5rem; font-weight: 500;">Filtrer par discipline:</label>
+      <select id="disciplineFilter" onchange="updateExerciseList()" style="width: 100%; padding: 0.5rem; border: 1px solid #d1d5db; border-radius: 0.375rem;">
+        <option value="all">Toutes les disciplines</option>
+        <option value="lecture">Compréhension Écrite (CE)</option>
+        <option value="ecoute">Compréhension Orale (CO)</option>
+        <option value="grammaire">Grammaire</option>
+        <option value="lexique">Lexique</option>
+      </select>
+    </div>
+
+    <!-- Added color legend for exercise age -->
+    <div style="background: #f8fafc; padding: 0.75rem; border-radius: 0.375rem; margin-bottom: 1rem; border: 1px solid #e2e8f0;">
+      <div style="font-size: 0.875rem; font-weight: 500; margin-bottom: 0.5rem;">Légende:</div>
+      <div style="display: flex; gap: 1rem; flex-wrap: wrap; font-size: 0.75rem;">
+        <div style="display: flex; align-items: center; gap: 0.25rem;">
+          <div style="width: 20px; height: 20px; background: #dcfce7; border-radius: 0.25rem; border: 2px solid #16a34a;"></div>
+          <span>Nouveau (aujourd'hui)</span>
+        </div>
+        <div style="display: flex; align-items: center; gap: 0.25rem;">
+          <div style="width: 20px; height: 20px; background: #fef3c7; border-radius: 0.25rem; border: 2px solid #eab308;"></div>
+          <span>Récent (cette semaine)</span>
+        </div>
+        <div style="display: flex; align-items: center; gap: 0.25rem;">
+          <div style="width: 20px; height: 20px; background: #f3f4f6; border-radius: 0.25rem; border: 2px solid #6b7280;"></div>
+          <span>Ancien (plus d'une semaine)</span>
+        </div>
+      </div>
+    </div>
+    
+    <div id="exerciseListContainer" style="display: none;"></div>
   </div>
 
   <section class="card">
@@ -374,7 +404,7 @@ hr{border:none;border-top:1px solid #e8e8e8;margin:16px 0}
       </div>
 
       <div class="btns">
-        <button id="addItem" type="button">Ajouter à la banque</button>
+        <button id="addItem" type="button">Créer l'exercice</button>
       </div>
       <p id="addInfo" class="small"></p>
     </form>
@@ -571,7 +601,7 @@ async function uploadJsonToCloudinary(jsonData, fileName) {
 async function linkToFile() {
   try {
     if (!('showOpenFilePicker' in window)) {
-      alert('❌ Erreur: Votre navigateur ne supporte pas l\'API File System Access.\n\nUtilisez Chrome ou Edge pour cette fonctionnalité.\n\nSur le site en ligne, cette fonctionnalité ne fonctionne pas - builder.html doit être utilisé localement.');
+      alert('❌ Erreur: Votre navigateur ne supporte pas l\'API File System Access.\n\nUtilisez Chrome ou Edge pour cette fonctionnalité.');
       return;
     }
     
@@ -709,12 +739,10 @@ function updateCounts(){ // Renamed from refreshInfo to be more specific to coun
 }
 
 let qcmCounter = 0;
-let optionCounters = {}; // Track options for each question
 
 function addQcmQuestionForm() {
   console.log('[v0] addQcmQuestionForm called');
   qcmCounter++;
-  optionCounters[qcmCounter] = 0; // Initialize option counter for this question
   
   const div = document.createElement('div');
   div.className = 'question-item';
@@ -854,7 +882,6 @@ window.removeQcmQuestion = function(id) {
   const item = document.querySelector(`[data-qcm-id="${id}"]`);
   if (item) {
     item.remove();
-    delete optionCounters[id]; // Clean up counter
   }
 };
 
@@ -982,15 +1009,21 @@ function updateFilenameSuggestions() {
 }
 
 async function addItem(){
+  console.log('[v0] addItem function called');
+  
   const kind = $('#kind').value;
   const niveau = $('#niveau').value;
   const theme = $('#theme').value.trim();
   const exerciseNum = $('#exerciseNumber').value.trim();
+  
+  console.log('[v0] Exercise data:', { kind, niveau, theme, exerciseNum });
+  
   // const titre = exerciseNum ? `Exercice ${exerciseNum}` : ''; // Title is now set automatically if empty
   const id = ($('#id').value.trim()) || `${kind}_${niveau.toLowerCase()}_${theme.toLowerCase()}_${exerciseNum}_${Date.now()}`; // Generate a more robust ID
   
   if(!theme || !exerciseNum){ 
     $('#addInfo').textContent='Veuillez saisir le Thème et le N° exercice.'; 
+    console.log('[v0] Validation failed: missing theme or exercise number');
     return; 
   }
 
@@ -1010,7 +1043,9 @@ async function addItem(){
     difficulty: parseInt($('#difficulty').value) || 1,
     audio: audioCloudinaryUrl || undefined, // Use Cloudinary URL
     passage_html: '',
-    passageImage: passageImageCloudinaryUrl || undefined // Store Cloudinary URL for image
+    passageImage: passageImageCloudinaryUrl || undefined, // Store Cloudinary URL for image
+    createdAt: Date.now(), // Add creation timestamp
+    updatedAt: Date.now()  // Add update timestamp
   };
 
   if (kind === 'lecture'){
@@ -1034,10 +1069,13 @@ async function addItem(){
     // Require at least one exercise type for CE
     if (!exercise.qcm && !exercise.vf) {
       $('#addInfo').textContent='Veuillez ajouter au moins des questions QCM ou Vrai/Faux.';
+      console.log('[v0] Validation failed: no questions added for CE');
       return;
     }
     
+    console.log('[v0] Adding CE exercise to BANK:', exercise);
     BANK.lecture.push(exercise);
+    console.log('[v0] BANK.lecture now has', BANK.lecture.length, 'exercises');
     
   }else if(kind==='ecoute'){
     // No separate audio field needed as it's part of the exercise object now
@@ -1061,26 +1099,35 @@ async function addItem(){
     // Require at least one exercise type for CO
     if (!exercise.qcm && !exercise.vf && !exercise.cloze) {
       $('#addInfo').textContent='Veuillez ajouter au moins des questions QCM, Vrai/Faux, ou un exercice Cloze.';
+      console.log('[v0] Validation failed: no questions added for CO');
       return;
     }
     
+    console.log('[v0] Adding CO exercise to BANK:', exercise);
     BANK.ecoute.push(exercise);
+    console.log('[v0] BANK.ecoute now has', BANK.ecoute.length, 'exercises');
     
   }else if(kind==='grammaire'){
     if (qcmQuestions.length === 0) {
       $('#addInfo').textContent='Veuillez ajouter au moins une question QCM pour Grammaire.';
+      console.log('[v0] Validation failed: no QCM for Grammaire');
       return;
     }
     exercise.questions = qcmQuestions; // Use 'questions' for grammar/lexicon
+    console.log('[v0] Adding Grammaire exercise to BANK:', exercise);
     BANK.grammaire.push(exercise);
+    console.log('[v0] BANK.grammaire now has', BANK.grammaire.length, 'exercises');
     
   }else if(kind==='lexique'){
     if (vfQuestions.length === 0) {
       $('#addInfo').textContent='Veuillez ajouter au moins une question Vrai/Faux pour Lexique.';
+      console.log('[v0] Validation failed: no VF for Lexique');
       return;
     }
     exercise.questions = vfQuestions; // Use 'questions' for grammar/lexicon
+    console.log('[v0] Adding Lexique exercise to BANK:', exercise);
     BANK.lexique.push(exercise);
+    console.log('[v0] BANK.lexique now has', BANK.lexique.length, 'exercises');
   }
   
   // Set a default title if none provided
@@ -1119,6 +1166,7 @@ async function addItem(){
   $('#difficulty').value = 1; // Reset difficulty
   
   updateCounts(); // Update counts after adding item
+  console.log('[v0] Exercise added successfully, counts updated');
 }
 
 // Bulk import functions (original)
@@ -1169,7 +1217,9 @@ function addBulkItem(){
     difficulty: 1, // Default difficulty for bulk import
     audio: '',
     passage_html: '',
-    passageImage: ''
+    passageImage: '',
+    createdAt: Date.now(), // Add creation timestamp
+    updatedAt: Date.now()  // Add update timestamp
   };
 
   if(kind==='lecture'){
@@ -1590,6 +1640,46 @@ async function listCloudinaryJsonFiles() {
 
 // Add button to show Cloudinary files list
 document.addEventListener('DOMContentLoaded', () => {
+  console.log('[v0] DOM loaded, initializing builder');
+  
+  // Create Exercise button listener
+  const addItemBtn = $('#addItem');
+  if (addItemBtn) {
+    console.log('[v0] Attaching click listener to addItem button');
+    addItemBtn.addEventListener('click', (e) => {
+      console.log('[v0] Create exercise button clicked');
+      e.preventDefault();
+      addItem();
+    });
+  } else {
+    console.error('[v0] addItem button not found!');
+  }
+
+  // QCM button
+  const addQcmBtn = $('#addQcmQuestion');
+  if (addQcmBtn) {
+    addQcmBtn.addEventListener('click', () => {
+      console.log('[v0] QCM button clicked');
+      addQcmQuestionForm();
+    });
+    console.log('[v0] QCM button listener attached');
+  } else {
+    console.log('[v0] ERROR: QCM button not found');
+  }
+  
+  // Vrai/Faux button
+  const addVfBtn = $('#addVfQuestion');
+  if (addVfBtn) {
+    addVfBtn.addEventListener('click', () => {
+      console.log('[v0] VF button clicked');
+      addVfQuestionForm();
+    });
+    console.log('[v0] VF button listener attached');
+  } else {
+    console.log('[v0] ERROR: VF button not found');
+  }
+  
+  // Existing Cloudinary buttons
   const downloadJsonBtn = $('#downloadJson');
   if (downloadJsonBtn) {
     const cloudinaryListBtn = document.createElement('button');
@@ -1600,21 +1690,73 @@ document.addEventListener('DOMContentLoaded', () => {
     downloadJsonBtn.parentElement.appendChild(cloudinaryListBtn);
   }
   
-  // Event listeners for new buttons
   $('#saveToCloudinary').addEventListener('click', saveToCloudinaryWithPrompt);
   $('#loadFromCloudinary').addEventListener('click', loadFromCloudinaryPrompt);
+  
+  console.log('[v0] All button listeners initialized');
 });
 
 // New function to save to Cloudinary with custom filename prompt
 async function saveToCloudinaryWithPrompt() {
+  const disciplineFilter = $('#disciplineFilter').value;
+  
+  let dataToSave;
+  let suggestedFileName;
+  
+  if (disciplineFilter === 'all') {
+    const response = confirm(
+      'Vous avez sélectionné "Toutes les disciplines".\n\n' +
+      'Voulez-vous sauvegarder TOUS les exercices dans un seul fichier?\n\n' +
+      '- Cliquez OK pour sauvegarder tous les exercices\n' +
+      '- Cliquez Annuler pour filtrer par discipline'
+    );
+    
+    if (!response) {
+      alert('Veuillez sélectionner une discipline spécifique dans le filtre avant de sauvegarder.');
+      return;
+    }
+    
+    dataToSave = BANK;
+    suggestedFileName = 'tous_exercices.json';
+  } else {
+    // Save only exercises from selected discipline
+    const exercises = BANK[disciplineFilter];
+    
+    if (!exercises || exercises.length === 0) {
+      alert(`Aucun exercice de type "${disciplineFilter}" à sauvegarder.`);
+      return;
+    }
+    
+    // Create a new bank object with only the selected discipline
+    dataToSave = {
+      lecture: disciplineFilter === 'lecture' ? exercises : [],
+      ecoute: disciplineFilter === 'ecoute' ? exercises : [],
+      grammaire: disciplineFilter === 'grammaire' ? exercises : [],
+      lexique: disciplineFilter === 'lexique' ? exercises : []
+    };
+    
+    // Suggest filename based on exercises
+    const firstExercise = exercises[0];
+    const niveau = firstExercise.niveau.toLowerCase();
+    const disciplineName = disciplineFilter === 'lecture' ? 'lecture' :
+                          disciplineFilter === 'ecoute' ? 'ecoute' :
+                          disciplineFilter === 'grammaire' ? 'grammaire' : 'lexique';
+    
+    suggestedFileName = `${niveau}_${disciplineName}.json`;
+  }
+  
   const fileName = prompt(
-    'Entrez le nom du fichier à sauvegarder sur Cloudinary:\n\nExemples:\n- a1_lecture.json\n- a2_ecoute.json\n- b1_grammaire.json\n- c1_comprehension.json',
-    currentFileName
+    `Entrez le nom du fichier à sauvegarder sur Cloudinary:\n\n` +
+    `${disciplineFilter !== 'all' ? `Discipline sélectionnée: ${disciplineFilter.toUpperCase()}\n` : ''}` +
+    `Nombre d'exercices: ${disciplineFilter === 'all' ? 
+      BANK.lecture.length + BANK.ecoute.length + BANK.grammaire.length + BANK.lexique.length :
+      BANK[disciplineFilter].length}\n\n` +
+    `Exemples:\n- a1_lecture.json\n- a2_ecoute.json\n- b1_grammaire.json`,
+    suggestedFileName || currentFileName
   );
   
   if (!fileName) return;
   
-  // Ensure .json extension
   const finalFileName = fileName.endsWith('.json') ? fileName : `${fileName}.json`;
   currentFileName = finalFileName;
   
@@ -1622,14 +1764,31 @@ async function saveToCloudinaryWithPrompt() {
   $('#cloudinaryStatus').style.background = '#f59e0b';
   
   try {
-    const url = await uploadJsonToCloudinary(BANK, finalFileName);
+    const url = await uploadJsonToCloudinary(dataToSave, finalFileName);
     $('#cloudinaryStatus').textContent = `✓ Sauvegardé sur Cloudinary: ${finalFileName}`;
     $('#cloudinaryStatus').style.background = '#10b981';
-    alert(`✅ Succès!\n\nFichier sauvegardé: ${finalFileName}\nURL: ${url}\n\nLes exercices sont maintenant disponibles sur la plateforme.`);
+    
+    const exerciseCount = disciplineFilter === 'all' ?
+      dataToSave.lecture.length + dataToSave.ecoute.length + dataToSave.grammaire.length + dataToSave.lexique.length :
+      dataToSave[disciplineFilter].length;
+    
+    alert(
+      `✅ Succès!\n\n` +
+      `Fichier sauvegardé: ${finalFileName}\n` +
+      `Exercices sauvegardés: ${exerciseCount}\n` +
+      `Discipline: ${disciplineFilter === 'all' ? 'Toutes' : disciplineFilter.toUpperCase()}\n\n` +
+      `URL: ${url}\n\n` +
+      `Les exercices sont maintenant disponibles sur la plateforme.`
+    );
   } catch (err) {
     $('#cloudinaryStatus').textContent = `⚠️ Erreur: ${err.message}`;
     $('#cloudinaryStatus').style.background = '#dc2626';
-    alert(`❌ Erreur lors de la sauvegarde sur Cloudinary:\n\n${err.message}\n\nVérifiez:\n- Votre connexion internet\n- L'upload preset "francais_exercices" existe et est "unsigned"\n- Le cloud name "dvbsn45rk" est correct`);
+    alert(
+      `❌ Erreur lors de la sauvegarde sur Cloudinary:\n\n${err.message}\n\n` +
+      `Vérifiez:\n` +
+      `- Votre upload preset "francais_exercices" existe et est "unsigned"\n` +
+      `- Le cloud name "dvbsn45rk" est correct`
+    );
   }
 }
 
@@ -1719,21 +1878,39 @@ function updateExerciseList() {
   const container = $('#exerciseListContainer');
   if (!container) return;
   
+  const filter = $('#disciplineFilter')?.value || 'all';
+  const now = Date.now();
+  const oneDayMs = 24 * 60 * 60 * 1000;
+  const oneWeekMs = 7 * oneDayMs;
+  
+  function getAgeStyle(timestamp) {
+    if (!timestamp) return { bg: '#f3f4f6', border: '#6b7280' }; // Old/unknown
+    
+    const age = now - timestamp;
+    if (age < oneDayMs) {
+      return { bg: '#dcfce7', border: '#16a34a' }; // Today - green
+    } else if (age < oneWeekMs) {
+      return { bg: '#fef3c7', border: '#eab308' }; // This week - yellow
+    } else {
+      return { bg: '#f3f4f6', border: '#6b7280' }; // Older - gray
+    }
+  }
+  
   let html = '';
   
-  // CE (Compréhension Écrite)
-  if (BANK.lecture.length > 0) {
+  if ((filter === 'all' || filter === 'lecture') && BANK.lecture.length > 0) {
     html += `<div style="margin-bottom: 1.5rem;">
       <h4 style="color: #059669; border-bottom: 2px solid #059669; padding-bottom: 0.5rem;">
         Compréhension Écrite (${BANK.lecture.length})
       </h4>`;
     BANK.lecture.forEach((ex, idx) => {
-      html += `<div style="background: #f0fdf4; padding: 1rem; margin: 0.5rem 0; border-radius: 0.375rem; border-left: 3px solid #059669;">
+      const ageStyle = getAgeStyle(ex.updatedAt || ex.createdAt);
+      html += `<div style="background: ${ageStyle.bg}; padding: 1rem; margin: 0.5rem 0; border-radius: 0.375rem; border-left: 4px solid ${ageStyle.border};">
         <div style="display: flex; justify-content: space-between; align-items: start;">
           <div style="flex: 1;">
             <strong style="color: #065f46;">${idx + 1}. ${ex.theme || 'Sans thème'}</strong>
-            <span style="margin-left: 1rem; background: #dcfce7; padding: 0.25rem 0.5rem; border-radius: 0.25rem; font-size: 0.875rem;">${ex.niveau || 'N/A'}</span>
-            <span style="margin-left: 0.5rem; background: #fef3c7; padding: 0.25rem 0.5rem; border-radius: 0.25rem; font-size: 0.875rem;">Difficulté: ${ex.difficulty || 'N/A'}</span>
+            <span style="margin-left: 1rem; background: white; padding: 0.25rem 0.5rem; border-radius: 0.25rem; font-size: 0.875rem;">${ex.niveau || 'N/A'}</span>
+            <span style="margin-left: 0.5rem; background: white; padding: 0.25rem 0.5rem; border-radius: 0.25rem; font-size: 0.875rem;">Difficulté: ${ex.difficulty || 'N/A'}</span>
             <div style="margin-top: 0.5rem; font-size: 0.875rem; color: #065f46;">
               <strong>ID:</strong> ${ex.id || 'N/A'} | <strong>Questions:</strong> ${ex.qcm?.length + ex.vf?.length || 0}
             </div>
@@ -1747,19 +1924,19 @@ function updateExerciseList() {
     html += `</div>`;
   }
   
-  // CO (Compréhension Orale)
-  if (BANK.ecoute.length > 0) {
+  if ((filter === 'all' || filter === 'ecoute') && BANK.ecoute.length > 0) {
     html += `<div style="margin-bottom: 1.5rem;">
       <h4 style="color: #0ea5e9; border-bottom: 2px solid #0ea5e9; padding-bottom: 0.5rem;">
         Compréhension Orale (${BANK.ecoute.length})
       </h4>`;
     BANK.ecoute.forEach((ex, idx) => {
-      html += `<div style="background: #f0f9ff; padding: 1rem; margin: 0.5rem 0; border-radius: 0.375rem; border-left: 3px solid #0ea5e9;">
+      const ageStyle = getAgeStyle(ex.updatedAt || ex.createdAt);
+      html += `<div style="background: ${ageStyle.bg}; padding: 1rem; margin: 0.5rem 0; border-radius: 0.375rem; border-left: 4px solid ${ageStyle.border};">
         <div style="display: flex; justify-content: space-between; align-items: start;">
           <div style="flex: 1;">
             <strong style="color: #075985;">${idx + 1}. ${ex.theme || 'Sans thème'}</strong>
-            <span style="margin-left: 1rem; background: #dbeafe; padding: 0.25rem 0.5rem; border-radius: 0.25rem; font-size: 0.875rem;">${ex.niveau || 'N/A'}</span>
-            <span style="margin-left: 0.5rem; background: #fef3c7; padding: 0.25rem 0.5rem; border-radius: 0.25rem; font-size: 0.875rem;">Difficulté: ${ex.difficulty || 'N/A'}</span>
+            <span style="margin-left: 1rem; background: white; padding: 0.25rem 0.5rem; border-radius: 0.25rem; font-size: 0.875rem;">${ex.niveau || 'N/A'}</span>
+            <span style="margin-left: 0.5rem; background: white; padding: 0.25rem 0.5rem; border-radius: 0.25rem; font-size: 0.875rem;">Difficulté: ${ex.difficulty || 'N/A'}</span>
             <div style="margin-top: 0.5rem; font-size: 0.875rem; color: #075985;">
               <strong>ID:</strong> ${ex.id || 'N/A'} | <strong>Questions:</strong> ${ex.qcm?.length + ex.vf?.length + (ex.cloze ? 1 : 0) || 0} | <strong>Audio:</strong> ${ex.audio ? 'Oui' : 'Non'}
             </div>
@@ -1773,19 +1950,19 @@ function updateExerciseList() {
     html += `</div>`;
   }
   
-  // Grammaire
-  if (BANK.grammaire.length > 0) {
+  if ((filter === 'all' || filter === 'grammaire') && BANK.grammaire.length > 0) {
     html += `<div style="margin-bottom: 1.5rem;">
       <h4 style="color: #8b5cf6; border-bottom: 2px solid #8b5cf6; padding-bottom: 0.5rem;">
         Grammaire (${BANK.grammaire.length})
       </h4>`;
     BANK.grammaire.forEach((ex, idx) => {
-      html += `<div style="background: #faf5ff; padding: 1rem; margin: 0.5rem 0; border-radius: 0.375rem; border-left: 3px solid #8b5cf6;">
+      const ageStyle = getAgeStyle(ex.updatedAt || ex.createdAt);
+      html += `<div style="background: ${ageStyle.bg}; padding: 1rem; margin: 0.5rem 0; border-radius: 0.375rem; border-left: 4px solid ${ageStyle.border};">
         <div style="display: flex; justify-content: space-between; align-items: start;">
           <div style="flex: 1;">
             <strong style="color: #6b21a8;">${idx + 1}. ${ex.theme || 'Sans thème'}</strong>
-            <span style="margin-left: 1rem; background: #f3e8ff; padding: 0.25rem 0.5rem; border-radius: 0.25rem; font-size: 0.875rem;">${ex.niveau || 'N/A'}</span>
-            <span style="margin-left: 0.5rem; background: #fef3c7; padding: 0.25rem 0.5rem; border-radius: 0.25rem; font-size: 0.875rem;">Difficulté: ${ex.difficulty || 'N/A'}</span>
+            <span style="margin-left: 1rem; background: white; padding: 0.25rem 0.5rem; border-radius: 0.25rem; font-size: 0.875rem;">${ex.niveau || 'N/A'}</span>
+            <span style="margin-left: 0.5rem; background: white; padding: 0.25rem 0.5rem; border-radius: 0.25rem; font-size: 0.875rem;">Difficulté: ${ex.difficulty || 'N/A'}</span>
             <div style="margin-top: 0.5rem; font-size: 0.875rem; color: #6b21a8;">
               <strong>ID:</strong> ${ex.id || 'N/A'} | <strong>Questions:</strong> ${ex.questions?.length || 0}
             </div>
@@ -1799,19 +1976,19 @@ function updateExerciseList() {
     html += `</div>`;
   }
   
-  // Lexique
-  if (BANK.lexique.length > 0) {
+  if ((filter === 'all' || filter === 'lexique') && BANK.lexique.length > 0) {
     html += `<div style="margin-bottom: 1.5rem;">
       <h4 style="color: #f59e0b; border-bottom: 2px solid #f59e0b; padding-bottom: 0.5rem;">
         Lexique (${BANK.lexique.length})
       </h4>`;
     BANK.lexique.forEach((ex, idx) => {
-      html += `<div style="background: #fffbeb; padding: 1rem; margin: 0.5rem 0; border-radius: 0.375rem; border-left: 3px solid #f59e0b;">
+      const ageStyle = getAgeStyle(ex.updatedAt || ex.createdAt);
+      html += `<div style="background: ${ageStyle.bg}; padding: 1rem; margin: 0.5rem 0; border-radius: 0.375rem; border-left: 4px solid ${ageStyle.border};">
         <div style="display: flex; justify-content: space-between; align-items: start;">
           <div style="flex: 1;">
             <strong style="color: #92400e;">${idx + 1}. ${ex.theme || 'Sans thème'}</strong>
-            <span style="margin-left: 1rem; background: #fef3c7; padding: 0.25rem 0.5rem; border-radius: 0.25rem; font-size: 0.875rem;">${ex.niveau || 'N/A'}</span>
-            <span style="margin-left: 0.5rem; background: #fef3c7; padding: 0.25rem 0.5rem; border-radius: 0.25rem; font-size: 0.875rem;">Difficulté: ${ex.difficulty || 'N/A'}</span>
+            <span style="margin-left: 1rem; background: white; padding: 0.25rem 0.5rem; border-radius: 0.25rem; font-size: 0.875rem;">${ex.niveau || 'N/A'}</span>
+            <span style="margin-left: 0.5rem; background: white; padding: 0.25rem 0.5rem; border-radius: 0.25rem; font-size: 0.875rem;">Difficulté: ${ex.difficulty || 'N/A'}</span>
             <div style="margin-top: 0.5rem; font-size: 0.875rem; color: #92400e;">
               <strong>ID:</strong> ${ex.id || 'N/A'} | <strong>Questions:</strong> ${ex.questions?.length || 0}
             </div>
@@ -1826,7 +2003,7 @@ function updateExerciseList() {
   }
   
   if (html === '') {
-    html = '<p style="text-align: center; color: #6b7280; padding: 2rem;">Aucun exercice créé pour le moment.</p>';
+    html = '<p style="text-align: center; color: #6b7280; padding: 2rem;">Aucun exercice à afficher</p>';
   }
   
   container.innerHTML = html;
