@@ -5,14 +5,7 @@
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <!-- Added cache control headers to force browser to reload with new CSP -->
 <!-- Removed cache control meta tags and fixed CSP -->
-<meta http-equiv="Content-Security-Policy" content="
-  default-src 'self'; 
-  script-src 'self' 'unsafe-inline'; 
-  style-src 'self' 'unsafe-inline'; 
-  img-src 'self' data: https: blob:; 
-  font-src 'self' data:; 
-  connect-src 'self' https://*.cloudinary.com https://res.cloudinary.com https://api.cloudinary.com ws: wss:;
-">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data: https: blob:; font-src 'self' data:; connect-src 'self' https://res.cloudinary.com https://api.cloudinary.com https://*.cloudinary.com ws: wss:;">
 <title>Panneau d'administration</title>
 <style>
 :root{--brand:#2b5;--ink:#222;--muted:#666;--bg:#f7f7f7;--card:#fff;--success:#4caf50;--warning:#ff9800;--error:#d32f2f}
@@ -866,7 +859,7 @@ async function loadBank() {
     });
 
     if (BANK.lecture.length > 0 || BANK.ecoute.length > 0 || BANK.grammaire.length > 0 || BANK.lexique.length > 0) {
-        localStorage.setItem('fr_bank_data', JSON.stringify(BANK));
+        localStorage.setItem('fr_bank_data', JSON.JSON.stringify(BANK));
         console.log('[v0] Saved updated bank to localStorage');
     }
     
