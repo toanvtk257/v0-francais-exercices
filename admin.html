@@ -738,10 +738,10 @@ async function loadBank() {
   console.log('[v0] === FINAL BANK STATE ===');
   console.log('[v0] Bank from Cloudinary/localStorage:', BANK);
   console.log('[v0] Totals:', {
-    lecture: BANK.lecture?.length || 0,
-    ecoute: BANK.ecoute?.length || 0,
-    grammaire: BANK.grammaire?.length || 0,
-    lexique: BANK.lexique?.length || 0
+    lecture: BANK.lecture.length,
+    ecoute: BANK.ecoute.length,
+    grammaire: BANK.grammaire.length,
+    lexique: BANK.lexique.length
   });
   
   updateExercisesTable();
@@ -911,6 +911,26 @@ function updateExercisesTable() {
   }).join('');
   
   attachExerciseActionListeners();
+}
+
+/** rest of code here **/
+function attachExerciseActionListeners() {
+  document.querySelectorAll('.edit-exercise-btn').forEach(btn => {
+    btn.addEventListener('click', (e) => {
+      const exerciseId = e.target.dataset.exerciseId;
+      console.log('[v0] Edit exercise:', exerciseId);
+      // alert('Édition d\'exercice - fonctionnalité à implémenter'); // Replaced alert with actual edit call
+      editExercise(exerciseId); // Call the editExercise function
+    });
+  });
+  
+  document.querySelectorAll('.delete-exercise-btn').forEach(btn => {
+    btn.addEventListener('click', (e) => {
+      const exerciseId = e.target.dataset.exerciseId;
+      const exerciseType = e.target.dataset.exerciseType;
+      deleteExercise(exerciseId, exerciseType);
+    });
+  });
 }
 
 function deleteExercise(id, type) {
@@ -1113,7 +1133,7 @@ window.addFormQcmOption = function(questionId) {
   
   optionDiv.innerHTML = `
     <label style="margin:0;font-weight:600;min-width:60px">Choix ${optionLetter.toUpperCase()}</label>
-    <input class="form-qcm-option" data-option-letter="${optionLetter}" placeholder="Réponse ${optionLetter.toUpperCase()}" style="flex:1;padding:10px;border:1px solid #ddd;border-radius:8px;font-size:.95rem;box-sizing:border-box">
+    <input class="form-qcm-option" data-option-letter="${optionLetter}" placeholder="Réponse ${letter.toUpperCase()}" style="flex:1;padding:10px;border:1px solid #ddd;border-radius:8px;font-size:.95rem;box-sizing:border-box">
     <button class="btn-danger remove-form-option-btn" data-qcm-id="${questionId}" data-opt-idx="${optionLetter}" style="background:#e53e3e;color:#fff;border:none;padding:8px 12px;border-radius:6px;cursor:pointer;font-size:.85rem">✕</button>
   `;
   container.appendChild(optionDiv);
