@@ -153,9 +153,9 @@ function handleLogin(e) {
   console.log("[v0] User found, redirecting...");
   localStorage.setItem(AUTH_KEY, JSON.stringify(user));
   
-  const redirectPage = user.role === 'admin' ? 'admin.html' : 'dashboard.html';
+  const redirectPage = user.role === 'admin' ? '/admin.html' : '/dashboard.html';
   console.log("[v0] Redirecting to:", redirectPage);
-  window.location.replace(redirectPage);
+  window.location.href = redirectPage;
 }
 
 function handleRegister(event) {
@@ -253,9 +253,8 @@ const currentUser = localStorage.getItem(AUTH_KEY);
 if (currentUser) {
   try {
     const user = JSON.parse(currentUser);
-    const baseUrl = 'https://v0-francais-exercices.vercel.app';
-    const redirectPage = user.role === 'admin' ? 'admin.html' : 'dashboard.html';
-    window.location.href = `${baseUrl}/${redirectPage}`;
+    const redirectPage = user.role === 'admin' ? '/admin.html' : '/dashboard.html';
+    window.location.href = redirectPage;
   } catch (error) {
     localStorage.removeItem(AUTH_KEY);
   }
