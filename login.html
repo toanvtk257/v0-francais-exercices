@@ -149,7 +149,7 @@ function handleLogin(e) {
   localStorage.setItem(AUTH_KEY, JSON.stringify(user));
   
   const redirectPage = user.role === 'admin' ? 'admin.html' : 'dashboard.html';
-  window.location.href = window.location.origin + '/' + redirectPage;
+  location.assign(redirectPage);
 }
 
 function handleRegister(event) {
@@ -209,7 +209,7 @@ function handleRegister(event) {
   localStorage.setItem(AUTH_KEY, JSON.stringify(newUser));
   
   const redirectPage = newUser.role === 'admin' ? 'admin.html' : 'dashboard.html';
-  window.location.href = window.location.origin + '/' + redirectPage;
+  location.assign(redirectPage);
 }
 
 $('#regRole').addEventListener('change', (e) => {
@@ -246,7 +246,7 @@ if (currentUser) {
   try {
     const user = JSON.parse(currentUser);
     const redirectPage = user.role === 'admin' ? 'admin.html' : 'dashboard.html';
-    window.location.href = window.location.origin + '/' + redirectPage;
+    location.assign(redirectPage);
   } catch (error) {
     localStorage.removeItem(AUTH_KEY);
   }
