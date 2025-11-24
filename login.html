@@ -145,12 +145,11 @@ function handleLogin(e) {
     console.log('[v0] User found, redirecting...');
     localStorage.setItem(AUTH_KEY, JSON.stringify(user));
     
-    const redirectPage = user.role === 'admin' ? 'admin.html' : 'dashboard.html';
+    const redirectPage = user.role === 'admin' ? 'redirect-admin.html' : 'redirect-dashboard.html';
     console.log('[v0] Redirect to:', redirectPage);
     
-    setTimeout(() => {
-      window.location.href = redirectPage;
-    }, 100);
+    // Try multiple redirect methods
+    window.location.replace(redirectPage);
   } else {
     errorDiv.textContent = 'Email ou mot de passe incorrect';
     errorDiv.style.display = 'block';
@@ -217,12 +216,10 @@ function handleRegister(e) {
   saveUsers(users);
   localStorage.setItem(AUTH_KEY, JSON.stringify(newUser));
   
-  const redirectPage = role === 'admin' ? 'admin.html' : 'dashboard.html';
+  const redirectPage = role === 'admin' ? 'redirect-admin.html' : 'redirect-dashboard.html';
   console.log('[v0] Redirect to:', redirectPage);
   
-  setTimeout(() => {
-    window.location.href = redirectPage;
-  }, 100);
+  window.location.replace(redirectPage);
   
   return false;
 }
@@ -266,8 +263,8 @@ const currentUser = localStorage.getItem(AUTH_KEY);
 if (currentUser) {
   try {
     const user = JSON.parse(currentUser);
-    const redirectPage = user.role === 'admin' ? 'admin.html' : 'dashboard.html';
-    window.location.href = redirectPage;
+    const redirectPage = user.role === 'admin' ? 'redirect-admin.html' : 'redirect-dashboard.html';
+    window.location.replace(redirectPage);
   } catch (error) {
     localStorage.removeItem(AUTH_KEY);
   }
