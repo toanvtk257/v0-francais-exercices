@@ -681,139 +681,70 @@ function checkAuth() {
 }
 
 async function loadBank() {
-  console.log('[v0] === STARTING BANK LOADING ===');
-  
-  // Load from localStorage first if available and not expired
-  const storedBank = localStorage.getItem(BANK_KEY);
-  const cachedIndex = localStorage.getItem(CLOUDINARY_FILES_KEY);
-  const cachedIndexData = cachedIndex ? JSON.parse(cachedIndex) : null;
-
-  if (storedBank) {
-    BANK = JSON.parse(storedBank);
-    console.log('[v0] Loaded from localStorage:', BANK);
-    console.log('[v0] localStorage bank structure:', {
-      lecture: BANK.lecture?.length || 0,
-      ecoute: BANK.ecoute?.length || 0,
-      grammaire: BANK.grammaire?.length || 0,
-      lexique: BANK.lexique?.length || 0
-    });
-  } else {
-    BANK = { lecture: [], ecoute: [], grammaire: [], lexique: [] };
-    console.log('[v0] No localStorage data, starting with empty bank');
-  }
-
-  // Try to load from Cloudinary if index exists and is recent
-  if (cachedIndexData && cachedIndexData.timestamp && (Date.now() - cachedIndexData.timestamp < CACHE_DURATION)) {
-    console.log('[v0] Using cached Cloudinary files index.');
-    // Attempt to load bank data from the cached index
-    await loadBankDataFromIndex(cachedIndexData.files);
-    // If Cloudinary load was successful, it will overwrite BANK.
-    // If it fails or returns nothing, the localStorage data (or initial empty BANK) remains.
-  } else {
-    // If index is old or missing, fetch a fresh index
-    console.log('[v0] Fetching Cloudinary files index...');
-    try {
-      const response = await fetch(`https://res.cloudinary.com/${CLOUDINARY_CLOUD_NAME}/raw/list/${CLOUDINARY_FOLDER}.json`);
-      if (!response.ok) {
-        console.warn(`[v0] Failed to fetch Cloudinary index: ${response.status}`);
-      } else {
-        const data = await response.json();
-        const fileNames = data.resources.map(r => r.public_id.split('/').pop()); // Get filename without folder path
-        const jsonFileNames = fileNames.filter(name => name.endsWith('.json'));
-
-        if (jsonFileNames.length > 0) {
-          localStorage.setItem(CLOUDINARY_FILES_KEY, JSON.JSON.stringify({ files: jsonFileNames, timestamp: Date.now() }));
-          console.log('[v0] Fetched and cached Cloudinary files index.');
-          // Load bank data from the new index
-          await loadBankDataFromIndex(jsonFileNames);
-        } else {
-          console.log('[v0] No JSON files found in Cloudinary folder.');
-          localStorage.removeItem(CLOUDINARY_FILES_KEY); // Clear old index if no json files
+    console.log('[v0] === STARTING BANK LOADING ===');
+    BANK = {lecture:[], ecoute:[], grammaire:[], lexique:[]};
+    
+    // Try localStorage first
+    const cached = localStorage.getItem('fr_bank_data');
+    if (cached) {
+        try {
+            const parsed = JSON.JSON.parse(cached);
+            console.log('[v0] Loaded from localStorage:', parsed);
+            console.log('[v0] localStorage bank structure:', {
+                lecture: parsed.lecture?.length || 0,
+                ecoute: parsed.ecoute?.length || 0,
+                grammaire: parsed.grammaire?.length || 0,
+                lexique: parsed.lexique?.length || 0
+            });
+            BANK = parsed;
+        } catch(e) {
+            console.error('[v0] Error parsing localStorage:', e);
         }
-      }
-    } catch (error) {
-      console.error('[v0] Error fetching Cloudinary index:', error);
+    } else {
+        console.log('[v0] No localStorage data, using empty bank');
     }
-  }
-
-  // After attempting Cloudinary load, save the final merged bank to localStorage
-  localStorage.setItem(BANK_KEY, JSON.stringify(BANK));
-  
-  console.log('[v0] === FINAL BANK STATE ===');
-  console.log('[v0] Bank from Cloudinary/localStorage:', BANK);
-  console.log('[v0] Totals:', {
-    lecture: BANK.lecture.length,
-    ecoute: BANK.ecoute.length,
-    grammaire: BANK.grammaire.length,
-    lexique: BANK.lexique.length
-  });
-  
-  updateExercisesTable();
-  updateDashboard();
-  updateUsersTable();
-}
-
-
-async function loadBankDataFromIndex(fileNames) {
-  console.log('[v0] loadBankDataFromIndex called with', fileNames.length, 'files');
-  
-  for (const filename of fileNames) {
-    try {
-      console.log('[v0] Fetching file:', filename);
-      const url = `${CLOUDINARY_BASE_URL}/${CLOUDINARY_FOLDER}/${filename}`;
-      console.log('[v0] Full URL:', url);
-      
-      const response = await fetch(url);
-      console.log('[v0] Response status:', response.status);
-      
-      if (!response.ok) {
-        console.error('[v0] Failed to fetch', filename, '- Status:', response.status);
-        continue;
-      }
-      
-      const text = await response.text();
-      console.log('[v0] Response text length:', text.length);
-      
-      const data = JSON.parse(text);
-      console.log('[v0] Parsed data for', filename, ':', {
-        hasLecture: !!data.lecture,
-        hasEcoute: !!data.ecoute,
-        hasGrammaire: !!data.grammaire,
-        hasLexique: !!data.lexique,
-        lectureCount: data.lecture ? data.lecture.length : 0,
-        ecouteCount: data.ecoute ? data.ecoute.length : 0,
-        grammaireCount: data.grammaire ? data.grammaire.length : 0,
-        lexiqueCount: data.lexique ? data.lexique.length : 0
-      });
-      
-      // Merge data into BANK
-      if (data.lecture && Array.isArray(data.lecture)) {
-        console.log('[v0] Adding', data.lecture.length, 'lecture exercises');
-        BANK.lecture = BANK.lecture.concat(data.lecture);
-      }
-      if (data.ecoute && Array.isArray(data.ecoute)) {
-        console.log('[v0] Adding', data.ecoute.length, 'ecoute exercises');
-        BANK.ecoute = BANK.ecoute.concat(data.ecoute);
-      }
-      if (data.grammaire && Array.isArray(data.grammaire)) {
-        console.log('[v0] Adding', data.grammaire.length, 'grammaire exercises');
-        BANK.grammaire = BANK.grammaire.concat(data.grammaire);
-      }
-      if (data.lexique && Array.isArray(data.lexique)) {
-        console.log('[v0] Adding', data.lexique.length, 'lexique exercises');
-        BANK.lexique = BANK.lexique.concat(data.lexique);
-      }
-    } catch (err) {
-      console.error('[v0] Error loading', filename, ':', err);
+    
+    // Try to load from Cloudinary - load known files directly
+    console.log('[v0] Attempting to load known files from Cloudinary...');
+    const knownFiles = ['a1_CO.json', 'a1_co.json', 'a1_ecoute.json']; // Try different variations
+    
+    for (const filename of knownFiles) {
+        try {
+            const url = `https://res.cloudinary.com/dvbsn45rk/raw/upload/french-json/${filename}`;
+            console.log(`[v0] Trying to load: ${url}`);
+            const response = await fetch(url);
+            
+            if (response.ok) {
+                const data = await response.json();
+                console.log(`[v0] Successfully loaded ${filename}:`, data);
+                
+                // Merge exercises from this file into BANK
+                if (data.lecture) BANK.lecture = [...BANK.lecture, ...data.lecture];
+                if (data.ecoute) BANK.ecoute = [...BANK.ecoute, ...data.ecoute];
+                if (data.grammaire) BANK.grammaire = [...BANK.grammaire, ...data.grammaire];
+                if (data.lexique) BANK.lexique = [...BANK.lexique, ...data.lexique];
+                
+                console.log(`[v0] Merged data from ${filename}`);
+            } else {
+                console.log(`[v0] File ${filename} not found (${response.status})`);
+            }
+        } catch(e) {
+            console.log(`[v0] Could not load ${filename}:`, e.message);
+        }
     }
-  }
-  
-  console.log('[v0] Final BANK state after merging files:', {
-    lecture: BANK.lecture.length,
-    ecoute: BANK.ecoute.length,
-    grammaire: BANK.grammaire.length,
-    lexique: BANK.lexique.length
-  });
+    
+    console.log('[v0] === FINAL BANK STATE ===');
+    console.log('[v0] Bank from Cloudinary/localStorage:', BANK);
+    console.log('[v0] Totals:', {
+        lecture: BANK.lecture?.length || 0,
+        ecoute: BANK.ecoute?.length || 0,
+        grammaire: BANK.grammaire?.length || 0,
+        lexique: BANK.lexique?.length || 0
+    });
+    
+    updateGlobalStats(); // This function needs to be defined or removed if not used. Assuming it's meant to update dashboard stats.
+    updateExercisesTable();
+    updateUsersTable();
 }
 
 
@@ -2873,6 +2804,11 @@ function updateUsersTable() {
     console.error('[v0] Error updating users table:', error);
     tbody.innerHTML = '<tr><td colspan="6" class="empty-state">Erreur lors du chargement des utilisateurs</td></tr>';
   }
+}
+
+// Dummy function for updateGlobalStats, assuming it was intended to update dashboard stats.
+function updateGlobalStats() {
+    updateDashboard(); // Reusing updateDashboard as it contains the relevant logic
 }
 
 </script>
