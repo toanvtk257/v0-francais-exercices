@@ -546,6 +546,7 @@ const AUTH_KEY = 'fr_auth_user';
 const BANK_KEY = 'fr_bank_data';
 const USERS_KEY = 'fr_users'; // Changed from fr_users_db to fr_users for consistency
 const CLOUDINARY_CLOUD_NAME = 'dvbsn45rk';
+const CLOUDINARY_UPLOAD_PRESET = 'francais_exercices';
 const CLOUDINARY_FOLDER = 'french-json';
 const CLOUDINARY_FILES_KEY = 'fr_cloudinary_files'; // Renamed from FILES_INDEX_KEY
 const CACHE_DURATION = 24 * 60 * 60 * 1000;
@@ -1133,7 +1134,7 @@ window.addFormQcmOption = function(questionId) {
   
   optionDiv.innerHTML = `
     <label style="margin:0;font-weight:600;min-width:60px">Choix ${optionLetter.toUpperCase()}</label>
-    <input class="form-qcm-option" data-option-letter="${optionLetter}" placeholder="Réponse ${letter.toUpperCase()}" style="flex:1;padding:10px;border:1px solid #ddd;border-radius:8px;font-size:.95rem;box-sizing:border-box">
+    <input class="form-qcm-option" data-option-letter="${optionLetter}" placeholder="Réponse ${optionLetter.toUpperCase()}" style="flex:1;padding:10px;border:1px solid #ddd;border-radius:8px;font-size:.95rem;box-sizing:border-box">
     <button class="btn-danger remove-form-option-btn" data-qcm-id="${questionId}" data-opt-idx="${optionLetter}" style="background:#e53e3e;color:#fff;border:none;padding:8px 12px;border-radius:6px;cursor:pointer;font-size:.85rem">✕</button>
   `;
   container.appendChild(optionDiv);
@@ -2501,6 +2502,35 @@ function deleteUser(userId) {
   updateDashboard();
 }
 
+async function uploadToCloudinary(file, resourceType = 'auto') {
+  const formData = new FormData();
+  formData.append('file', file);
+  formData.append('upload_preset', CLOUDINARY_UPLOAD_PRESET);
+  formData.append('folder', 'french-audio'); // Specific folder for audio/images
+  formData.append('resource_type', resourceType);
+
+  const url = `https://api.cloudinary.com/v1_1/${CLOUDINARY_CLOUD_NAME}/${resourceType}/upload`;
+
+  try {
+    const response = await fetch(url, {
+      method: 'POST',
+      body: formData
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json();
+      console.error('[v0] Cloudinary error response:', errorData);
+      throw new Error(errorData.error?.message || `HTTP Error ${response.status}: ${response.statusText}`);
+    }
+
+    const data = await response.json();
+    return data.secure_url;
+  } catch (error) {
+    console.error('[v0] Cloudinary upload error:', error);
+    throw error;
+  }
+}
+
 // Helper function for handling audio file uploads
 function handleAudioFile(file, inputElement, fileNameDisplay, hiddenAudioInput) {
   if (!file) return;
@@ -2508,18 +2538,60 @@ function handleAudioFile(file, inputElement, fileNameDisplay, hiddenAudioInput) 
   const allowedTypes = ['audio/mpeg', 'audio/wav', 'audio/ogg'];
   if (!allowedTypes.includes(file.type)) {
     alert('Format de fichier audio non supporté. Veuillez choisir un fichier MP3, WAV ou OGG.');
-    inputElement.value = ''; // Clear the input
+    inputElement.value = '';
     return;
   }
 
-  // For simplicity, we'll just store the file name for now.
-  // In a real application, you'd upload this file to a server.
-  const fileName = file.name;
-  hiddenAudioInput.value = `audio/${fileName}`; // Store the intended path
-  fileNameDisplay.textContent = fileName;
+  // Get form values for automatic filename generation
+  const niveau = $('#addLevel')?.value || '';
+  const theme = $('#addTheme')?.value?.trim() || '';
+  const titre = $('#addTitle')?.value?.trim() || '';
+  
+  if (!niveau || !theme) {
+    alert('Veuillez d\'abord remplir le Niveau et le Thème avant d\'importer un fichier audio.');
+    inputElement.value = '';
+    return;
+  }
+  
+  // Clean theme and title for filename
+  const cleanTheme = theme.replace(/[^a-zA-Z0-9À-ÿ\s]/g, '').replace(/\s+/g, '_');
+  const cleanTitre = titre.replace(/[^a-zA-Z0-9À-ÿ\s]/g, '').replace(/\s+/g, '_');
+  const originalExt = file.name.split('.').pop().toLowerCase();
+  
+  // Generate new filename: niveau_theme_titre.ext or niveau_theme.ext
+  const newFileName = titre 
+    ? `${niveau}_${cleanTheme}_${cleanTitre}.${originalExt}`
+    : `${niveau}_${cleanTheme}.${originalExt}`;
+  
+  // Show uploading status
+  fileNameDisplay.textContent = `⏳ Upload en cours: ${newFileName}...`;
   fileNameDisplay.style.display = 'block';
+  fileNameDisplay.style.color = '#f59e0b';
   document.getElementById('audioDropText').style.display = 'none';
-  inputElement.value = ''; // Clear the input after processing
+  
+  console.log('[v0] Uploading audio to Cloudinary:', newFileName);
+  
+  (async () => { // Use an async IIFE for await
+    try {
+      // Create a new file with the custom name
+      const renamedFile = new File([file], newFileName, { type: file.type });
+      const cloudinaryUrl = await uploadToCloudinary(renamedFile, 'video'); // Use 'video' for audio files
+      
+      console.log('[v0] Audio uploaded to Cloudinary:', cloudinaryUrl);
+      
+      // Store the Cloudinary URL in the hidden input
+      hiddenAudioInput.value = cloudinaryUrl;
+      fileNameDisplay.textContent = `✓ ${newFileName}`;
+      fileNameDisplay.style.color = '#10b981';
+    } catch (err) {
+      console.error('[v0] Error uploading audio to Cloudinary:', err);
+      fileNameDisplay.textContent = `❌ Erreur: ${err.message}`;
+      fileNameDisplay.style.color = '#ef4444';
+      alert(`Erreur Cloudinary: ${err.message}\n\nVérifiez:\n- Votre upload preset "francais_exercices" existe et est "unsigned"\n- Votre cloud name est correct: ${CLOUDINARY_CLOUD_NAME}\n- Le fichier ne dépasse pas les limites de votre plan Cloudinary`);
+    }
+  })();
+  
+  inputElement.value = '';
 }
 
 function addResource() {
