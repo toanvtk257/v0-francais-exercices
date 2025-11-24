@@ -550,7 +550,77 @@ let selectedChatUserId = null;
 
 // Added variables for new QCM and passage features
 let passageImageData = null;
-let optionCounter = {};
+let optionCounter = {}; // This might be intended for tracking dynamic options per question
+let passageType = 'text'; // Default passage type
+
+document.addEventListener('DOMContentLoaded', async () => {
+  console.log('[v0] Admin page loading...');
+  
+  // Attach event listeners to tab buttons
+  document.querySelectorAll('.tab-btn').forEach(btn => {
+    btn.addEventListener('click', (e) => {
+      const tabName = e.target.getAttribute('data-tab');
+      console.log('[v0] Tab clicked:', tabName);
+      switchTab(tabName, e);
+    });
+  });
+  
+  // Attach event listener to Synchroniser Cloudinary button
+  // Dynamically add the button to the header if it doesn't exist
+  if (!$('header h1 button')) { // Simple check to avoid adding multiple buttons
+    addCloudinarySyncButton();
+  }
+  const syncBtn = $('header h1 button'); // Get the newly added button
+  if (syncBtn) {
+    syncBtn.addEventListener('click', async () => {
+      console.log('[v0] Sync button clicked');
+      syncBtn.disabled = true;
+      syncBtn.textContent = 'Synchronisation...';
+      try {
+        await loadBank();
+        alert('Synchronisation avec Cloudinary terminée!');
+      } catch (error) {
+        console.error('[v0] Sync failed:', error);
+        alert('Une erreur est survenue lors de la synchronisation.');
+      } finally {
+        syncBtn.disabled = false;
+        syncBtn.textContent = 'Synchroniser Cloudinary';
+      }
+    });
+  }
+  
+  // Attach event listener to logout button
+  const logoutBtn = $('#logoutBtn');
+  if (logoutBtn) {
+    logoutBtn.addEventListener('click', () => {
+      console.log('[v0] Logout button clicked');
+      if (confirm('Voulez-vous vraiment vous déconnecter ?')) {
+        localStorage.removeItem(AUTH_KEY);
+        localStorage.removeItem('fr_current_user');
+        window.location.href = 'login.html';
+      }
+    });
+  }
+  
+  // Load initial data
+  console.log('[v0] Loading initial bank data...');
+  await loadBank();
+  console.log('[v0] Initial load complete');
+});
+
+function addCloudinarySyncButton() {
+  const header = document.querySelector('h1'); // Targeting h1 specifically
+  if (header) {
+    const syncBtn = document.createElement('button');
+    syncBtn.id = 'syncCloudinaryBtn'; // Give it an ID for easier selection
+    syncBtn.textContent = 'Synchroniser Cloudinary';
+    syncBtn.className = 'btn-primary'; // Use existing btn-primary style
+    syncBtn.style.marginLeft = '20px';
+    syncBtn.style.padding = '8px 12px'; // Adjust padding for better appearance
+    syncBtn.style.fontSize = '.85rem'; // Match logout button font size
+    header.appendChild(syncBtn);
+  }
+}
 
 function checkAuth() {
   const auth = localStorage.getItem(AUTH_KEY);
@@ -737,35 +807,10 @@ async function loadBankDataFromIndex(fileNames) {
   return mergedBank;
 }
 
-function addCloudinarySyncButton() {
-  const header = document.querySelector('h1');
-  if (header) {
-    const syncBtn = document.createElement('button');
-    syncBtn.textContent = 'Synchroniser Cloudinary';
-    syncBtn.className = 'btn-primary'; // Use existing btn-primary style
-    syncBtn.style.marginLeft = '20px';
-    syncBtn.style.padding = '8px 12px'; // Adjust padding for better appearance
-    syncBtn.style.fontSize = '.85rem'; // Match logout button font size
-    syncBtn.onclick = async () => {
-      syncBtn.disabled = true;
-      syncBtn.textContent = 'Synchronisation...';
-      try {
-        await loadBank(); // This will refetch from Cloudinary and update localStorage
-        alert('Synchronisation Cloudinary terminée!');
-      } catch (error) {
-        console.error('[v0] Sync failed:', error);
-        alert('Une erreur est survenue lors de la synchronisation.');
-      } finally {
-        syncBtn.disabled = false;
-        syncBtn.textContent = 'Synchroniser Cloudinary';
-      }
-    };
-    header.appendChild(syncBtn);
-  }
-}
+// Removed addCloudinarySyncButton() here as it's handled in DOMContentLoaded
 
-
-function switchTab(tabName) {
+function switchTab(tabName, event) {
+  console.log('[v0] Switching to tab:', tabName);
   $$('.tab-content').forEach(t => t.classList.remove('active'));
   $$('.tab-btn').forEach(b => b.classList.remove('active'));
   $(`#${tabName}`).classList.add('active');
@@ -1157,6 +1202,7 @@ function collectFormVfQuestions() {
 
 function togglePassageType() {
   const type = document.querySelector('input[name="passageType"]:checked').value;
+  passageType = type; // Store the selected type
   $('#passageTextBox').style.display = type === 'text' ? 'block' : 'none';
   $('#passageImageBox').style.display = type === 'image' ? 'block' : 'none';
 };
@@ -1695,7 +1741,7 @@ function editExercise(id) {
     return;
   }
   
-  switchTab('builder');
+  switchTab('builder', { target: { getAttribute: () => 'builder'} }); // Programmatically switch tab
   switchCreatorTab('form'); // Switch to form tab when editing
   
   editingExerciseId = id;
@@ -2614,100 +2660,13 @@ document.addEventListener('click', (e) => {
   }
 });
 
-$('#logoutBtn').addEventListener('click', () => {
-  if (confirm('Voulez-vous vraiment vous déconnecter ?')) {
-    localStorage.removeItem(AUTH_KEY);
-    localStorage.removeItem('fr_current_user'); // Ensure this is also removed if used
-    window.location.href = 'login.html'; // Redirect to login page
-  }
-});
-
-function updateUsersTable() {
-  const users = JSON.parse(localStorage.getItem(USERS_KEY) || '[]');
-  const tbody = $('#usersBody');
-
-  if (users.length === 0) {
-    tbody.innerHTML = '<tr><td colspan="6" class="empty-state">Aucun utilisateur</td></tr>';
-    return;
-  }
-
-  tbody.innerHTML = users.map(user => {
-    const isAdmin = user.role === 'admin';
-    const isCurrentUser = user.id === currentUser.id;
-    
-    if (isAdmin) {
-      // Admin row
-      return `
-        <tr style="background:#f0f8ff">
-          <td><strong>${user.name}</strong> ${isCurrentUser ? '(Vous)' : ''}</td>
-          <td>${user.email}</td>
-          <td><span class="badge" style="background:#2196f3;color:#fff">Admin</span></td>
-          <td colspan="2" style="text-align:center;color:#666">—</td>
-          <td>
-            <div class="action-btns">
-              ${!isCurrentUser ? `
-                <button class="btn-secondary" onclick="resetUserPassword('${user.id}')">Changer code PIN</button>
-                <button class="btn-danger" onclick="deleteAdmin('${user.id}')">Supprimer</button>
-              ` : '<span style="color:#666;font-size:.85rem">Vous ne pouvez pas vous gérer</span>'}
-            </div>
-          </td>
-        </tr>
-      `;
-    } else {
-      // Student row
-      const progress = getUserProgress(user.id);
-      return `
-        <tr>
-          <td>${user.name}</td>
-          <td>${user.email}</td>
-          <td><span class="badge" style="background:#4caf50;color:#fff">Étudiant</span></td>
-          <td>${progress.completedLessons}</td>
-          <td>${progress.avgScore}%</td>
-          <td>
-            <div class="action-btns">
-              <button class="btn-secondary" onclick="viewUserStats('${user.id}')">Voir stats</button>
-              <button class="btn-secondary" onclick="resetUserPassword('${user.id}')">Réinitialiser code</button>
-              <button class="btn-danger" onclick="deleteUser('${user.id}')">Supprimer</button>
-            </div>
-          </td>
-        </tr>
-      `;
-    }
-  }).join('');
-}
-
-function deleteAdmin(adminId) {
-  const users = JSON.parse(localStorage.getItem(USERS_KEY) || '[]');
-  const admin = users.find(u => u.id === adminId);
-  
-  if (!admin) {
-    alert('Administrateur introuvable');
-    return;
-  }
-  
-  // Check if this is the last admin
-  const adminCount = users.filter(u => u.role === 'admin').length;
-  if (adminCount <= 1) {
-    alert('Impossible de supprimer le dernier administrateur. Il doit toujours y avoir au moins un administrateur.');
-    return;
-  }
-  
-  const confirmMessage = `Êtes-vous sûr de vouloir supprimer l'administrateur ${admin.name} (${admin.email})?\n\nCette action ne peut pas être annulée.`;
-  
-  if (!confirm(confirmMessage)) {
-    return;
-  }
-  
-  // Remove admin from users list
-  const updatedUsers = users.filter(u => u.id !== adminId);
-  localStorage.setItem(USERS_KEY, JSON.stringify(updatedUsers));
-  
-  alert(`L'administrateur ${admin.name} a été supprimé avec succès`);
-  
-  // Refresh the users table
-  updateUsersTable();
-  updateDashboard();
-}
+// Removed duplicate logout listener, the one in the main script is sufficient
+// document.getElementById('logoutBtn').addEventListener('click', function() {
+//   if (confirm('Voulez-vous vraiment vous déconnecter ?')) {
+//     localStorage.removeItem('fr_auth_user');
+//     window.location.replace('https://v0-francais-exercices.vercel.app/login.html');
+//   }
+// });
 
 // These functions are placeholders as they are not defined in the provided code
 // but are called in the <updates> section.
@@ -2721,28 +2680,14 @@ function drawTypeChart() {}
 
 // Call initialization functions
 checkAuth();
-addCloudinarySyncButton();
-loadBank().then(() => {
-  // Data loading and table updates are now handled within loadBank
-  // to ensure the bank is loaded first.
-  updateUsersTable(); // Update users table after bank load
-  updateDashboard(); // Update dashboard after bank load
-  
-  // Charts are drawn within updateDashboard, so they will be called there.
-  // If they need to be called independently, uncomment:
-  // setTimeout(() => {
-  //   drawAdminActivityChart();
-  //   drawAdminLevelChart();
-  // }, 100);
-});
+// loadBank() and related updates are now handled within DOMContentLoaded
 
-// Removed duplicate logout listener, the one in the main script is sufficient
-// document.getElementById('logoutBtn').addEventListener('click', function() {
-//   if (confirm('Voulez-vous vraiment vous déconnecter ?')) {
-//     localStorage.removeItem('fr_auth_user');
-//     window.location.replace('https://v0-francais-exercices.vercel.app/login.html');
-//   }
-// });
+// Moved initial table updates and chart drawing to be called after loadBank inside DOMContentLoaded
+// This ensures data is available before attempting to render.
+
+// Moved user table update here to ensure it's called after bank loading if needed
+updateUsersTable(); 
+
 </script>
 </body>
 </html>
