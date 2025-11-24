@@ -23,12 +23,13 @@ button:hover{opacity:.9}
 .tab.active{background:var(--brand);color:#fff}
 .tab-content{display:none}
 .tab-content.active{display:block}
-/* Re-enabling PIN masking with dots */
+/* Added PIN input styling with masked dots */
 .pin-input{
   text-align:center;
   font-size:1.5rem;
   letter-spacing:8px;
   font-weight:600;
+  -webkit-text-security:disc;
 }
 .info-box{
   background:#e8f5e9;
@@ -59,7 +60,7 @@ button:hover{opacity:.9}
 
     <div class="form-group">
       <label for="login-pin">Code PIN (6 chiffres)</label>
-      <input type="text" id="login-pin" class="pin-input" autocomplete="off" data-form-type="other" placeholder="123456" maxlength="6" pattern="[0-9]*" inputmode="numeric">
+      <input type="text" id="login-pin" class="pin-input" autocomplete="off" data-form-type="other" placeholder="••••••" maxlength="6" pattern="[0-9]*" inputmode="numeric">
     </div>
 
     <button type="button" onclick="handleLogin()">Connexion</button>
@@ -83,7 +84,7 @@ button:hover{opacity:.9}
 
     <div class="form-group">
       <label for="register-pin">Code PIN (6 chiffres)</label>
-      <input type="text" id="register-pin" class="pin-input" autocomplete="off" data-form-type="other" placeholder="123456" maxlength="6" pattern="[0-9]*" inputmode="numeric">
+      <input type="text" id="register-pin" class="pin-input" autocomplete="off" data-form-type="other" placeholder="••••••" maxlength="6" pattern="[0-9]*" inputmode="numeric">
     </div>
 
     <div class="form-group">
@@ -106,7 +107,7 @@ button:hover{opacity:.9}
 </div>
 
 <script>
-const ADMIN_SECRET_CODE = '250784';
+const ADMIN_SECRET_CODE = 'ADMIN2025';
 
 function toggleAdminSecretField() {
   const role = document.getElementById('register-role').value;
@@ -142,7 +143,7 @@ function switchTab(tab) {
 
 function handleLogin() {
   const username = document.getElementById('login-username').value.trim();
-  const pin = getActualPinValue('login-pin');
+  const pin = document.getElementById('login-pin').value;
   const errorDiv = document.getElementById('login-error');
   
   if (!username || !pin) {
@@ -181,7 +182,7 @@ function handleLogin() {
 function handleRegister() {
   const name = document.getElementById('register-name').value.trim();
   const username = document.getElementById('register-username').value.trim();
-  const pin = getActualPinValue('register-pin');
+  const pin = document.getElementById('register-pin').value;
   const role = document.getElementById('register-role').value;
   const errorDiv = document.getElementById('register-error');
   
@@ -238,42 +239,19 @@ function handleRegister() {
 }
 
 document.addEventListener('DOMContentLoaded', function() {
-  const pinInputs = document.querySelectorAll('.pin-input');
-  
-  pinInputs.forEach(input => {
-    let actualValue = '';
-    
-    input.addEventListener('input', function(e) {
-      const newValue = this.value.replace(/[^0-9]/g, '');
-      
-      if (newValue.length <= actualValue.length) {
-        actualValue = newValue;
-      } else {
-        actualValue = newValue;
-      }
-      
-      this.setAttribute('data-value', actualValue);
-      this.value = '●'.repeat(actualValue.length);
-    });
-    
-    input.addEventListener('focus', function() {
-      actualValue = this.getAttribute('data-value') || '';
-      this.value = '●'.repeat(actualValue.length);
-    });
-  });
-  
-  // Update login/register handlers to use actual PIN values
-  window.getActualPinValue = function(inputId) {
-    const input = document.getElementById(inputId);
-    return input.getAttribute('data-value') || '';
-  };
-  
   document.getElementById('login-pin').addEventListener('keypress', function(e) {
     if (e.key === 'Enter') handleLogin();
   });
   
   document.getElementById('register-role').addEventListener('keypress', function(e) {
     if (e.key === 'Enter') handleRegister();
+  });
+  
+  const pinInputs = document.querySelectorAll('.pin-input');
+  pinInputs.forEach(input => {
+    input.addEventListener('input', function(e) {
+      this.value = this.value.replace(/[^0-9]/g, '');
+    });
   });
 });
 </script>
