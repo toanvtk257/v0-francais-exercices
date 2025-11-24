@@ -3,7 +3,6 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data: https:; font-src 'self' data:; connect-src 'self' ws: wss:;">
 <title>fr_exercices_pack_v2 — Connexion</title>
 <style>
 :root{--brand:#2b5;--ink:#222;--muted:#666;--bg:#f7f7f7;--card:#fff}
@@ -108,6 +107,18 @@ button:hover{opacity:.9}
 const ADMIN_SECRET_CODE = '250784';
 const USERS_STORAGE_KEY = 'fr_users_db';
 
+function isLocalStorageAvailable() {
+  try {
+    const test = '__localStorage_test__';
+    localStorage.setItem(test, test);
+    localStorage.removeItem(test);
+    return true;
+  } catch(e) {
+    console.error('[v0] localStorage is not available:', e);
+    return false;
+  }
+}
+
 function toggleAdminSecretField() {
   const role = document.getElementById('register-role').value;
   const secretField = document.getElementById('admin-secret-field');
@@ -145,6 +156,12 @@ function handleLogin() {
   const pin = document.getElementById('login-pin').value;
   const errorDiv = document.getElementById('login-error');
   
+  if (!isLocalStorageAvailable()) {
+    errorDiv.textContent = 'Le stockage local n\'est pas disponible dans ce navigateur';
+    errorDiv.style.display = 'block';
+    return;
+  }
+  
   if (!username || !pin) {
     errorDiv.textContent = 'Veuillez remplir tous les champs';
     errorDiv.style.display = 'block';
@@ -157,25 +174,46 @@ function handleLogin() {
     return;
   }
   
-  const users = JSON.parse(localStorage.getItem(USERS_STORAGE_KEY) || '[]');
-  const user = users.find(u => u.email === username);
-  
-  if (!user || user.pin !== pin) {
-    errorDiv.textContent = 'Email ou code PIN incorrect';
+  try {
+    const usersJson = localStorage.getItem(USERS_STORAGE_KEY);
+    console.log('[v0] Raw users data from localStorage:', usersJson);
+    
+    const users = JSON.parse(usersJson || '[]');
+    console.log('[v0] Parsed users:', users);
+    console.log('[v0] Looking for email:', username);
+    
+    const user = users.find(u => u.email === username);
+    console.log('[v0] Found user:', user);
+    
+    if (!user) {
+      errorDiv.textContent = 'Email introuvable. Veuillez créer un compte d\'abord.';
+      errorDiv.style.display = 'block';
+      return;
+    }
+    
+    if (user.pin !== pin) {
+      console.log('[v0] PIN mismatch. Expected:', user.pin, 'Got:', pin);
+      errorDiv.textContent = 'Code PIN incorrect';
+      errorDiv.style.display = 'block';
+      return;
+    }
+    
+    const userData = {
+      id: user.id,
+      name: user.name,
+      email: user.email,
+      role: user.role
+    };
+    localStorage.setItem('fr_auth_user', JSON.stringify(userData));
+    localStorage.setItem('fr_current_user', user.id);
+    
+    console.log('[v0] Login successful, redirecting...');
+    window.location.href = user.role === 'admin' ? 'admin.html' : 'dashboard.html';
+  } catch (error) {
+    console.error('[v0] Error during login:', error);
+    errorDiv.textContent = 'Erreur de connexion: ' + error.message;
     errorDiv.style.display = 'block';
-    return;
   }
-  
-  const userData = {
-    id: user.id,
-    name: user.name,
-    email: user.email,
-    role: user.role
-  };
-  localStorage.setItem('fr_auth_user', JSON.stringify(userData));
-  localStorage.setItem('fr_current_user', user.id);
-  
-  window.location.href = user.role === 'admin' ? 'admin.html' : 'dashboard.html';
 }
 
 function handleRegister() {
@@ -184,6 +222,12 @@ function handleRegister() {
   const pin = document.getElementById('register-pin').value;
   const role = document.getElementById('register-role').value;
   const errorDiv = document.getElementById('register-error');
+  
+  if (!isLocalStorageAvailable()) {
+    errorDiv.textContent = 'Le stockage local n\'est pas disponible dans ce navigateur';
+    errorDiv.style.display = 'block';
+    return;
+  }
   
   console.log('[v0] Starting registration process');
   console.log('[v0] Name:', name, 'Email:', username, 'Role:', role);
@@ -216,42 +260,60 @@ function handleRegister() {
     }
   }
   
-  const users = JSON.parse(localStorage.getItem(USERS_STORAGE_KEY) || '[]');
-  console.log('[v0] Existing users before registration:', users);
-  
-  if (users.find(u => u.email === username)) {
-    errorDiv.textContent = 'Cet email est déjà utilisé';
+  try {
+    const usersJson = localStorage.getItem(USERS_STORAGE_KEY);
+    const users = JSON.parse(usersJson || '[]');
+    console.log('[v0] Existing users before registration:', users);
+    
+    if (users.find(u => u.email === username)) {
+      errorDiv.textContent = 'Cet email est déjà utilisé';
+      errorDiv.style.display = 'block';
+      return;
+    }
+    
+    const userId = 'user_' + Date.now();
+    const newUser = {
+      id: userId,
+      name: name,
+      email: username,
+      pin: pin,
+      role: role
+    };
+    
+    users.push(newUser);
+    console.log('[v0] About to save users:', users);
+    
+    localStorage.setItem(USERS_STORAGE_KEY, JSON.stringify(users));
+    
+    const verifyJson = localStorage.getItem(USERS_STORAGE_KEY);
+    const savedUsers = JSON.parse(verifyJson || '[]');
+    console.log('[v0] Users after registration (verified):', savedUsers);
+    
+    if (savedUsers.length !== users.length) {
+      console.error('[v0] ERROR: Save verification failed!');
+      errorDiv.textContent = 'Erreur lors de l\'enregistrement du compte';
+      errorDiv.style.display = 'block';
+      return;
+    }
+    
+    console.log('[v0] New user saved successfully:', newUser);
+    
+    const userData = {
+      id: userId,
+      name: name,
+      email: username,
+      role: role
+    };
+    localStorage.setItem('fr_auth_user', JSON.stringify(userData));
+    localStorage.setItem('fr_current_user', userId);
+    
+    console.log('[v0] Redirecting to:', role === 'admin' ? 'admin.html' : 'dashboard.html');
+    window.location.href = role === 'admin' ? 'admin.html' : 'dashboard.html';
+  } catch (error) {
+    console.error('[v0] Error during registration:', error);
+    errorDiv.textContent = 'Erreur lors de l\'inscription: ' + error.message;
     errorDiv.style.display = 'block';
-    return;
   }
-  
-  const userId = 'user_' + Date.now();
-  const newUser = {
-    id: userId,
-    name: name,
-    email: username,
-    pin: pin,
-    role: role
-  };
-  
-  users.push(newUser);
-  localStorage.setItem(USERS_STORAGE_KEY, JSON.stringify(users));
-  
-  const savedUsers = JSON.parse(localStorage.getItem(USERS_STORAGE_KEY) || '[]');
-  console.log('[v0] Users after registration:', savedUsers);
-  console.log('[v0] New user saved successfully:', newUser);
-  
-  const userData = {
-    id: userId,
-    name: name,
-    email: username,
-    role: role
-  };
-  localStorage.setItem('fr_auth_user', JSON.stringify(userData));
-  localStorage.setItem('fr_current_user', userId);
-  
-  console.log('[v0] Redirecting to:', role === 'admin' ? 'admin.html' : 'dashboard.html');
-  window.location.href = role === 'admin' ? 'admin.html' : 'dashboard.html';
 }
 
 document.addEventListener('DOMContentLoaded', function() {
