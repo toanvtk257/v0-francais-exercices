@@ -2510,7 +2510,7 @@ function deleteUser(userId) {
   // Remove user drafts
   const allDrafts = JSON.parse(localStorage.getItem('fr_drafts_db') || '{}');
   delete allDrafts[userId];
-  localStorage.setItem('fr_drafts_db', JSON.stringify(allDrafts));
+  localStorage.setItem('fr_drafts_db', JSON.JSON.stringify(allDrafts));
   
   alert(`Le compte de ${user.name} a été supprimé avec succès`);
   
