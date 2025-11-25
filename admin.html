@@ -570,7 +570,7 @@ function checkAuth() {
 }
 
 function loadBank() {
-  console.log('[v0] Loading bank...');
+  console.log('[v0] === LOADING BANK ===');
   
   // Load from localStorage first
   const stored = localStorage.getItem(BANK_KEY);
@@ -582,22 +582,36 @@ function loadBank() {
     console.log('[v0] No localStorage data, using empty bank');
   }
   
-  const filesIndex = JSON.parse(localStorage.getItem(FILES_INDEX_KEY) || '[]');
-  console.log('[v0] Files index from Cloudinary:', filesIndex);
+  const filesIndexRaw = localStorage.getItem(FILES_INDEX_KEY);
+  console.log('[v0] Raw FILES_INDEX_KEY from localStorage:', filesIndexRaw);
+  
+  const filesIndex = JSON.parse(filesIndexRaw || '[]');
+  console.log('[v0] Parsed files index:', filesIndex);
+  console.log('[v0] Number of files in index:', filesIndex.length);
   
   if (filesIndex.length > 0) {
+    console.log('[v0] Loading files from Cloudinary...');
+    
     // Load all JSON files from the index and combine them
     Promise.all(
-      filesIndex.map(fileInfo => 
-        fetch(fileInfo.cloudinaryUrl)
-          .then(res => res.ok ? res.json() : null)
+      filesIndex.map(fileInfo => {
+        console.log('[v0] Fetching:', fileInfo.cloudinaryUrl);
+        return fetch(fileInfo.cloudinaryUrl)
+          .then(res => {
+            console.log(`[v0] Response for ${fileInfo.fileName}:`, res.status, res.ok);
+            return res.ok ? res.json() : null;
+          })
+          .then(data => {
+            console.log(`[v0] Data from ${fileInfo.fileName}:`, data);
+            return data;
+          })
           .catch(err => {
             console.error(`[v0] Error loading ${fileInfo.fileName}:`, err);
             return null;
-          })
-      )
+          });
+      })
     ).then(allData => {
-      console.log('[v0] Loaded all Cloudinary files:', allData);
+      console.log('[v0] All Cloudinary files loaded:', allData);
       
       // Combine all data from different files
       const combined = { lecture: [], ecoute: [], grammaire: [], lexique: [] };
@@ -605,10 +619,21 @@ function loadBank() {
       allData.forEach((data, index) => {
         if (data) {
           console.log(`[v0] Processing file ${filesIndex[index].fileName}:`, data);
-          if (data.lecture) combined.lecture.push(...data.lecture);
-          if (data.ecoute) combined.ecoute.push(...data.ecoute);
-          if (data.grammaire) combined.grammaire.push(...data.grammaire);
-          if (data.lexique) combined.lexique.push(...data.lexique);
+          if (Array.isArray(data)) {
+            // If data is array, assume it's exercises and categorize by type
+            data.forEach(ex => {
+              if (ex.type === 'CO') combined.ecoute.push(ex);
+              else if (ex.type === 'CE') combined.lecture.push(ex);
+              else if (ex.type === 'Grammaire') combined.grammaire.push(ex);
+              else if (ex.type === 'Lexique') combined.lexique.push(ex);
+            });
+          } else if (typeof data === 'object') {
+            // If data is object with categories
+            if (data.lecture && Array.isArray(data.lecture)) combined.lecture.push(...data.lecture);
+            if (data.ecoute && Array.isArray(data.ecoute)) combined.ecoute.push(...data.ecoute);
+            if (data.grammaire && Array.isArray(data.grammaire)) combined.grammaire.push(...data.grammaire);
+            if (data.lexique && Array.isArray(data.lexique)) combined.lexique.push(...data.lexique);
+          }
         }
       });
       
@@ -616,16 +641,26 @@ function loadBank() {
       
       // Merge with localStorage data (avoid duplicates based on id)
       ['lecture', 'ecoute', 'grammaire', 'lexique'].forEach(type => {
-        combined[type].forEach(ex => {
-          const exists = bank[type].some(e => e.id === ex.id);
-          if (!exists) {
-            bank[type].push(ex);
-          }
-        });
+        if (combined[type] && combined[type].length > 0) {
+          console.log(`[v0] Merging ${combined[type].length} ${type} exercises from Cloudinary`);
+          combined[type].forEach(ex => {
+            const exists = bank[type].some(e => e.id === ex.id);
+            if (!exists) {
+              console.log(`[v0] Adding new ${type} exercise:`, ex.id || ex.title);
+              bank[type].push(ex);
+            } else {
+              console.log(`[v0] Skipping duplicate ${type} exercise:`, ex.id || ex.title);
+            }
+          });
+        }
       });
       
-      console.log('[v0] Final merged bank:', bank);
-      console.log('[v0] Total exercises found:', 
+      console.log('[v0] === FINAL MERGED BANK ===');
+      console.log('[v0] Lecture:', bank.lecture?.length || 0, 'exercises');
+      console.log('[v0] Ecoute:', bank.ecoute?.length || 0, 'exercises');
+      console.log('[v0] Grammaire:', bank.grammaire?.length || 0, 'exercises');
+      console.log('[v0] Lexique:', bank.lexique?.length || 0, 'exercises');
+      console.log('[v0] Total exercises:', 
         (bank.lecture?.length || 0) + 
         (bank.ecoute?.length || 0) + 
         (bank.grammaire?.length || 0) + 
@@ -633,9 +668,12 @@ function loadBank() {
       );
       
       updateExercisesTable();
+    }).catch(err => {
+      console.error('[v0] Error loading Cloudinary files:', err);
+      updateExercisesTable();
     });
   } else {
-    console.log('[v0] No Cloudinary files found in index');
+    console.log('[v0] No Cloudinary files found in index, displaying localStorage only');
     updateExercisesTable();
   }
 }
