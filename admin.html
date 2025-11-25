@@ -706,7 +706,7 @@ async function syncFromCloudinary() {
     
     console.log('[v0] No index found, trying to load known files directly...');
     const cloudName = CLOUDINARY_CLOUD_NAME;
-    const knownFiles = ['questions.json', 'a1_CO.json', 'a1_CE.json', 'a2_CO.json', 'a2_CE.json', 'b1_CO.json', 'b1_CE.json', 'b2_CO.json', 'b2_CE.json', 'c1_CO.json', 'c1_CE.json', 'c2_CO.json', 'c2_CE.json'];
+    const knownFiles = ['tous_exercices.json', 'questions.json', 'a1_CO.json', 'a1_CE.json', 'a2_CO.json', 'a2_CE.json', 'b1_CO.json', 'b1_CE.json', 'b2_CO.json', 'b2_CE.json', 'c1_CO.json', 'c1_CE.json', 'c2_CO.json', 'c2_CE.json'];
     
     let loadedCount = 0;
     const allExercises = [];
@@ -1617,7 +1617,6 @@ window.removeFormVfQuestion = function(questionId) {
   });
   formVfCounter = $$('#formVfQuestions [data-form-vf-id]').length;
 };
-
 </script>
 </body>
 </html>
