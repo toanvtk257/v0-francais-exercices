@@ -266,12 +266,22 @@ h1 {
   <div id="builder" class="tab-content">
     <div class="card">
       <h2>Importer/Exporter la banque</h2>
-      <div class="btns">
+      <!-- <div class="btns">
         <input type="file" id="importBank" accept=".json" style="display:none">
         <button class="btn-primary" onclick="document.getElementById('importBank').click()">Importer JSON</button>
         <button class="btn-secondary" onclick="exportBank()">Exporter JSON</button>
         <button class="btn-secondary" onclick="loadDefaultBank()">Charger exemple</button>
+      </div> -->
+
+      <!-- Adding button to manually sync Cloudinary files -->
+      <div class="border-t pt-3 flex gap-3">
+        <input type="file" id="importBank" accept=".json" style="display:none">
+        <button class="btn-primary" onclick="document.getElementById('importBank').click()">Importer JSON</button>
+        <button class="btn-secondary" onclick="exportBank()">Exporter JSON</button>
+        <button class="btn-secondary" onclick="loadDefaultBank()">Charger exemple</button>
+        <button class="btn-primary" onclick="syncFromCloudinary()">🔄 Synchroniser Cloudinary</button>
       </div>
+      
       <div id="importMsg" class="success-msg"></div>
       <div id="importError" class="error-msg"></div>
     </div>
@@ -569,114 +579,124 @@ function checkAuth() {
   $('#adminUserEmail').textContent = currentUser.email;
 }
 
-function loadBank() {
+async function loadBank() {
   console.log('[v0] === LOADING BANK ===');
   
-  // Load from localStorage first
+  // Load localStorage data
   const stored = localStorage.getItem(BANK_KEY);
-  if (stored) {
-    bank = JSON.parse(stored);
-    console.log('[v0] Loaded from localStorage:', bank);
-  } else {
-    bank = { lecture: [], ecoute: [], grammaire: [], lexique: [] };
-    console.log('[v0] No localStorage data, using empty bank');
-  }
+  let localData = stored ? JSON.parse(stored) : {lecture:[], ecoute:[], grammaire:[], lexique:[]};
+  console.log('[v0] Loaded from localStorage:', localData);
   
+  // Load Cloudinary files index
   const filesIndexRaw = localStorage.getItem(FILES_INDEX_KEY);
   console.log('[v0] Raw FILES_INDEX_KEY from localStorage:', filesIndexRaw);
   
-  const filesIndex = JSON.parse(filesIndexRaw || '[]');
+  const filesIndex = filesIndexRaw ? JSON.parse(filesIndexRaw) : [];
   console.log('[v0] Parsed files index:', filesIndex);
   console.log('[v0] Number of files in index:', filesIndex.length);
   
-  if (filesIndex.length > 0) {
-    console.log('[v0] Loading files from Cloudinary...');
-    
-    // Load all JSON files from the index and combine them
-    Promise.all(
-      filesIndex.map(fileInfo => {
-        console.log('[v0] Fetching:', fileInfo.cloudinaryUrl);
-        return fetch(fileInfo.cloudinaryUrl)
-          .then(res => {
-            console.log(`[v0] Response for ${fileInfo.fileName}:`, res.status, res.ok);
-            return res.ok ? res.json() : null;
-          })
-          .then(data => {
-            console.log(`[v0] Data from ${fileInfo.fileName}:`, data);
-            return data;
-          })
-          .catch(err => {
-            console.error(`[v0] Error loading ${fileInfo.fileName}:`, err);
-            return null;
-          });
-      })
-    ).then(allData => {
-      console.log('[v0] All Cloudinary files loaded:', allData);
-      
-      // Combine all data from different files
-      const combined = { lecture: [], ecoute: [], grammaire: [], lexique: [] };
-      
-      allData.forEach((data, index) => {
-        if (data) {
-          console.log(`[v0] Processing file ${filesIndex[index].fileName}:`, data);
-          if (Array.isArray(data)) {
-            // If data is array, assume it's exercises and categorize by type
-            data.forEach(ex => {
-              if (ex.type === 'CO') combined.ecoute.push(ex);
-              else if (ex.type === 'CE') combined.lecture.push(ex);
-              else if (ex.type === 'Grammaire') combined.grammaire.push(ex);
-              else if (ex.type === 'Lexique') combined.lexique.push(ex);
-            });
-          } else if (typeof data === 'object') {
-            // If data is object with categories
-            if (data.lecture && Array.isArray(data.lecture)) combined.lecture.push(...data.lecture);
-            if (data.ecoute && Array.isArray(data.ecoute)) combined.ecoute.push(...data.ecoute);
-            if (data.grammaire && Array.isArray(data.grammaire)) combined.grammaire.push(...data.grammaire);
-            if (data.lexique && Array.isArray(data.lexique)) combined.lexique.push(...data.lexique);
-          }
-        }
-      });
-      
-      console.log('[v0] Combined data from Cloudinary:', combined);
-      
-      // Merge with localStorage data (avoid duplicates based on id)
-      ['lecture', 'ecoute', 'grammaire', 'lexique'].forEach(type => {
-        if (combined[type] && combined[type].length > 0) {
-          console.log(`[v0] Merging ${combined[type].length} ${type} exercises from Cloudinary`);
-          combined[type].forEach(ex => {
-            const exists = bank[type].some(e => e.id === ex.id);
-            if (!exists) {
-              console.log(`[v0] Adding new ${type} exercise:`, ex.id || ex.title);
-              bank[type].push(ex);
-            } else {
-              console.log(`[v0] Skipping duplicate ${type} exercise:`, ex.id || ex.title);
-            }
-          });
-        }
-      });
-      
-      console.log('[v0] === FINAL MERGED BANK ===');
-      console.log('[v0] Lecture:', bank.lecture?.length || 0, 'exercises');
-      console.log('[v0] Ecoute:', bank.ecoute?.length || 0, 'exercises');
-      console.log('[v0] Grammaire:', bank.grammaire?.length || 0, 'exercises');
-      console.log('[v0] Lexique:', bank.lexique?.length || 0, 'exercises');
-      console.log('[v0] Total exercises:', 
-        (bank.lecture?.length || 0) + 
-        (bank.ecoute?.length || 0) + 
-        (bank.grammaire?.length || 0) + 
-        (bank.lexique?.length || 0)
-      );
-      
-      updateExercisesTable();
-    }).catch(err => {
-      console.error('[v0] Error loading Cloudinary files:', err);
-      updateExercisesTable();
-    });
-  } else {
+  if (filesIndex.length === 0) {
     console.log('[v0] No Cloudinary files found in index, displaying localStorage only');
-    updateExercisesTable();
+    bank = localData;
+    updateExercisesTable(); // Ensure table is updated even if no Cloudinary data
+    return;
+  }
+  
+  // Fetch all JSON files from Cloudinary
+  console.log('[v0] Loading files from Cloudinary...');
+  const cloudinaryExercises = [];
+  
+  for (const fileInfo of filesIndex) {
+    try {
+      console.log('[v0] Fetching:', fileInfo.fileName, 'from', fileInfo.cloudinaryUrl);
+      const response = await fetch(fileInfo.cloudinaryUrl);
+      
+      if (!response.ok) {
+        console.error('[v0] Failed to fetch', fileInfo.fileName, '- Status:', response.status);
+        continue;
+      }
+      
+      const data = await response.json();
+      console.log('[v0] Loaded data from', fileInfo.fileName, ':', data);
+      
+      // Handle different data formats
+      if (Array.isArray(data)) {
+        // Direct array of exercises
+        console.log('[v0] Format: Array with', data.length, 'exercises');
+        cloudinaryExercises.push(...data);
+      } else if (typeof data === 'object' && data !== null) {
+        // Object with categories (lecture, ecoute, etc.)
+        console.log('[v0] Format: Object with categories');
+        if (data.lecture) cloudinaryExercises.push(...data.lecture);
+        if (data.ecoute) cloudinaryExercises.push(...data.ecoute);
+        if (data.grammaire) cloudinaryExercises.push(...data.grammaire);
+        if (data.lexique) cloudinaryExercises.push(...data.lexique);
+      }
+    } catch (error) {
+      console.error('[v0] Error loading', fileInfo.fileName, ':', error);
+    }
+  }
+  
+  console.log('[v0] Total exercises loaded from Cloudinary:', cloudinaryExercises.length);
+  console.log('[v0] Cloudinary exercises:', cloudinaryExercises);
+  
+  // Merge with localStorage data
+  const allExercises = [...cloudinaryExercises];
+  
+  // Add localStorage exercises that aren't in Cloudinary
+  ['lecture', 'ecoute', 'grammaire', 'lexique'].forEach(cat => {
+    if (localData[cat]) {
+      localData[cat].forEach(ex => {
+        if (!allExercises.find(e => e.id === ex.id)) {
+          allExercises.push(ex);
+        }
+      });
+    }
+  });
+  
+  console.log('[v0] Total exercises after merge:', allExercises.length);
+  
+  // Organize into categories
+  bank = {lecture:[], ecoute:[], grammaire:[], lexique:[]};
+  allExercises.forEach(ex => {
+    // Correctly map type strings to bank keys
+    const cat = ex.type === 'lecture' || ex.type === 'CE' ? 'lecture' : 
+                ex.type === 'ecoute' || ex.type === 'CO' ? 'ecoute' :
+                ex.type === 'grammaire' || ex.type === 'Grammaire' ? 'grammaire' : 'lexique'; // Default to lexique if unrecognized
+    
+    // Ensure 'type' property is consistent for later use
+    if (!ex.type) {
+        if (cat === 'lecture') ex.type = 'CE';
+        else if (cat === 'ecoute') ex.type = 'CO';
+        else if (cat === 'grammaire') ex.type = 'Grammaire';
+        else ex.type = 'Lexique';
+    }
+
+    // Add unique ID if missing (though Cloudinary files should have them)
+    if (!ex.id) {
+        ex.id = `${cat}_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`;
+    }
+    
+    bank[cat].push(ex);
+  });
+  
+  console.log('[v0] Final bank structure:', bank);
+  console.log('[v0] lecture:', bank.lecture.length, 'ecoute:', bank.ecoute.length, 
+              'grammaire:', bank.grammaire.length, 'lexique:', bank.lexique.length);
+  updateExercisesTable(); // Update table after loading
+}
+
+async function syncFromCloudinary() {
+  try {
+    console.log('[v0] Manual sync from Cloudinary triggered');
+    await loadBank(); // loadBank now also updates the exercises table internally
+    alert('✅ Synchronisation réussie! Les exercices depuis Cloudinary ont été chargés.');
+  } catch (error) {
+    console.error('[v0] Sync error:', error);
+    alert('❌ Erreur lors de la synchronisation: ' + error.message);
   }
 }
+
 
 function switchTab(tabName) {
   $$('.tab-content').forEach(t => t.classList.remove('active'));
@@ -712,7 +732,7 @@ function updateDashboard() {
   });
 
   $('#totalUsers').textContent = users.length;
-  $('#totalExercises').textContent = (bank.lecture?.length || 0) + (bank.ecoute?.length || 0) + (bank.grammaire?.length || 0) + (bank.lexique?.length || 0);
+  $('#totalExercises').textContent = (bank?.lecture?.length || 0) + (bank?.ecoute?.length || 0) + (bank?.grammaire?.length || 0) + (bank?.lexique?.length || 0);
   $('#totalAttempts').textContent = totalAttempts;
   $('#avgScore').textContent = attemptCount > 0 ? Math.round(totalScore / attemptCount) + '%' : '0%';
 
@@ -724,11 +744,12 @@ function updateDashboard() {
 
 function updateExercisesTable() {
   const tbody = $('#exercisesBody');
+  // Ensure bank and its properties exist before accessing
   const allExercises = [
-    ...(bank.lecture || []).map(e => ({ ...e, type: 'lecture' })), 
-    ...(bank.ecoute || []).map(e => ({ ...e, type: 'ecoute' })),
-    ...(bank.grammaire || []).map(e => ({ ...e, type: 'grammaire' })),
-    ...(bank.lexique || []).map(e => ({ ...e, type: 'lexique' }))
+    ...(bank?.lecture || []).map(e => ({ ...e, type: 'CE' })), // Use consistent type labels
+    ...(bank?.ecoute || []).map(e => ({ ...e, type: 'CO' })),
+    ...(bank?.grammaire || []).map(e => ({ ...e, type: 'Grammaire' })),
+    ...(bank?.lexique || []).map(e => ({ ...e, type: 'Lexique' }))
   ];
 
   if (allExercises.length === 0) {
@@ -738,11 +759,10 @@ function updateExercisesTable() {
 
   tbody.innerHTML = allExercises.map(ex => {
     const qCount = (ex.qcm?.length || 0) + (ex.vf?.length || 0) + (ex.cloze ? 1 : 0);
-    let typeLabel = 'CE';
+    let typeLabel = ex.type; // Use the type property directly
     let typeClass = 'badge-lecture';
-    if (ex.type === 'ecoute') { typeLabel = 'CO'; typeClass = 'badge-ecoute'; }
-    else if (ex.type === 'grammaire') { typeLabel = 'Grammaire'; typeClass = 'badge-lecture'; } // Reusing style or add new one
-    else if (ex.type === 'lexique') { typeLabel = 'Lexique'; typeClass = 'badge-ecoute'; }
+    if (ex.type === 'CO') { typeClass = 'badge-ecoute'; }
+    // Add more classes if needed for Grammaire/Lexique, or keep generic
 
     const levelClass = 'badge-' + (ex.niveau || 'a1').toLowerCase();
 
@@ -767,10 +787,15 @@ function updateExercisesTable() {
 function deleteExercise(id, type) {
   if (!confirm('Êtes-vous sûr de vouloir supprimer cet exercice ?')) return;
   let arr;
-  if (type === 'lecture') arr = bank.lecture;
-  else if (type === 'ecoute') arr = bank.ecoute;
-  else if (type === 'grammaire') arr = bank.grammaire;
-  else if (type === 'lexique') arr = bank.lexique;
+  // Map the type string to the correct bank property
+  if (type === 'CE' || type === 'lecture') arr = bank.lecture;
+  else if (type === 'CO' || type === 'ecoute') arr = bank.ecoute;
+  else if (type === 'Grammaire' || type === 'grammaire') arr = bank.grammaire;
+  else if (type === 'Lexique' || type === 'lexique') arr = bank.lexique;
+  else {
+    alert('Erreur: Type d\'exercice inconnu');
+    return;
+  }
   
   const idx = arr.findIndex(e => e.id === id);
   if (idx >= 0) {
@@ -781,6 +806,8 @@ function deleteExercise(id, type) {
 }
 
 function exportBank() {
+  // Ensure the bank is in a clean format before exporting, especially if it's an internal representation.
+  // For this case, `bank` structure is directly used and should be fine.
   const blob = new Blob([JSON.stringify(bank, null, 2)], { type: 'application/json' });
   const a = document.createElement('a');
   a.href = URL.createObjectURL(blob);
@@ -797,6 +824,7 @@ function loadDefaultBank() {
         niveau: 'A1',
         theme: 'Salutations',
         titre: 'Bonjour !',
+        type: 'CE', // Added type property
         passage_html: '<p>Bonjour, je m\'appelle Jean. Comment allez-vous ?</p>',
         qcm: [{ question: 'Comment s\'appelle la personne ?', a: 'Jean', b: 'Marie', c: 'Pierre', answer: 'a', points: 2 }],
         vf: [{ statement: 'La personne s\'appelle Jean.', answer: 'vrai', keywords: ['Jean'], points: 1 }]
@@ -808,6 +836,7 @@ function loadDefaultBank() {
         niveau: 'A1',
         theme: 'Salutations',
         titre: 'Écoute simple',
+        type: 'CO', // Added type property
         audio: 'audio/sample.mp3',
         qcm: [{ question: 'Quel est le sujet ?', a: 'Salutations', b: 'Nourriture', c: 'Voyage', answer: 'a', points: 2 }],
         cloze: 'Bonjour, je m\'appelle [Jean].',
@@ -1014,35 +1043,27 @@ function addExercise() { // Renamed from addFormExercise to match original
   const level = $('#addLevel').value;
   const theme = $('#addTheme').value.trim();
   const title = $('#addTitle').value.trim();
-  const id = editingExerciseId || `${type}_${level}_${Date.now()}`;
+  const id = editingExerciseId || `${type}_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`; // Ensure unique ID
 
   if (!theme || !title) {
     alert('Veuillez remplir le thème et le titre');
     return;
   }
 
-  const exercice = {id, niveau: level, theme, titre: title}; // Corrected keys
+  // Ensure `exercice` object has all required properties and correct keys
+  let exercice = {id, niveau: level, theme, titre: title, type: type}; 
 
   // Handle CE with image or text
   if (type === 'lecture') {
-    const passageType = document.querySelector('input[name="passageType"]:checked').value;
+    const passageType = document.querySelector('input[name="passageType"]:checked')?.value;
     
     if (passageType === 'image') {
       if (!passageImageData) {
         alert('Veuillez ajouter une image');
         return;
       }
-      // Ensure the image data is correctly stored
-      if (editingExerciseId) {
-        const idx = bank.lecture.findIndex(e => e.id === editingExerciseId);
-        if (idx >= 0) {
-          bank.lecture[idx].passage_image = passageImageData;
-          bank.lecture[idx].passage_html = undefined; // Remove html if image is used
-        }
-      } else {
-        exercice.passage_image = passageImageData;
-      }
-    } else {
+      exercice.passage_image = passageImageData;
+    } else { // text passage
       const passageTitle = $('#passageTitle').value.trim();
       const passageText = $('#passageText').value.trim();
       const passageSource = $('#passageSource').value.trim();
@@ -1053,23 +1074,14 @@ function addExercise() { // Renamed from addFormExercise to match original
       if (passageSource) passage += `<p style="font-style:italic;text-align:right;color:#666;margin-top:12px">${passageSource}</p>`;
       
       if (!passage) {
-        alert('Veuillez ajouter un texte ou une image');
+        alert('Veuillez ajouter un texte ou une image pour le contenu');
         return;
       }
-      
-      if (editingExerciseId) {
-        const idx = bank.lecture.findIndex(e => e.id === editingExerciseId);
-        if (idx >= 0) {
-          bank.lecture[idx].passage_html = passage;
-          bank.lecture[idx].passage_image = undefined; // Remove image if text is used
-        }
-      } else {
-        exercice.passage_html = passage;
-      }
+      exercice.passage_html = passage;
     }
   }
 
-  // Handle QCM with dynamic options
+  // Handle QCM questions
   if ($('#formQcmQuestions').children.length > 0) {
     const questions = [];
     $$('#formQcmQuestions [data-form-qcm-id]').forEach(qDiv => {
@@ -1084,19 +1096,20 @@ function addExercise() { // Renamed from addFormExercise to match original
       const points = parseInt(qDiv.querySelector('.form-qcm-points').value) || 1;
       const explanation = qDiv.querySelector('.form-qcm-explanation')?.value.trim() || '';
       
-      if (question && Object.keys(options).length >= 2) {
+      if (question && Object.keys(options).length >= 2) { // Minimum 2 options
         const q = {question, ...options, answer, points};
         if (explanation) q.explanation = explanation;
         questions.push(q);
       }
     });
     
-    if (questions.length === 0) {
-      alert('Veuillez ajouter au moins une question complète');
+    if (questions.length === 0 && !['lecture'].includes(type)) { // Allow lecture without QCM for now
+      alert('Veuillez ajouter au moins une question QCM valide.');
       return;
     }
-    
-    exercice.qcm = questions;
+    if (questions.length > 0) {
+      exercice.qcm = questions;
+    }
   }
   
   // Handle Vrai/Faux questions
@@ -1107,7 +1120,7 @@ function addExercise() { // Renamed from addFormExercise to match original
     }
   }
 
-  // Handle Cloze questions
+  // Handle Cloze questions for audio exercises
   if (type === 'ecoute') {
     const clozeData = collectClozeData();
     if (clozeData) {
@@ -1117,13 +1130,26 @@ function addExercise() { // Renamed from addFormExercise to match original
         exercice.clozePoints = clozeData.clozePoints;
       }
     }
+    // Handle audio file input
+    const audioPath = $('#addAudio').value;
+    if (audioPath) {
+      exercice.audio = audioPath;
+    } else if (!editingExerciseId) { // Don't force audio if editing an existing exercise without audio
+      alert('Veuillez ajouter un fichier audio pour les exercices de type CO.');
+      return;
+    }
   }
 
-  // Save and update
+  // Save to bank
   if (editingExerciseId) {
     const idx = bank[type].findIndex(e => e.id === editingExerciseId);
     if (idx >= 0) {
-      bank[type][idx] = {...bank[type][idx], ...exercice}; // Merge with existing exercise data
+      // Merge new data with existing, preserving other properties
+      bank[type][idx] = {...bank[type][idx], ...exercice}; 
+    } else {
+      // This case should ideally not happen if editingExerciseId is valid
+      alert(`Erreur: Exercice ${editingExerciseId} non trouvé pour la mise à jour.`);
+      return;
     }
   } else {
     if (!bank[type]) bank[type] = []; // Ensure array exists
@@ -1133,42 +1159,59 @@ function addExercise() { // Renamed from addFormExercise to match original
   saveBank();
   updateExercisesTable();
   
-  // Reset forms
-  passageImageData = null;
-  optionCounter = {};
-  $('#formQcmQuestions').innerHTML = '';
-  $('#formVfQuestions').innerHTML = '';
+  // Reset forms and UI
+  resetFormState(); // Consolidate reset logic
+  
+  alert(editingExerciseId ? 'Exercice modifié !' : 'Exercice ajouté !');
+}
+
+function resetFormState() {
+  // Resetting general fields
+  editingExerciseId = null;
+  $('#cancelEditBtn').style.display = 'none';
+  $('#addTheme').value = '';
+  $('#addTitle').value = '';
+
+  // Reset form question counters and clear questions
   formQcmCounter = 0;
   formVfCounter = 0;
+  $('#formQcmQuestions').innerHTML = '';
+  $('#formVfQuestions').innerHTML = '';
+  
+  // Reset Cloze form
   $('#formClozeText').value = '';
   $('#formClozeTranscription').value = '';
   $('#clozeBlanksConfig').style.display = 'none';
+  $('#clozeBlankslist').innerHTML = ''; // Clear previous blank configurations
+  
+  // Reset Passage form
+  passageImageData = null;
   $('#passageImagePreview').style.display = 'none';
   $('#passageImageDropZone').style.display = 'block';
   $('#passageImageInput').value = '';
   $('#passageTitle').value = '';
   $('#passageText').value = '';
   $('#passageSource').value = '';
+  // Ensure default radio button is checked and UI reflects it
   $('input[name="passageType"][value="text"]').checked = true;
-  togglePassageType(); // Reset the UI
+  togglePassageType(); 
   
-  $('#addTheme').value = '';
-  $('#addTitle').value = '';
-  $('#cancelEditBtn').style.display = 'none';
-  editingExerciseId = null;
-  
-  alert(editingExerciseId ? 'Exercice modifié !' : 'Exercice ajouté !');
-  // Optionally show a toast message
-  // showToast('Exercice ajouté avec succès!', 'success');
-  // loadExercises(); // This function might not exist globally, relying on updateExercisesTable
+  // Reset Audio input for 'ecoute' type
+  $('#addAudio').value = '';
+  $('#audioFileName').style.display = 'none';
+  $('#audioDropText').style.display = 'block';
+
+  // Re-render the form based on the current type selection
+  updateAddForm(); 
 }
 
 function updateAddForm() {
   const type = $('#addType').value;
   
-  $('#formQcmBox').style.display = 'block';
-  $('#formVfBox').style.display = (type === 'lecture' || type === 'ecoute') ? 'block' : 'none';
-  $('#formClozeBox').style.display = type === 'ecoute' ? 'block' : 'none';
+  // Show/hide relevant question type containers
+  $('#formQcmBox').style.display = 'block'; // QCM is generally available
+  $('#formVfBox').style.display = (type === 'lecture' || type === 'ecoute' || type === 'grammaire' || type === 'lexique') ? 'block' : 'none'; // V/F can apply to most types
+  $('#formClozeBox').style.display = type === 'ecoute' ? 'block' : 'none'; // Cloze is specific to audio
   
   let html = '';
   
@@ -1228,7 +1271,8 @@ function updateAddForm() {
     </div>
   `;
   } else {
-    html = `<p style="color:#666;font-style:italic">Ajoutez des questions QCM ci-dessous pour cet exercice de ${type}.</p>`;
+    // For grammar and vocabulary, provide a placeholder if no specific fields are needed yet.
+    html = `<p style="color:#666;font-style:italic">Configurez les questions ci-dessous pour cet exercice de ${type}.</p>`;
   }
   
   $('#addFormContent').innerHTML = html;
@@ -1258,9 +1302,9 @@ function updateAddForm() {
     });
   }
   
-  // Add event listeners for passage image upload
+  // Re-apply togglePassageType after form content is updated to ensure correct initial state
   if (type === 'lecture') {
-    // These are already set via inline HTML attributes for simplicity, but could be moved here.
+    togglePassageType(); 
   }
 }
 
@@ -1325,11 +1369,13 @@ function editExercise(id) {
   
   // Find the exercise and its type
   for (const exType in bank) {
-    const found = bank[exType].find(e => e.id === id);
-    if (found) {
-      exercise = found;
-      type = exType;
-      break;
+    if (bank.hasOwnProperty(exType)) {
+      const found = bank[exType].find(e => e.id === id);
+      if (found) {
+        exercise = found;
+        type = exType; // This will be 'lecture', 'ecoute', etc.
+        break;
+      }
     }
   }
   
@@ -1344,6 +1390,7 @@ function editExercise(id) {
   editingExerciseId = id;
   $('#cancelEditBtn').style.display = 'inline-block';
   
+  // Set basic form fields
   $('#addType').value = type;
   $('#addLevel').value = exercise.niveau;
   $('#addTheme').value = exercise.theme;
@@ -1352,33 +1399,34 @@ function editExercise(id) {
   updateAddForm(); // This will render the correct fields based on type
   
   // Populate QCM questions
-  if (exercise.qcm) {
+  if (exercise.qcm && exercise.qcm.length > 0) {
     formQcmCounter = 0; // Reset counter for new questions
     optionCounter = {}; // Reset option counters
     $('#formQcmQuestions').innerHTML = ''; // Clear existing questions
     
     exercise.qcm.forEach(q => {
-      addFormQcmQuestion();
-      const lastAdded = $('#formQcmQuestions > div:last-child');
+      addFormQcmQuestion(); // Add a new question div
+      const lastAdded = $('#formQcmQuestions > div:last-child'); // Get the newly added div
       lastAdded.querySelector('.form-qcm-question').value = q.question;
       
       // Populate dynamic options
       let currentOptionIndex = 0;
-      for (const letter in q) {
-        if (letter.length === 1 && q.hasOwnProperty(letter) && letter !== 'question' && letter !== 'answer' && letter !== 'points' && letter !== 'explanation') {
+      // Iterate through known option letters (a, b, c, d...)
+      const optionLetters = ['a', 'b', 'c', 'd', 'e']; 
+      for (const letter of optionLetters) {
+        if (q.hasOwnProperty(letter) && q[letter]) {
           currentOptionIndex++;
-          const optionLetter = letter;
           const optionValue = q[letter];
           
           const container = lastAdded.querySelector('.form-qcm-options-container');
           const optionDiv = document.createElement('div');
-          optionDiv.dataset.optionId = optionLetter;
-          optionDiv.dataset.optionLetter = optionLetter; // Ensure data-option-letter is set
+          optionDiv.dataset.optionId = letter;
+          optionDiv.dataset.optionLetter = letter; // Ensure data-option-letter is set
           optionDiv.style.cssText = 'display:flex;gap:8px;margin-bottom:8px;align-items:center';
           optionDiv.innerHTML = `
-            <label style="margin:0;font-weight:600;min-width:60px">Choix ${optionLetter.toUpperCase()}</label>
-            <input class="form-qcm-option" data-option-letter="${optionLetter}" placeholder="Réponse ${optionLetter.toUpperCase()}" value="${optionValue}" style="flex:1;padding:10px;border:1px solid #ddd;border-radius:8px;font-size:.95rem;box-sizing:border-box">
-            <button onclick="removeFormQcmOption(${formQcmCounter}, '${optionLetter}')" style="background:#e53e3e;color:#fff;border:none;padding:8px 12px;border-radius:6px;cursor:pointer;font-size:.85rem">✕</button>
+            <label style="margin:0;font-weight:600;min-width:60px">Choix ${letter.toUpperCase()}</label>
+            <input class="form-qcm-option" data-option-letter="${letter}" placeholder="Réponse ${letter.toUpperCase()}" value="${optionValue}" style="flex:1;padding:10px;border:1px solid #ddd;border-radius:8px;font-size:.95rem;box-sizing:border-box">
+            <button onclick="removeFormQcmOption(${formQcmCounter}, '${letter}')" style="background:#e53e3e;color:#fff;border:none;padding:8px 12px;border-radius:6px;cursor:pointer;font-size:.85rem">✕</button>
           `;
           container.appendChild(optionDiv);
         }
@@ -1395,7 +1443,7 @@ function editExercise(id) {
   }
 
   // Populate Vrai/Faux questions
-  if (exercise.vf) {
+  if (exercise.vf && exercise.vf.length > 0) {
     formVfCounter = 0; // Reset counter
     $('#formVfQuestions').innerHTML = ''; // Clear existing
     
@@ -1404,7 +1452,7 @@ function editExercise(id) {
       const lastAdded = $('#formVfQuestions > div:last-child');
       lastAdded.querySelector('.form-vf-statement').value = q.statement;
       lastAdded.querySelector('.form-vf-answer').value = q.answer;
-      if (type === 'lecture') {
+      if (type === 'lecture') { // Keywords are relevant for CE
         lastAdded.querySelector('.form-vf-keywords').value = (q.keywords || []).join('|');
       }
       lastAdded.querySelector('.form-vf-points').value = q.points;
@@ -1421,21 +1469,23 @@ function editExercise(id) {
       document.querySelector('input[name="passageType"][value="image"]').checked = true;
     } else if (exercise.passage_html) {
       const passage = exercise.passage_html || '';
+      // Use regex to extract title, text paragraphs, and source
       const titleMatch = passage.match(/<h3[^>]*>(.*?)<\/h3>/);
       const sourceMatch = passage.match(/<p[^>]*style="[^"]*italic[^"]*"[^>]*>(.*?)<\/p>/);
-      const textMatch = passage.match(/<p>(.*?)<\/p>/); // Might need to adjust if there are multiple <p> tags
+      
+      // Extract all paragraphs
+      const textParagraphs = (passage.match(/<p>(.*?)<\/p>/g) || []).map(p => p.replace(/<p>|<\/p>/g, ''));
       
       if (titleMatch) $('#passageTitle').value = titleMatch[1].replace(/<[^>]*>/g, '');
-      // Extract text carefully, considering potential multiple paragraphs
-      const allPs = passage.match(/<p>(.*?)<\/p>/g);
-      if (allPs) {
-        $('#passageText').value = allPs.map(p => p.replace(/<p>|<\/p>/g, '')).join('\n'); // Join paragraphs with newlines
+      if (textParagraphs.length > 0) {
+          // Join paragraphs with newline for easier editing, remove any remaining HTML tags within paras
+          $('#passageText').value = textParagraphs.map(p => p.replace(/<[^>]*>/g, '')).join('\n');
       }
       if (sourceMatch) $('#passageSource').value = sourceMatch[1].replace(/<[^>]*>/g, '');
       
       document.querySelector('input[name="passageType"][value="text"]').checked = true;
     }
-    togglePassageType(); // Ensure correct UI is shown
+    togglePassageType(); // Ensure correct UI is shown after setting values
   }
   
   // Populate Cloze data for CO exercises
@@ -1448,18 +1498,23 @@ function editExercise(id) {
       // Automatically detect blanks and populate points
       detectClozeBlanks();
       if (exercise.clozePoints) {
+        // Assuming clozePoints array matches the order of detected blanks
+        const blankInputs = $('#clozeBlankslist').querySelectorAll('input[type="number"]');
         exercise.clozePoints.forEach((points, index) => {
-          const input = document.querySelector(`[data-blank-index="${index}"]`);
-          if (input) input.value = points;
+          if (blankInputs[index]) {
+            blankInputs[index].value = points;
+          }
         });
       }
     }
+    // Populate audio file path if it exists
     if (exercise.audio) {
       $('#addAudio').value = exercise.audio;
       const fileNameDisplay = $('#audioFileName');
       const audioDropText = $('#audioDropText');
       audioDropText.style.display = 'none';
-      fileNameDisplay.textContent = exercise.audio.split('/').pop(); // Display just the file name
+      // Extract just the filename from the path
+      fileNameDisplay.textContent = exercise.audio.split('/').pop(); 
       fileNameDisplay.style.display = 'block';
     }
   }
@@ -1468,34 +1523,7 @@ function editExercise(id) {
 }
 
 function cancelEdit() {
-  editingExerciseId = null;
-  $('#cancelEditBtn').style.display = 'none';
-  $('#addTheme').value = '';
-  $('#addTitle').value = '';
-  
-  // Reset form question counters and clear questions
-  formQcmCounter = 0;
-  formVfCounter = 0;
-  $('#formQcmQuestions').innerHTML = '';
-  $('#formVfQuestions').innerHTML = '';
-  
-  // Reset Cloze form
-  $('#formClozeText').value = '';
-  $('#formClozeTranscription').value = '';
-  $('#clozeBlanksConfig').style.display = 'none';
-  
-  // Reset Passage form
-  passageImageData = null;
-  $('#passageImagePreview').style.display = 'none';
-  $('#passageImageDropZone').style.display = 'block';
-  $('#passageImageInput').value = '';
-  $('#passageTitle').value = '';
-  $('#passageText').value = '';
-  $('#passageSource').value = '';
-  $('input[name="passageType"][value="text"]').checked = true;
-  togglePassageType(); // Ensure UI is reset
-  
-  updateAddForm(); // Re-renders the form fields based on default type
+  resetFormState(); // Use the consolidated reset function
 }
 
 function saveBank() {
@@ -1557,7 +1585,7 @@ function findLessonById(lessonId) {
     if (bank.hasOwnProperty(type)) {
       const lesson = bank[type].find(l => l.id === lessonId);
       if (lesson) {
-        found = { ...lesson, type: type };
+        found = { ...lesson, type: lesson.type || type }; // Ensure type property is present
         break;
       }
     }
@@ -1626,7 +1654,7 @@ function drawAdminActivityChart() {
     }
   });
 
-  const dates = Object.keys(byDate).sort();
+  const dates = Object.keys(byDate).sort((a, b) => new Date(a) - new Date(b)); // Sort dates chronologically
   const counts = dates.map(d => byDate[d]);
   const maxCount = Math.max(...counts, 1); // Ensure maxCount is at least 1 for division
 
@@ -1645,6 +1673,7 @@ function drawAdminActivityChart() {
 
   ctx.strokeStyle = '#e0e0e0';
   ctx.lineWidth = 1;
+  // Draw horizontal grid lines and Y-axis labels
   for (let i = 0; i <= 4; i++) {
     const y = padding + (chartHeight / 4) * i;
     ctx.beginPath();
@@ -1659,6 +1688,7 @@ function drawAdminActivityChart() {
     ctx.fillText(value.toString(), padding - 8, y + 4);
   }
 
+  // Draw the line graph
   ctx.strokeStyle = '#2196f3';
   ctx.lineWidth = 3;
   ctx.beginPath();
@@ -1670,6 +1700,7 @@ function drawAdminActivityChart() {
   });
   ctx.stroke();
 
+  // Draw data points
   ctx.fillStyle = '#2196f3';
   counts.forEach((count, i) => {
     const x = padding + step * i;
@@ -1679,14 +1710,15 @@ function drawAdminActivityChart() {
     ctx.fill();
   });
 
+  // Draw X-axis labels (dates)
   ctx.fillStyle = '#666';
   ctx.font = '10px system-ui';
   ctx.textAlign = 'center';
   dates.forEach((date, i) => {
-    // Only label every other date if there are too many
-    if (dates.length > 10 && i % 2 !== 0) return;
+    // Only label every other date if there are too many to prevent overlap
+    if (dates.length > 10 && i % 2 !== 0) return; 
     const x = padding + step * i;
-    ctx.fillText(date.split('/').slice(0,2).join('/'), x, height - 10);
+    ctx.fillText(date.split('/').slice(0,2).join('/'), x, height - 10); // Display MM/DD
   });
 }
 
@@ -1724,7 +1756,7 @@ function drawAdminLevelChart() {
   
   allAttempts.forEach(att => {
     const lesson = findLessonById(att.lessonId);
-    if (lesson && byLevel[lesson.niveau]) {
+    if (lesson && lesson.niveau && byLevel[lesson.niveau]) { // Ensure lesson.niveau exists
       byLevel[lesson.niveau].push(att.score);
     }
   });
@@ -1737,28 +1769,34 @@ function drawAdminLevelChart() {
   const padding = 40;
   const chartWidth = width - padding * 2;
   const chartHeight = height - padding * 2;
-  const barWidth = (levels.length > 0) ? (chartWidth / levels.length - 10) : 0; // Avoid division by zero
+  const barGap = 10; // Space between bars
+  const totalBarWidth = chartWidth - (levels.length - 1) * barGap; // Total width available for bars
+  const barWidth = levels.length > 0 ? totalBarWidth / levels.length : 0; // Avoid division by zero
   const colors = ['#4caf50', '#8bc34a', '#ffc107', '#ff9800', '#ff5722', '#f44336'];
 
+  // Draw bars and labels
   levels.forEach((level, i) => {
     const avg = avgByLevel[i];
-    const x = padding + (chartWidth / levels.length) * i + 5;
+    const x = padding + (barWidth + barGap) * i + barGap; // Calculate x position for each bar
     const barHeight = (avg / 100) * chartHeight;
     const y = padding + chartHeight - barHeight;
 
     ctx.fillStyle = colors[i];
     ctx.fillRect(x, y, barWidth, barHeight);
 
+    // Draw level label below the bar
     ctx.fillStyle = '#333';
     ctx.font = '12px system-ui';
     ctx.textAlign = 'center';
     ctx.fillText(level, x + barWidth/2, height - 10);
     
+    // Draw percentage label above the bar if score is significant
     if (avg > 0) {
       ctx.fillText(Math.round(avg) + '%', x + barWidth/2, y - 5);
     }
   });
 
+  // Draw horizontal grid lines and Y-axis labels (percentages)
   ctx.strokeStyle = '#e0e0e0';
   ctx.lineWidth = 1;
   for (let i = 0; i <= 4; i++) {
@@ -1971,9 +2009,12 @@ function addResource() {
   
   alert(editingResourceId ? 'Ressource modifiée !' : 'Ressource ajoutée !');
   
+  // Reset form fields after adding/editing
   $('#resourceTitle').value = '';
   $('#resourceUrl').value = '';
   $('#resourceDescription').value = '';
+  $('#resourceLevel').value = 'A1'; // Reset to default
+  $('#resourceType').value = 'video'; // Reset to default
   editingResourceId = null;
   $('#cancelResourceBtn').style.display = 'none';
 }
@@ -2040,13 +2081,15 @@ function cancelResourceEdit() {
   $('#resourceTitle').value = '';
   $('#resourceUrl').value = '';
   $('#resourceDescription').value = '';
+  $('#resourceLevel').value = 'A1'; // Reset to default
+  $('#resourceType').value = 'video'; // Reset to default
   $('#cancelResourceBtn').style.display = 'none';
 }
 
 function deleteResource(id) {
   if (!confirm('Êtes-vous sûr de vouloir supprimer cette ressource ?')) return;
   
-  const resources = JSON.parse(localStorage.getItem('fr_resources') || '[]');
+  const resources = JSON.Parse(localStorage.getItem('fr_resources') || '[]');
   const filtered = resources.filter(r => r.id !== id);
   localStorage.setItem('fr_resources', JSON.stringify(filtered));
   updateResourcesTable();
@@ -2064,7 +2107,7 @@ function loadChatUsers() {
   const html = users.map(user => {
     const userMessages = messages[user.id] || [];
     const unreadCount = userMessages.filter(m => !m.read && m.from === user.id).length;
-    const lastMessage = userMessages[userMessages.length - 1];
+    const lastMessage = userMessages.length > 0 ? userMessages[userMessages.length - 1] : null;
     
     return `
       <div onclick="selectChatUser('${user.id}')" style="padding:12px;border-radius:8px;cursor:pointer;margin-bottom:8px;background:${selectedChatUserId === user.id ? '#e8f5e9' : '#fff'};border:1px solid ${selectedChatUserId === user.id ? 'var(--brand)' : '#e0e0e0'}">
@@ -2083,7 +2126,7 @@ function loadChatUsers() {
 window.selectChatUser = function(userId) {
   selectedChatUserId = userId;
   loadChatMessages(userId);
-  loadChatUsers(); // Refresh to update selection
+  loadChatUsers(); // Refresh to update selection visually
   $('#adminMessageInput').disabled = false;
   $('#sendMessageBtn').disabled = false;
   $('#deleteChatBtn').disabled = false;
@@ -2171,20 +2214,23 @@ function deleteAdminChatHistory() {
   $('#sendMessageBtn').disabled = true;
   $('#deleteChatBtn').disabled = true;
   
-  loadChatUsers();
+  loadChatUsers(); // Refresh user list to reflect no active chat
   alert('Historique de conversation supprimé avec succès');
 }
 
 document.addEventListener('click', (e) => {
-  if (e.target.id === 'userStatsModal') {
+  // Close modal if click is outside modal content
+  if (e.target.id === 'userStatsModal' && $('#userStatsModal').classList.contains('active')) {
     closeUserStatsModal();
   }
 });
 
 $('#logoutBtn').addEventListener('click', () => {
-  localStorage.removeItem(AUTH_KEY);
-  localStorage.removeItem('fr_current_user');
-  window.location.href = 'login.html';
+  if (confirm('Voulez-vous vraiment vous déconnecter ?')) {
+    localStorage.removeItem(AUTH_KEY);
+    localStorage.removeItem('fr_current_user');
+    window.location.href = 'login.html';
+  }
 });
 
 function updateUsersTable() {
@@ -2271,36 +2317,44 @@ function deleteAdmin(adminId) {
   
   // Refresh the users table
   updateUsersTable();
-  updateDashboard();
+  updateDashboard(); // Refresh dashboard stats in case total users count changes
 }
 
 // These functions are placeholders as they are not defined in the provided code
 // but are called in the <updates> section.
-function updateProgressStats() {}
-function renderLessons() {}
-function loadExternalResources() {}
-function loadStudentChat() {}
-function drawProgressChart() {}
-function drawLevelChart() {}
-function drawTypeChart() {}
+// function updateProgressStats() {}
+// function renderLessons() {}
+// function loadExternalResources() {}
+// function loadStudentChat() {}
+// function drawProgressChart() {}
+// function drawLevelChart() {}
+// function drawTypeChart() {}
 
-// Call initialization functions
-checkAuth();
-loadBank();
-updateUsersTable(); // Call updateUsersTable to display users on page load
-updateDashboard();
-setTimeout(() => {
-  drawAdminActivityChart();
-  drawAdminLevelChart();
-}, 100); // Delayed to ensure canvas is rendered
-
-document.getElementById('logoutBtn').addEventListener('click', function() {
-  if (confirm('Voulez-vous vraiment vous déconnecter ?')) {
-    localStorage.removeItem(AUTH_KEY);
-    localStorage.removeItem('fr_current_user');
-    window.location.replace('https://v0-francais-exercices.vercel.app/login.html');
-  }
+// --- Initialization ---
+document.addEventListener('DOMContentLoaded', () => {
+  checkAuth();
+  loadBank(); // loadBank will call updateExercisesTable internally
+  updateUsersTable();
+  updateDashboard();
+  // Initial chart drawing - slightly delayed to ensure canvas is ready
+  setTimeout(() => {
+    drawAdminActivityChart();
+    drawAdminLevelChart();
+  }, 100);
 });
+
+// Helper functions for file imports/exports (not fully implemented here, assumed to exist elsewhere or be basic placeholders)
+function importJSONFile() {
+    document.getElementById('importBank').click();
+}
+
+function exportJSONFile() {
+    exportBank(); // Use the existing export function
+}
+
+function loadExampleFile() {
+    loadDefaultBank(); // Use the existing load default function
+}
 </script>
 </body>
 </html>
