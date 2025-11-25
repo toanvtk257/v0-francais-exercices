@@ -1128,11 +1128,14 @@ function editExercise(id) {
 
   // Populate the form
   editingExerciseId = id;
-  $('#addType').value = exercise.type === 'CE' ? 'lecture' : exercise.type === 'CO' ? 'ecoute' : exercise.type.toLowerCase();
-  $('#addLevel').value = exercise.niveau;
-  $('#addTheme').value = exercise.theme;
-  $('#addTitle').value = exercise.titre;
-  $('#cancelEditBtn').style.display = 'block';
+  $('#kind').value = exercise.type === 'CE' ? 'lecture' : exercise.type === 'CO' ? 'ecoute' : exercise.type.toLowerCase();
+  $('#niveau').value = exercise.niveau;
+  $('#theme').value = exercise.theme;
+  $('#exerciseNumber').value = exercise.exerciseNumber || '';
+  $('#id').value = exercise.id; // Set the ID
+  $('#id').setAttribute('readonly', 'true'); // Make ID field read-only during edit
+  $('#difficulty').value = exercise.difficulty || 1;
+  $('#difficultyValue').textContent = `Niveau ${exercise.difficulty || 1}`;
 
   // Update the form content based on the exercise type
   updateAddForm(); 
@@ -1156,22 +1159,42 @@ function editExercise(id) {
     togglePassageType();
   } else if (exerciseType === 'ecoute') {
     if (exercise.audio) {
-      $('#addAudio').value = exercise.audio; // Set hidden input value
+      $('#audio').value = exercise.audio; // Set hidden input value
       $('#audioFileName').textContent = `Fichier sélectionné: ${exercise.audio}`;
       $('#audioFileName').style.display = 'block';
       $('#audioDropText').style.display = 'none';
+      $('#audioPlayer').src = exercise.audio; // Load audio into player
+      $('#audioPreview').style.display = 'block';
     }
     
     // Populate Cloze if exists
     if (exercise.cloze) {
-      $('#formClozeText').value = exercise.cloze.replace(/\[(\d+)\]/g, (match, index) => `[${bank[exerciseType][bank[exerciseType].findIndex(e => e.id === id)].cloze_answers ? bank[exerciseType][bank[exerciseType].findIndex(e => e.id === id)].cloze_answers[index].answer : '??'}
-      ]`);
-      $('#formClozeTranscription').value = exercise.transcription || '';
-      if (exercise.clozePoints) {
-        // This part needs more sophisticated handling if cloze_answers were stored directly
-        // For now, it will only repopulate points if `cloze_answers` existed and was properly saved.
-        // This is a placeholder; a full implementation would require storing `cloze_answers` with points.
-        console.warn("Cloze points population from edit requires advanced handling.");
+      $('#clozeText').value = exercise.cloze;
+      $('#transText').value = exercise.transcription || '';
+      if (exercise.clozePoints && exercise.clozePoints.length > 0) {
+        const config = $('#builderClozeBlanksConfig');
+        const list = $('#builderClozeBlankslist');
+        list.innerHTML = '';
+        
+        const blanksInText = [];
+        const regex = /\[([^\]]+)\]/g;
+        let match;
+        while ((match = regex.exec(exercise.cloze)) !== null) {
+          blanksInText.push(match[1]);
+        }
+
+        blanksInText.forEach((blank, i) => {
+          const div = document.createElement('div');
+          div.style.cssText = 'display:flex;gap:8px;align-items:center;margin-bottom:8px;padding:8px;background:#fff;border-radius:6px';
+          div.innerHTML = `
+            <span style="flex:1;font-weight:500">Trou ${i + 1}: "${blank}"</span>
+            <label style="display:flex;align-items:center;gap:4px">
+              Points: <input type="number" class="cloze-blank-points" value="${exercise.clozePoints[i] || 1}" min="0" step="0.5" style="width:60px;padding:4px;border:1px solid #ddd;border-radius:4px">
+            </label>
+          `;
+          list.appendChild(div);
+        });
+        config.style.display = 'block';
       }
     }
   }
@@ -1179,14 +1202,14 @@ function editExercise(id) {
   // Populate QCM questions
   if (exercise.qcm && exercise.qcm.length > 0) {
     formQcmCounter = 0; // Reset counter for editing
-    $('#formQcmQuestions').innerHTML = ''; // Clear existing
+    $('#qcmQuestions').innerHTML = ''; // Clear existing
     exercise.qcm.forEach((q, index) => {
       formQcmCounter++;
       const qDiv = document.createElement('div');
       qDiv.style.cssText = 'background:#f9f9f9;padding:12px;border-radius:8px;margin:8px 0;border:1px solid #e0e0e0';
       qDiv.dataset.formQcmId = formQcmCounter;
       
-      const isGrammar = $('#addType').value === 'grammaire';
+      const isGrammar = $('#kind').value === 'grammaire';
       
       let optionsHtml = '';
       const optionLetters = Object.keys(q).filter(key => key !== 'question' && key !== 'answer' && key !== 'points' && key !== 'explanation');
@@ -1231,7 +1254,7 @@ function editExercise(id) {
           <textarea class="form-qcm-explanation" placeholder="Expliquez la règle grammaticale..." style="width:100%;padding:10px;border:1px solid #ddd;border-radius:8px;font-size:.95rem;box-sizing:border-box;min-height:60px">${q.explanation || ''}</textarea>
         </div>
       `;
-      $('#formQcmQuestions').appendChild(qDiv);
+      $('#qcmQuestions').appendChild(qDiv);
       updateFormQcmAnswerDropdown(formQcmCounter); // Ensure dropdown is populated
       $(`.form-qcm-answer[value="${q.answer}"]`).selected = true; // Set correct answer
     });
@@ -1240,14 +1263,14 @@ function editExercise(id) {
   // Populate Vrai/Faux questions
   if (exercise.vf && exercise.vf.length > 0) {
     formVfCounter = 0; // Reset counter
-    $('#formVfQuestions').innerHTML = ''; // Clear existing
+    $('#vfQuestions').innerHTML = ''; // Clear existing
     exercise.vf.forEach((q, index) => {
       formVfCounter++;
       const div = document.createElement('div');
       div.style.cssText = 'background:#f9f9f9;padding:12px;border-radius:8px;margin:8px 0;border:1px solid #e0e0e0';
       div.dataset.formVfId = formVfCounter;
       
-      const type = $('#addType').value;
+      const type = $('#kind').value;
       const showKeywords = (type === 'lecture');
       
       div.innerHTML = `
@@ -1277,19 +1300,16 @@ function editExercise(id) {
           <input class="form-vf-keywords" value="${q.keywords ? q.keywords.join('|') : ''}" placeholder="ex. France|île" style="width:100%;padding:10px;border:1px solid #ddd;border-radius:8px;font-size:.95rem;box-sizing:border-box">
         </div>
       `;
-      $('#formVfQuestions').appendChild(div);
+      $('#vfQuestions').appendChild(div);
     });
   }
   
   // Show appropriate containers after form is updated
-  $('#formQcmBox').style.display = (exercise.qcm && exercise.qcm.length > 0) || (exerciseType !== 'ecoute') ? 'block' : 'none'; // Show QCM if present or not 'ecoute'
-  $('#formVfBox').style.display = (exercise.vf && exercise.vf.length > 0) || (['lecture', 'ecoute', 'grammaire', 'lexique'].includes(exerciseType)) ? 'block' : 'none'; // Show V/F if present or applicable type
-  $('#formClozeBox').style.display = exerciseType === 'ecoute' ? 'block' : 'none'; // Show Cloze only for 'ecoute'
+  $('#qcmFormBox').style.display = 'block'; // Always show QCM box if present or not empty
+  $('#vfFormBox').style.display = 'block'; // Always show V/F box if present or not empty
+  $('#clozeFormBox').style.display =($('#kind').value === 'ecoute') ? 'block' : 'none'; // Show Cloze only for 'ecoute'
   
-  // If editing, ensure the form rendering logic inside updateAddForm() correctly sets up the initial state.
-  // It might be necessary to call updateAddForm() again after setting values if the initial call to updateAddForm()
-  // cleared some fields that are now being repopulated.
-  updateAddForm(); 
+  $('#addItem').textContent = 'Mettre à jour l\'exercice'; // Change button text for editing
 }
 
 function cancelEdit() {
@@ -1617,7 +1637,7 @@ function addResource() {
   const type = $('#resourceType').value;
 
   if (!title || !url) {
-    alert('Le titre et l\'URL sont obligatoires.');
+    alert('Le titre et lURL sont obligatoires.');
     return;
   }
 
@@ -2016,51 +2036,53 @@ function handleAudioDrop(e) {
   e.stopPropagation();
   const files = e.dataTransfer.files;
   if (files.length > 0) {
-    handleAudioFile(files[0]);
+    handleAudioFile(files[0], $('#audioInput'), $('#audioFileName'), $('#audio'));
   }
 }
 
 function handleAudioSelect(e) {
   const files = e.target.files;
   if (files.length > 0) {
-    handleAudioFile(files[0]);
+    handleAudioFile(files[0], $('#audioInput'), $('#audioFileName'), $('#audio'));
   }
 }
 
-function handleAudioFile(file) {
+function handleAudioFile(file, inputElement, fileNameDisplay, hiddenAudioInput) {
+  if (!file) return;
   if (!file.type.startsWith('audio/')) {
     alert('Veuillez sélectionner un fichier audio valide');
+    inputElement.value = ''; // Clear invalid selection
     return;
   }
   
-  $('#audioFileName').textContent = file.name;
-  $('#audioFilePath').textContent = `Chemin: Upload vers Cloudinary...`;
-  $('#audioPreview').style.display = 'block';
+  fileNameDisplay.textContent = file.name;
+  fileNameDisplay.style.display = 'block';
+  $('#audioPreview').style.display = 'block'; // Show the preview area
   
   const reader = new FileReader();
   reader.onload = (e) => {
     $('#audioPlayer').src = e.target.result;
-    uploadToCloudinary(file);
+    uploadToCloudinary(file, hiddenAudioInput); // Pass hidden input to store URL
   };
   reader.readAsDataURL(file);
 }
 
-function uploadToCloudinary(file) {
+function uploadToCloudinary(file, hiddenAudioInput) {
   const formData = new FormData();
   formData.append('file', file);
-  formData.append('upload_preset', 'francais_exercices');
-  formData.append('folder', 'entrainement-francais');
+  formData.append('upload_preset', CLOUDINARY_UPLOAD_PRESET);
+  formData.append('folder', CLOUDINARY_JSON_FOLDER);
   
   $('#audioUploadStatus').innerHTML = '<span style="color:#f59e0b">⏳ Upload en cours...</span>';
   
-  fetch('https://api.cloudinary.com/v1_1/dvbsn45rk/upload', {
+  fetch(`https://api.cloudinary.com/v1_1/${CLOUDINARY_CLOUD_NAME}/upload`, {
     method: 'POST',
     body: formData
   })
   .then(res => res.json())
   .then(data => {
-    $('#audio').value = data.secure_url;
-    $('#audioFilePath').textContent = `Cloudinary: ${data.public_id}`;
+    hiddenAudioInput.value = data.secure_url; // Store the actual URL
+    $('#audioFilePath').textContent = `Cloudinary URL: ${data.public_id}`;
     $('#audioUploadStatus').innerHTML = '<span style="color:#10b981">✓ Uploadé avec succès!</span>';
   })
   .catch(err => {
@@ -2070,14 +2092,19 @@ function uploadToCloudinary(file) {
 }
 
 function removeAudio() {
-  $('#audio').value = '';
+  $('#audio').value = ''; // Clear hidden input
+  $('#audioInput').value = ''; // Clear file input
+  $('#audioFileName').textContent = '';
+  $('#audioFilePath').textContent = '';
+  $('#audioPlayer').removeAttribute('src');
   $('#audioPreview').style.display = 'none';
-  $('#audioInput').value = '';
+  $('#audioUploadStatus').innerHTML = '';
 }
 
 let qcmQuestionCount = 0;
 
-$('#addQcmQuestion').addEventListener('click', () => {
+// Define addQcmQuestion globally
+window.addQcmQuestion = function() {
   qcmQuestionCount++;
   const questionDiv = document.createElement('div');
   questionDiv.className = 'question-item';
@@ -2099,11 +2126,12 @@ $('#addQcmQuestion').addEventListener('click', () => {
     </div>
   `;
   $('#qcmQuestions').appendChild(questionDiv);
-});
+};
 
 let vfQuestionCount = 0;
 
-$('#addVfQuestion').addEventListener('click', () => {
+// Define addVfQuestion globally
+window.addVfQuestion = function() {
   vfQuestionCount++;
   const questionDiv = document.createElement('div');
   questionDiv.className = 'question-item';
@@ -2133,7 +2161,7 @@ $('#addVfQuestion').addEventListener('click', () => {
     </div>
   `;
   $('#vfQuestions').appendChild(questionDiv);
-});
+};
 
 function detectBuilderClozeBlanks() {
   const text = $('#clozeText').value;
@@ -2169,8 +2197,8 @@ function detectBuilderClozeBlanks() {
   config.style.display = 'block';
 }
 
+// CHANGE: Removing problematic switchTab override and fixing init
 function initCreatorTab() {
-  loadRecipientOptions();
   toggleBoxes();
   
   // Reset QCM and VF counters when initializing the tab
@@ -2179,38 +2207,50 @@ function initCreatorTab() {
   
   // Ensure the form is reset if not editing
   if (!editingExerciseId) {
-    resetExerciseForm(); // Call a reset function to clear fields
+    resetExerciseForm();
   }
 }
 
 // Helper function to reset the exercise form
 function resetExerciseForm() {
-  $('#exerciseForm').reset();
-  $('#passageBox').classList.add('hidden');
+  const form = $('#exerciseForm');
+  if (form) form.reset();
+  
+  const passageBox = $('#passageBox');
+  if (passageBox) passageBox.classList.add('hidden');
+  
   $$('.ecoute-only').forEach(el => el.style.display = 'none');
-  $('#qcmQuestions').innerHTML = '';
-  $('#vfQuestions').innerHTML = '';
-  $('#clozeText').value = '';
-  $('#transText').value = '';
-  $('#builderClozeBlanksConfig').style.display = 'none';
-  $('#audioPreview').style.display = 'none';
-  removeAudio(); // Clear any existing audio selection
+  
+  const qcmQuestions = $('#qcmQuestions');
+  if (qcmQuestions) qcmQuestions.innerHTML = '';
+  
+  const vfQuestions = $('#vfQuestions');
+  if (vfQuestions) vfQuestions.innerHTML = '';
+  
+  const clozeText = $('#clozeText');
+  if (clozeText) clozeText.value = '';
+  
+  const transText = $('#transText');
+  if (transText) transText.value = '';
+  
+  const clozeBlanks = $('#builderClozeBlanksConfig');
+  if (clozeBlanks) clozeBlanks.style.display = 'none';
+  
+  const audioPreview = $('#audioPreview');
+  if (audioPreview) audioPreview.style.display = 'none';
+  
   qcmQuestionCount = 0;
   vfQuestionCount = 0;
   editingExerciseId = null;
-  $('#addItem').textContent = 'Ajouter à la banque';
-}
-
-const originalSwitchTab = switchTab;
-function switchTab(tabName) {
-  originalSwitchTab(tabName);
   
-  if (tabName === 'builder') {
-    initCreatorTab();
-  } else if (tabName === 'chat') {
-    loadRecipientOptions();
-    loadChatUsers();
-  }
+  const addBtn = $('#addItem');
+  if (addBtn) addBtn.textContent = 'Ajouter à la banque';
+
+  const idInput = $('#id');
+  if (idInput) idInput.removeAttribute('readonly'); // Make ID field editable again
+
+  const addInfo = $('#addInfo');
+  if (addInfo) addInfo.textContent = '';
 }
 
 // Initial call to load resources and update tables on page load
@@ -2231,10 +2271,31 @@ document.addEventListener('DOMContentLoaded', function() {
   }
 
   // Add event listener for the new "Add to bank" button
-  $('#addItem').addEventListener('click', addExerciseFromBuilder);
+  const addItemBtn = $('#addItem');
+  if (addItemBtn) {
+    addItemBtn.addEventListener('click', addExerciseFromBuilder);
+  }
 
-  // Update difficulty value display on initial load
-  $('#difficultyValue').textContent = `Niveau ${$('#difficulty').value}`;
+  // Update difficulty value display
+  const difficultySlider = $('#difficulty');
+  const difficultyValue = $('#difficultyValue');
+  if (difficultySlider && difficultyValue) {
+    difficultyValue.textContent = `Niveau ${difficultySlider.value}`;
+    difficultySlider.addEventListener('input', function() {
+      difficultyValue.textContent = `Niveau ${this.value}`;
+    });
+  }
+  
+  // Initialize QCM and VF add buttons
+  const addQcmBtn = $('#addQcmQuestion');
+  if (addQcmBtn) {
+    addQcmBtn.addEventListener('click', window.addQcmQuestion); // Use global function
+  }
+  
+  const addVfBtn = $('#addVfQuestion');
+  if (addVfBtn) {
+    addVfBtn.addEventListener('click', window.addVfQuestion); // Use global function
+  }
 });
 
 // Handler for adding exercise from the builder form
@@ -2334,7 +2395,8 @@ function addExerciseFromBuilder() {
   if (editingExerciseId) {
     const typeIndex = bank[kind].findIndex(ex => ex.id === editingExerciseId);
     if (typeIndex !== -1) {
-      bank[kind][typeIndex] = { ...bank[kind][typeIndex], ...exercise }; // Merge with existing properties
+      // Merge with existing properties to keep things like created_at, etc.
+      bank[kind][typeIndex] = { ...bank[kind][typeIndex], ...exercise };
     } else {
       // Should not happen if ID is valid and matches kind, but as fallback:
       bank[kind].push(exercise);
@@ -2350,192 +2412,6 @@ function addExerciseFromBuilder() {
   $('#addInfo').style.color = 'green';
   setTimeout(() => $('#addInfo').textContent = '', 3000);
 }
-
-function initCreatorTab() {
-  loadRecipientOptions();
-  toggleBoxes();
-  
-  // Reset QCM and VF counters when initializing the tab
-  qcmQuestionCount = 0;
-  vfQuestionCount = 0;
-  
-  // Ensure the form is reset if not editing
-  if (!editingExerciseId) {
-    resetExerciseForm(); // Call a reset function to clear fields
-  }
-}
-
-// Helper function to reset the exercise form
-function resetExerciseForm() {
-  $('#exerciseForm').reset();
-  $('#passageBox').classList.add('hidden');
-  $$('.ecoute-only').forEach(el => el.style.display = 'none');
-  $('#qcmQuestions').innerHTML = '';
-  $('#vfQuestions').innerHTML = '';
-  $('#clozeText').value = '';
-  $('#transText').value = '';
-  $('#builderClozeBlanksConfig').style.display = 'none';
-  $('#audioPreview').style.display = 'none';
-  removeAudio(); // Clear any existing audio selection
-  qcmQuestionCount = 0;
-  vfQuestionCount = 0;
-  editingExerciseId = null;
-  $('#addItem').textContent = 'Ajouter à la banque';
-  $('#id').removeAttribute('readonly'); // Make ID field editable again
-  $('#addInfo').textContent = '';
-}
-
-
-const originalSwitchTab = switchTab;
-function switchTab(tabName) {
-  originalSwitchTab(tabName);
-  
-  if (tabName === 'builder') {
-    initCreatorTab();
-  } else if (tabName === 'chat') {
-    loadRecipientOptions();
-    loadChatUsers();
-  }
-}
-
-// Initial call to load resources and update tables on page load
-document.addEventListener('DOMContentLoaded', function() {
-  checkAuth();
-  loadBank();
-  loadResources();
-  updateUsersTable();
-  loadChatUsers();
-  
-  // Logout button handler
-  const logoutBtn = $('#logoutBtn');
-  if (logoutBtn) {
-    logoutBtn.addEventListener('click', function() {
-      localStorage.removeItem(AUTH_KEY);
-      window.location.href = 'login.html';
-    });
-  }
-
-  // Add event listener for the new "Add to bank" button
-  $('#addItem').addEventListener('click', addExerciseFromBuilder);
-
-  // Update difficulty value display on initial load
-  $('#difficultyValue').textContent = `Niveau ${$('#difficulty').value}`;
-});
-
-// Handler for adding exercise from the builder form
-function addExerciseFromBuilder() {
-  const form = $('#exerciseForm');
-  const kind = $('#kind').value;
-  const niveau = $('#niveau').value;
-  const theme = $('#theme').value.trim();
-  const exerciseNumber = $('#exerciseNumber').value;
-  const customId = $('#id').value.trim();
-  const difficulty = $('#difficulty').value;
-  const audio = $('#audio').value;
-  const passageTitle = $('#passageTitle').value.trim();
-  const passageText = $('#passageText').value.trim();
-  const passageSource = $('#passageSource').value.trim();
-  const clozeText = $('#clozeText').value;
-  const transText = $('#transText').value;
-
-  if (!kind || !niveau || !theme) {
-    alert('Veuillez remplir au moins la Discipline, le Niveau et le Thème.');
-    return;
-  }
-  
-  // Generate a default ID if not provided
-  let exerciseId = customId || `${kind.toLowerCase()}_${niveau.toLowerCase()}_${Date.now().toString().substring(0, 6)}`;
-  
-  // Check for duplicate IDs within the same type
-  if (bank[kind] && bank[kind].some(ex => ex.id === exerciseId && ex.id !== editingExerciseId)) {
-      alert(`L'ID "${exerciseId}" existe déjà pour la discipline "${kind}". Veuillez en choisir un autre.`);
-      return;
-  }
-  
-  const exercise = {
-    id: exerciseId,
-    type: kind,
-    niveau: niveau,
-    theme: theme,
-    exerciseNumber: parseInt(exerciseNumber) || null,
-    difficulty: parseInt(difficulty),
-    titre: `${kind.toUpperCase()} - ${niveau} - Thème: ${theme}` + (exerciseNumber ? ` - N°${exerciseNumber}` : ''),
-  };
-
-  if (audio) exercise.audio = audio;
-  if (passageTitle || passageText || passageSource) {
-    exercise.passage_html = `<h3>${passageTitle}</h3><p>${passageText}</p>` + (passageSource ? `<p style="font-style: italic; float: right;">${passageSource}</p>` : '');
-  }
-  
-  // QCM questions
-  const qcmQuestions = $$('#qcmQuestions .question-item').map(qDiv => {
-    const questionText = qDiv.querySelector('.qcm-question').value.trim();
-    const optionsRaw = qDiv.querySelector('.qcm-options').value.split('\n').map(line => line.trim()).filter(Boolean);
-    const options = {};
-    let correctAnswer = '';
-    let points = parseInt(qDiv.querySelector('.qcm-points').value) || 1;
-    
-    optionsRaw.forEach(optionLine => {
-      let letter = String.fromCharCode(97 + Object.keys(options).length); // a, b, c, ...
-      if (optionLine.startsWith('*')) {
-        correctAnswer = letter;
-        options[letter] = optionLine.substring(1).trim();
-      } else {
-        options[letter] = optionLine;
-      }
-    });
-    
-    if (!correctAnswer && Object.keys(options).length > 0) {
-        correctAnswer = Object.keys(options)[0]; // Default to first option if none marked
-    }
-
-    return { question: questionText, ...options, answer: correctAnswer, points };
-  });
-  if (qcmQuestions.length > 0) exercise.qcm = qcmQuestions;
-
-  // Vrai/Faux questions
-  const vfQuestions = $$('#vfQuestions .question-item').map(qDiv => {
-    const statement = qDiv.querySelector('.vf-statement').value.trim();
-    const answer = qDiv.querySelector('.vf-answer:checked').value;
-    const points = parseInt(qDiv.querySelector('.vf-points').value) || 1;
-    return { statement, answer, points };
-  });
-  if (vfQuestions.length > 0) exercise.vf = vfQuestions;
-
-  // Cloze exercise
-  if (clozeText) {
-    exercise.cloze = clozeText;
-    exercise.transcription = transText;
-    
-    const blankConfigs = $$('#builderClozeBlankslist .cloze-blank-points').map(input => parseInt(input.value) || 1);
-    if (blankConfigs.length > 0) {
-        // This part assumes clozeText already has placeholder numbers like [1], [2]
-        // We are adding points based on the order of detected blanks
-        exercise.clozePoints = blankConfigs;
-    }
-  }
-
-  // Add or update exercise
-  if (editingExerciseId) {
-    const typeIndex = bank[kind].findIndex(ex => ex.id === editingExerciseId);
-    if (typeIndex !== -1) {
-      bank[kind][typeIndex] = { ...bank[kind][typeIndex], ...exercise }; // Merge with existing properties
-    } else {
-      // Should not happen if ID is valid and matches kind, but as fallback:
-      bank[kind].push(exercise);
-    }
-  } else {
-    bank[kind].push(exercise);
-  }
-  
-  saveBank();
-  updateExercisesTable();
-  resetExerciseForm(); // Clear the form after adding
-  $('#addInfo').textContent = editingExerciseId ? 'Exercice mis à jour !' : 'Exercice ajouté à la banque !';
-  $('#addInfo').style.color = 'green';
-  setTimeout(() => $('#addInfo').textContent = '', 3000);
-}
-
 </script>
 </body>
 </html>
