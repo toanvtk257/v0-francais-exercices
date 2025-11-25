@@ -639,11 +639,162 @@ let resetPinUserId = null;
 
 let selectedRecipients = [];
 
+let qcmQuestionCount = 0;
+const availableLetters = 'abcdefghijklmnopqrstuvwxyz';
+
+function addFormQcmQuestion() {
+  qcmQuestionCount++;
+  const qDiv = document.createElement('div');
+  qDiv.style.cssText = 'background:#f9f9f9;padding:12px;border-radius:8px;margin:8px 0;border:1px solid #e0e0e0';
+  qDiv.dataset.formQcmId = qcmQuestionCount;
+  
+  qDiv.innerHTML = `
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
+      <span style="font-weight:600;color:var(--brand)">Question ${qcmQuestionCount}</span>
+      <button class="btn-danger" onclick="removeFormQcmQuestion(${qcmQuestionCount})" type="button" style="padding:6px 10px;font-size:.85rem">Supprimer</button>
+    </div>
+    <label>Question</label>
+    <input class="form-qcm-question" placeholder="Quelle est la capitale de la France ?" style="width:100%;padding:10px;border:1px solid #ddd;border-radius:8px;font-size:.95rem;box-sizing:border-box;margin-bottom:8px">
+    
+    <div class="form-qcm-options-container"></div>
+    
+    <button type="button" onclick="addFormQcmOption(${qcmQuestionCount})" style="margin-bottom:8px;padding:6px 10px;font-size:.85rem;background:#e0e0e0;color:#111;border:none;border-radius:6px;cursor:pointer">+ Ajouter une réponse</button>
+    
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:8px">
+      <div>
+        <label>Bonne réponse</label>
+        <select class="form-qcm-answer" style="width:100%;padding:10px;border:1px solid #ddd;border-radius:8px;font-size:.95rem;box-sizing:border-box">
+        </select>
+      </div>
+      <div>
+        <label>Points</label>
+        <input type="number" class="form-qcm-points" value="1" min="1" style="width:100%;padding:10px;border:1px solid #ddd;border-radius:8px;font-size:.95rem;box-sizing:border-box">
+      </div>
+    </div>
+  `;
+  $('#qcmQuestions').appendChild(qDiv);
+  
+  // Add 3 default options
+  addFormQcmOption(qcmQuestionCount);
+  addFormQcmOption(qcmQuestionCount);
+  addFormQcmOption(qcmQuestionCount);
+}
+
+window.addFormQcmOption = function(questionId) {
+  const questionDiv = document.querySelector(`[data-form-qcm-id="${questionId}"]`);
+  if (!questionDiv) return;
+  
+  const container = questionDiv.querySelector('.form-qcm-options-container');
+  const existingOptions = container.querySelectorAll(':scope > div[data-option-letter]');
+  const optionIndex = existingOptions.length;
+  const optionLetter = availableLetters[optionIndex];
+  
+  const optionDiv = document.createElement('div');
+  optionDiv.dataset.optionLetter = optionLetter;
+  optionDiv.style.cssText = 'display:flex;gap:8px;margin-bottom:8px;align-items:center';
+  
+  optionDiv.innerHTML = `
+    <label style="margin:0;font-weight:600;min-width:60px">Choix ${optionLetter.toUpperCase()}</label>
+    <input class="form-qcm-option" data-option-letter="${optionLetter}" placeholder="Réponse ${optionLetter.toUpperCase()}" style="flex:1;padding:10px;border:1px solid #ddd;border-radius:8px;font-size:.95rem">
+    <button onclick="removeFormQcmOption(${questionId}, '${optionLetter}')" type="button" style="background:#e53e3e;color:#fff;border:none;padding:8px 12px;border-radius:6px;cursor:pointer;font-size:.85rem">✕</button>
+  `;
+  container.appendChild(optionDiv);
+  
+  updateFormQcmAnswerDropdown(questionId);
+};
+
+window.removeFormQcmOption = function(questionId, optionLetter) {
+  const questionDiv = document.querySelector(`[data-form-qcm-id="${questionId}"]`);
+  if (!questionDiv) return;
+  
+  const container = questionDiv.querySelector('.form-qcm-options-container');
+  const options = container.querySelectorAll(':scope > div[data-option-letter]');
+  
+  if (options.length <= 2) {
+    alert('Vous devez avoir au moins 2 choix de réponse.');
+    return;
+  }
+  
+  const optionDiv = container.querySelector(`[data-option-letter="${optionLetter}"]`);
+  if (optionDiv) optionDiv.remove();
+  
+  relabelFormQcmOptions(questionId);
+  updateFormQcmAnswerDropdown(questionId);
+};
+
+function relabelFormQcmOptions(questionId) {
+  const questionDiv = document.querySelector(`[data-form-qcm-id="${questionId}"]`);
+  if (!questionDiv) return;
+  
+  const container = questionDiv.querySelector('.form-qcm-options-container');
+  const optionDivs = container.querySelectorAll(':scope > div[data-option-letter]');
+  
+  optionDivs.forEach((optionDiv, index) => {
+    const newLetter = availableLetters[index];
+    optionDiv.dataset.optionLetter = newLetter;
+    
+    const label = optionDiv.querySelector('label');
+    if (label) label.textContent = `Choix ${newLetter.toUpperCase()}`;
+    
+    const input = optionDiv.querySelector('.form-qcm-option');
+    if (input) {
+      input.placeholder = `Réponse ${newLetter.toUpperCase()}`;
+      input.dataset.optionLetter = newLetter;
+    }
+    
+    const button = optionDiv.querySelector('button');
+    if (button) {
+      button.setAttribute('onclick', `removeFormQcmOption(${questionId}, '${newLetter}')`);
+    }
+  });
+  
+  updateFormQcmAnswerDropdown(questionId);
+}
+
+function updateFormQcmAnswerDropdown(questionId) {
+  const questionDiv = document.querySelector(`[data-form-qcm-id="${questionId}"]`);
+  if (!questionDiv) return;
+  
+  const container = questionDiv.querySelector('.form-qcm-options-container');
+  const options = container.querySelectorAll(':scope > div[data-option-letter]');
+  const dropdown = questionDiv.querySelector('.form-qcm-answer');
+  
+  const currentValue = dropdown.value;
+  dropdown.innerHTML = '';
+  
+  options.forEach(optionDiv => {
+    const letter = optionDiv.dataset.optionLetter;
+    const option = document.createElement('option');
+    option.value = letter;
+    option.textContent = letter.toUpperCase();
+    dropdown.appendChild(option);
+  });
+  
+  if (currentValue && dropdown.querySelector(`option[value="${currentValue}"]`)) {
+    dropdown.value = currentValue;
+  }
+}
+
+window.removeFormQcmQuestion = function(id) {
+  const item = document.querySelector(`[data-form-qcm-id="${id}"]`);
+  if (item) {
+    item.remove();
+  }
+};
+
 function loadRecipientOptions() {
+  console.log('[v0] loadRecipientOptions called');
   const allUsers = JSON.parse(localStorage.getItem(USERS_KEY) || '[]');
+  console.log('[v0] All users:', allUsers);
   const students = allUsers.filter(u => u.role === 'student');
+  console.log('[v0] Filtered students:', students);
   
   const recipientSelect = $('#recipientSelect');
+  if (!recipientSelect) {
+    console.log('[v0] ERROR: recipientSelect not found');
+    return;
+  }
+  
   recipientSelect.innerHTML = '<option value="">-- Sélectionner un étudiant --</option>';
   
   students.forEach(student => {
@@ -652,129 +803,8 @@ function loadRecipientOptions() {
     option.textContent = `${student.name} (${student.email})`;
     recipientSelect.appendChild(option);
   });
-}
-
-$('#recipientSelect').addEventListener('change', (e) => {
-  const studentId = e.target.value;
-  if (!studentId) return;
   
-  const allUsers = JSON.parse(localStorage.getItem(USERS_KEY) || '[]');
-  const student = allUsers.find(u => u.id === studentId);
-  
-  if (student && !selectedRecipients.find(r => r.id === studentId)) {
-    selectedRecipients.push(student);
-    updateSelectedRecipientsUI();
-  }
-  
-  e.target.value = '';
-});
-
-function selectAllStudents() {
-  const allUsers = JSON.parse(localStorage.getItem(USERS_KEY) || '[]');
-  selectedRecipients = allUsers.filter(u => u.role === 'student');
-  updateSelectedRecipientsUI();
-}
-
-function selectGroupStudents() {
-  const allUsers = JSON.parse(localStorage.getItem(USERS_KEY) || '[]');
-  const students = allUsers.filter(u => u.role === 'student');
-  
-  const names = students.map(s => s.name).join(', ');
-  const selected = prompt(`Entrez les noms des étudiants séparés par des virgules:\n\nDisponibles: ${names}`);
-  
-  if (!selected) return;
-  
-  const selectedNames = selected.split(',').map(n => n.trim().toLowerCase());
-  selectedRecipients = students.filter(s => 
-    selectedNames.some(name => s.name.toLowerCase().includes(name))
-  );
-  
-  updateSelectedRecipientsUI();
-}
-
-function updateSelectedRecipientsUI() {
-  const container = $('#selectedRecipients');
-  container.innerHTML = '';
-  
-  if (selectedRecipients.length === 0) {
-    container.innerHTML = '<span style="color:#666;font-size:0.9rem">Aucun destinataire sélectionné</span>';
-    return;
-  }
-  
-  selectedRecipients.forEach(recipient => {
-    const badge = document.createElement('span');
-    badge.style.cssText = 'display:inline-flex;align-items:center;gap:6px;padding:4px 10px;background:var(--brand);color:#fff;border-radius:16px;font-size:0.85rem';
-    badge.innerHTML = `
-      ${recipient.name}
-      <button onclick="removeRecipient('${recipient.id}')" style="background:transparent;border:none;color:#fff;cursor:pointer;font-size:1.1rem;line-height:1">×</button>
-    `;
-    container.appendChild(badge);
-  });
-}
-
-function removeRecipient(recipientId) {
-  selectedRecipients = selectedRecipients.filter(r => r.id !== recipientId);
-  updateSelectedRecipientsUI();
-}
-
-// Modified sendAdminMessage to support multiple recipients
-const originalSendAdminMessage = sendAdminMessage;
-function sendAdminMessage() {
-  // If recipients are selected, send to all of them
-  if (selectedRecipients.length > 0) {
-    const messageInput = $('#adminMessageInput');
-    const text = messageInput.value.trim();
-    
-    if (!text) {
-      alert('Veuillez entrer un message');
-      return;
-    }
-    
-    const messagesDb = JSON.parse(localStorage.getItem('fr_chat_messages') || '{}');
-    
-    selectedRecipients.forEach(recipient => {
-      if (!messagesDb[recipient.id]) messagesDb[recipient.id] = [];
-      
-      const newMessage = {
-        sender: 'admin',
-        text: text,
-        timestamp: Date.now(),
-        read: true
-      };
-      
-      messagesDb[recipient.id].push(newMessage);
-    });
-    
-    localStorage.setItem('fr_chat_messages', JSON.stringify(messagesDb));
-    
-    messageInput.value = '';
-    selectedRecipients = [];
-    updateSelectedRecipientsUI();
-    
-    alert(`Message envoyé à ${selectedRecipients.length} étudiant(s)`);
-    loadChatUsers();
-    return;
-  }
-  
-  // Otherwise, use the original function for single chat
-  originalSendAdminMessage();
-}
-
-
-function checkAuth() {
-  const auth = localStorage.getItem(AUTH_KEY);
-  if (!auth) {
-    window.location.href = 'login.html';
-    return;
-  }
-  currentUser = JSON.parse(auth);
-  if (currentUser.role !== 'admin') {
-    alert('Accès refusé');
-    window.location.href = 'dashboard.html';
-    return;
-  }
-  $('#adminUserName').textContent = currentUser.name + ' (Admin)';
-  $('#adminUserEmail').textContent = currentUser.email;
+  console.log('[v0] Recipients loaded:', students.length);
 }
 
 async function loadBank() {
@@ -796,13 +826,14 @@ async function loadBank() {
   if (filesIndex.length === 0) {
     console.log('[v0] No Cloudinary files found in index, displaying localStorage only');
     bank = localData;
-    updateExercisesTable(); // Ensure table is updated even if no Cloudinary data
+    updateExercisesTable();
+    updateDashboard();
     return;
   }
   
   // Fetch all JSON files from Cloudinary
   console.log('[v0] Loading files from Cloudinary...');
-  const cloudinaryExercises = [];
+  const cloudinaryExercises = {lecture:[], ecoute:[], grammaire:[], lexique:[]};
   
   for (const fileInfo of filesIndex) {
     try {
@@ -810,81 +841,106 @@ async function loadBank() {
       const response = await fetch(fileInfo.cloudinaryUrl);
       
       if (!response.ok) {
-        console.error('[v0] Failed to fetch', fileInfo.fileName, '- Status:', response.status);
+        console.log('[v0] Failed to fetch:', fileInfo.fileName, response.status);
         continue;
       }
       
       const data = await response.json();
       console.log('[v0] Loaded data from', fileInfo.fileName, ':', data);
       
-      // Handle different data formats
-      if (Array.isArray(data)) {
-        // Direct array of exercises
-        console.log('[v0] Format: Array with', data.length, 'exercises');
-        cloudinaryExercises.push(...data);
-      } else if (typeof data === 'object' && data !== null) {
-        // Object with categories (lecture, ecoute, etc.)
-        console.log('[v0] Format: Object with categories');
-        if (data.lecture)cloudinaryExercises.push(...data.lecture);
-        if (data.ecoute)cloudinaryExercises.push(...data.ecoute);
-        if (data.grammaire)cloudinaryExercises.push(...data.grammaire);
-        if (data.lexique)cloudinaryExercises.push(...data.lexique);
-      }
+      // Merge exercises from this file
+      if (data.lecture)cloudinaryExercises.lecture.push(...data.lecture);
+      if (data.ecoute) cloudinaryExercises.ecoute.push(...data.ecoute);
+      if (data.grammaire)cloudinaryExercises.grammaire.push(...data.grammaire);
+      if (data.lexique) cloudinaryExercises.lexique.push(...data.lexique);
+      
     } catch (error) {
-      console.error('[v0] Error loading', fileInfo.fileName, ':', error);
+      console.log('[v0] Error loading', fileInfo.fileName, ':', error);
     }
   }
   
-  console.log('[v0] Total exercises loaded from Cloudinary:', cloudinaryExercises.length);
-  console.log('[v0] Cloudinary exercises:', cloudinaryExercises);
+  console.log('[v0] Total Cloudinary exercises loaded:', cloudinaryExercises);
   
-  // Merge with localStorage data
-  const allExercises = [...cloudinaryExercises];
+  // Merge with localStorage (Cloudinary takes precedence)
+  bank = {
+    lecture: [...cloudinaryExercises.lecture, ...localData.lecture],
+    ecoute: [...cloudinaryExercises.ecoute, ...localData.ecoute],
+    grammaire: [...cloudinaryExercises.grammaire, ...localData.grammaire],
+    lexique: [...cloudinaryExercises.lexique, ...localData.lexique]
+  };
   
-  // Add localStorage exercises that aren't in Cloudinary
-  ['lecture', 'ecoute', 'grammaire', 'lexique'].forEach(cat => {
-    if (localData[cat]) {
-      localData[cat].forEach(ex => {
-        if (!allExercises.find(e => e.id === ex.id)) {
-          allExercises.push(ex);
-        }
-      });
-    }
-  });
+  // Remove duplicates based on ID
+  for (const type in bank) {
+    const seen = new Set();
+    bank[type] = bank[type].filter(ex => {
+      if (seen.has(ex.id)) return false;
+      seen.add(ex.id);
+      return true;
+    });
+  }
   
-  console.log('[v0] Total exercises after merge:', allExercises.length);
+  console.log('[v0] Final merged bank:', bank);
+  console.log('[v0] Total exercises:', 
+    (bank.lecture?.length || 0) + 
+    (bank.ecoute?.length || 0) + 
+    (bank.grammaire?.length || 0) + 
+    (bank.lexique?.length || 0)
+  );
   
-  // Organize into categories
-  bank = {lecture:[], ecoute:[], grammaire:[], lexique:[]};
-  allExercises.forEach(ex => {
-    // Correctly map type strings to bank keys
-    const cat = ex.type === 'lecture' || ex.type === 'CE' ? 'lecture' : 
-                ex.type === 'ecoute' || ex.type === 'CO' ? 'ecoute' :
-                ex.type === 'grammaire' || ex.type === 'Grammaire' ? 'grammaire' : 'lexique'; // Default to lexique if unrecognized
-    
-    // Ensure 'type' property is consistent for later use
-    if (!ex.type) {
-        if (cat === 'lecture') ex.type = 'CE';
-        else if (cat === 'ecoute') ex.type = 'CO';
-        else if (cat === 'grammaire') ex.type = 'Grammaire';
-        else ex.type = 'Lexique';
-    }
-
-    // Add unique ID if missing (though Cloudinary files should have them)
-    if (!ex.id) {
-        ex.id = `${cat}_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`;
-    }
-    
-    bank[cat].push(ex);
-  });
-  
-  console.log('[v0] Final bank structure:', bank);
-  console.log('[v0] lecture:', bank.lecture.length, 'ecoute:', bank.ecoute.length, 
-              'grammaire:', bank.grammaire.length, 'lexique:', bank.lexique.length);
-  updateExercisesTable(); // Update table after loading
+  updateExercisesTable();
+  updateDashboard();
 }
 
-async function syncFromCloudinary() {
+function updateDashboard() {
+  const users = JSON.parse(localStorage.getItem(USERS_KEY) || '[]').filter(u => u.role === 'student');
+  const allStats = JSON.parse(localStorage.getItem('fr_stats_db') || '{}');
+
+  let totalAttempts = 0;
+  let totalScore = 0;
+  let attemptCount = 0;
+
+  Object.values(allStats).forEach(userStats => {
+    Object.values(userStats).forEach(lesson => {
+      if (lesson.attempts) {
+        totalAttempts += lesson.attempts.length;
+        lesson.attempts.forEach(a => {
+          totalScore += a.percentage;
+          attemptCount++;
+        });
+      }
+    });
+  });
+
+  $('#totalUsers').textContent = users.length;
+  const totalExercises = (bank?.lecture?.length || 0) + (bank?.ecoute?.length || 0) + (bank?.grammaire?.length || 0) + (bank?.lexique?.length || 0);
+  console.log('[v0] Dashboard - Total exercises:', totalExercises);
+  $('#totalExercises').textContent = totalExercises;
+  $('#totalAttempts').textContent = totalAttempts;
+  $('#avgScore').textContent = attemptCount > 0 ? Math.round(totalScore / attemptCount) + '%' : '0%';
+
+  setTimeout(() => {
+    drawAdminActivityChart();
+    drawAdminLevelChart();
+  }, 100);
+}
+
+function checkAuth() {
+  const auth = localStorage.getItem(AUTH_KEY);
+  if (!auth) {
+    window.location.href = 'login.html';
+    return;
+  }
+  currentUser = JSON.parse(auth);
+  if (currentUser.role !== 'admin') {
+    alert('Accès refusé');
+    window.location.href = 'dashboard.html';
+    return;
+  }
+  $('#adminUserName').textContent = currentUser.name + ' (Admin)';
+  $('#adminUserEmail').textContent = currentUser.email;
+}
+
+function syncFromCloudinary() {
   try {
     console.log('[v0] Manual sync from Cloudinary triggered');
     
@@ -893,8 +949,9 @@ async function syncFromCloudinary() {
     
     if (filesIndex.length > 0) {
       // Use the index if available
-      await loadBank();
-      alert('✅ Synchronisation réussie! ' + filesIndex.length + ' fichier(s) chargé(s) depuis Cloudinary.');
+      loadBank().then(() => {
+        alert('✅ Synchronisation réussie! ' + filesIndex.length + ' fichier(s) chargé(s) depuis Cloudinary.');
+      });
       return;
     }
     
@@ -905,7 +962,7 @@ async function syncFromCloudinary() {
     let loadedCount = 0;
     const allExercises = [];
     
-    for (const fileName of knownFiles) {
+    const fetchPromises = knownFiles.map(async (fileName) => {
       try {
         const url = `https://res.cloudinary.com/${cloudName}/raw/upload/entrainement-francais/${fileName}`;
         console.log('[v0] Trying to fetch:', url);
@@ -938,55 +995,61 @@ async function syncFromCloudinary() {
           }
           
           loadedCount++;
+          return true; // Indicate success
         } else {
           console.log('[v0] File not found or error:', fileName, response.status, response.statusText);
+          return false; // Indicate failure
         }
       } catch (err) {
         console.error('[v0] Error loading', fileName, ':', err.message);
+        return false; // Indicate failure
       }
-    }
+    });
     
-    console.log('[v0] Total files loaded:', loadedCount, 'Total exercises:', allExercises.length);
-    
-    if (loadedCount > 0) {
-      console.log('[v0] Total exercises loaded:', allExercises.length);
+    Promise.all(fetchPromises).then(results => {
+      const successfulLoads = results.filter(Boolean).length;
+      console.log('[v0] Total files loaded:', successfulLoads, 'Total exercises:', allExercises.length);
       
-      // Merge with existing localStorage data
-      const stored = JSON.parse(localStorage.getItem(BANK_KEY) || '{"lecture":[],"ecoute":[],"grammaire":[],"lexique":[]}');
-      
-      // Categorize and merge exercises
-      allExercises.forEach(ex => {
-        const category = ex.type === 'lecture' || ex.type === 'CE' ? 'lecture' : 
-                         ex.type === 'ecoute' || ex.type === 'CO' ? 'ecoute' :
-                         ex.type === 'grammaire' || ex.type === 'Grammaire' ? 'grammaire' : 'lexique';
+      if (successfulLoads > 0) {
+        console.log('[v0] Total exercises loaded:', allExercises.length);
         
-        if (!stored[category]) stored[category] = [];
+        // Merge with existing localStorage data
+        const stored = JSON.parse(localStorage.getItem(BANK_KEY) || '{"lecture":[],"ecoute":[],"grammaire":[],"lexique":[]}');
         
-        if (!ex.type) {
-            if (category === 'lecture') ex.type = 'CE';
-            else if (category === 'ecoute') ex.type = 'CO';
-            else if (category === 'grammaire') ex.type = 'Grammaire';
-            else ex.type = 'Lexique';
-        }
+        // Categorize and merge exercises
+        allExercises.forEach(ex => {
+          const category = ex.type === 'lecture' || ex.type === 'CE' ? 'lecture' : 
+                           ex.type === 'ecoute' || ex.type === 'CO' ? 'ecoute' :
+                           ex.type === 'grammaire' || ex.type === 'Grammaire' ? 'grammaire' : 'lexique';
+          
+          if (!stored[category]) stored[category] = [];
+          
+          if (!ex.type) {
+              if (category === 'lecture') ex.type = 'CE';
+              else if (category === 'ecoute') ex.type = 'CO';
+              else if (category === 'grammaire') ex.type = 'Grammaire';
+              else ex.type = 'Lexique';
+          }
 
-        if (!ex.id) {
-            ex.id = `${category}_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`;
-        }
+          if (!ex.id) {
+              ex.id = `${category}_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`;
+          }
 
-        const exists = stored[category].some(e => e.id === ex.id);
-        if (!exists) {
-          stored[category].push(ex);
-        }
-      });
-      
-      localStorage.setItem(BANK_KEY, JSON.stringify(stored));
-      bank = stored;
-      
-      updateExercisesTable();
-      alert('✅ Synchronisation réussie! ' + loadedCount + ' fichier(s) trouvé(s), ' + allExercises.length + ' exercice(s) chargé(s).');
-    } else {
-      alert('⚠️ Aucun fichier trouvé sur Cloudinary. Vérifiez que les fichiers sont bien uploadés dans le dossier "entrainement-francais".');
-    }
+          const exists = stored[category].some(e => e.id === ex.id);
+          if (!exists) {
+            stored[category].push(ex);
+          }
+        });
+        
+        localStorage.setItem(BANK_KEY, JSON.stringify(stored));
+        bank = stored;
+        
+        updateExercisesTable();
+        alert('✅ Synchronisation réussie! ' + successfulLoads + ' fichier(s) trouvé(s), ' + allExercises.length + ' exercice(s) chargé(s).');
+      } else {
+        alert('⚠️ Aucun fichier trouvé sur Cloudinary. Vérifiez que les fichiers sont bien uploadés dans le dossier "entrainement-francais".');
+      }
+    });
     
   } catch (error) {
     console.error('[v0] Sync error:', error);
@@ -1034,7 +1097,9 @@ function updateDashboard() {
   });
 
   $('#totalUsers').textContent = users.length;
-  $('#totalExercises').textContent = (bank?.lecture?.length || 0) + (bank?.ecoute?.length || 0) + (bank?.grammaire?.length || 0) + (bank?.lexique?.length || 0);
+  const totalExercises = (bank?.lecture?.length || 0) + (bank?.ecoute?.length || 0) + (bank?.grammaire?.length || 0) + (bank?.lexique?.length || 0);
+  console.log('[v0] Dashboard - Total exercises:', totalExercises);
+  $('#totalExercises').textContent = totalExercises;
   $('#totalAttempts').textContent = totalAttempts;
   $('#avgScore').textContent = attemptCount > 0 ? Math.round(totalScore / attemptCount) + '%' : '0%';
 
@@ -1830,7 +1895,7 @@ function loadChatMessages(userId) {
   chatMessagesArea.scrollTop = chatMessagesArea.scrollHeight;
 }
 
-// Modified sendAdminMessage function to handle single chat or broadcast
+// Modified sendAdminMessage to support multiple recipients
 function sendAdminMessage() {
   // If recipients are selected, send to all of them
   if (selectedRecipients.length > 0) {
@@ -1978,287 +2043,26 @@ function handleAudioFile(file, inputElement, fileNameDisplay, hiddenAudioInput) 
   // For now, just use the placeholderPath
 }
 
-// Remove specific QCM question from form
-window.removeFormQcmQuestion = function(questionId) {
-  const questionDiv = document.querySelector(`[data-form-qcm-id="${questionId}"]`);
-  if (questionDiv) questionDiv.remove();
+// CHANGE: Fix initialization to call loadRecipientOptions
+document.addEventListener('DOMContentLoaded', async function() {
+  console.log('[v0] Admin page loaded');
   
-  // Re-render the QCM question numbers and update dropdowns
-  $$('#formQcmQuestions [data-form-qcm-id]').forEach((qDiv, index) => {
-    const newId = index + 1;
-    qDiv.dataset.formQcmId = newId;
-    qDiv.querySelector('span').textContent = `Question ${newId}`;
-    qDiv.querySelector('.btn-danger').setAttribute('onclick', `removeFormQcmQuestion(${newId})`);
-    qDiv.querySelector('.btn-secondary').setAttribute('onclick', `addFormQcmOption(${newId})`);
-    updateFormQcmAnswerDropdown(newId); // Update dropdown for each question
-  });
-  formQcmCounter = $$('#formQcmQuestions [data-form-qcm-id]').length; // Reset counter to max ID
-};
-
-// Remove specific Vrai/Faux question from form
-window.removeFormVfQuestion = function(questionId) {
-  const questionDiv = document.querySelector(`[data-form-vf-id="${questionId}"]`);
-  if (questionDiv) questionDiv.remove();
-
-  // Re-render V/F question numbers
-  $$('#formVfQuestions [data-form-vf-id]').forEach((qDiv, index) => {
-    const newId = index + 1;
-    qDiv.dataset.formVfId = newId;
-    qDiv.querySelector('span').textContent = `Question ${newId}`;
-    qDiv.querySelector('.btn-danger').setAttribute('onclick', `removeFormVfQuestion(${newId})`);
-  });
-  formVfCounter = $$('#formVfQuestions [data-form-vf-id]').length;
-};
-
-$('#difficulty').addEventListener('input', (e) => {
-  $('#difficultyValue').textContent = `Niveau ${e.target.value}`;
-});
-
-function toggleBoxes() {
-  const kind = $('#kind').value;
-  const passageBox = $('#passageBox');
-  const ecouteOnly = $$('.ecoute-only');
-  
-  if (kind === 'lecture') {
-    passageBox.classList.remove('hidden');
-    ecouteOnly.forEach(el => el.style.display = 'none');
-  } else if (kind === 'ecoute') {
-    passageBox.classList.add('hidden');
-    ecouteOnly.forEach(el => el.style.display = 'block');
-  } else {
-    passageBox.classList.add('hidden');
-    ecouteOnly.forEach(el => el.style.display = 'none');
-  }
-}
-
-function handleAudioDrop(e) {
-  e.preventDefault();
-  e.stopPropagation();
-  const files = e.dataTransfer.files;
-  if (files.length > 0) {
-    handleAudioFile(files[0], $('#audioInput'), $('#audioFileName'), $('#audio'));
-  }
-}
-
-function handleAudioSelect(e) {
-  const files = e.target.files;
-  if (files.length > 0) {
-    handleAudioFile(files[0], $('#audioInput'), $('#audioFileName'), $('#audio'));
-  }
-}
-
-function handleAudioFile(file, inputElement, fileNameDisplay, hiddenAudioInput) {
-  if (!file) return;
-  if (!file.type.startsWith('audio/')) {
-    alert('Veuillez sélectionner un fichier audio valide');
-    inputElement.value = ''; // Clear invalid selection
-    return;
-  }
-  
-  fileNameDisplay.textContent = file.name;
-  fileNameDisplay.style.display = 'block';
-  $('#audioPreview').style.display = 'block'; // Show the preview area
-  
-  const reader = new FileReader();
-  reader.onload = (e) => {
-    $('#audioPlayer').src = e.target.result;
-    uploadToCloudinary(file, hiddenAudioInput); // Pass hidden input to store URL
-  };
-  reader.readAsDataURL(file);
-}
-
-function uploadToCloudinary(file, hiddenAudioInput) {
-  const formData = new FormData();
-  formData.append('file', file);
-  formData.append('upload_preset', CLOUDINARY_UPLOAD_PRESET);
-  formData.append('folder', CLOUDINARY_JSON_FOLDER);
-  
-  $('#audioUploadStatus').innerHTML = '<span style="color:#f59e0b">⏳ Upload en cours...</span>';
-  
-  fetch(`https://api.cloudinary.com/v1_1/${CLOUDINARY_CLOUD_NAME}/upload`, {
-    method: 'POST',
-    body: formData
-  })
-  .then(res => res.json())
-  .then(data => {
-    hiddenAudioInput.value = data.secure_url; // Store the actual URL
-    $('#audioFilePath').textContent = `Cloudinary URL: ${data.public_id}`;
-    $('#audioUploadStatus').innerHTML = '<span style="color:#10b981">✓ Uploadé avec succès!</span>';
-  })
-  .catch(err => {
-    console.error('Upload error:', err);
-    $('#audioUploadStatus').innerHTML = '<span style="color:#ef4444">✗ Erreur d\'upload</span>';
-  });
-}
-
-function removeAudio() {
-  $('#audio').value = ''; // Clear hidden input
-  $('#audioInput').value = ''; // Clear file input
-  $('#audioFileName').textContent = '';
-  $('#audioFilePath').textContent = '';
-  $('#audioPlayer').removeAttribute('src');
-  $('#audioPreview').style.display = 'none';
-  $('#audioUploadStatus').innerHTML = '';
-}
-
-let qcmQuestionCount = 0;
-
-// Define addQcmQuestion globally
-window.addQcmQuestion = function() {
-  qcmQuestionCount++;
-  const questionDiv = document.createElement('div');
-  questionDiv.className = 'question-item';
-  questionDiv.style.cssText = 'background:#f9f9f9;padding:12px;border-radius:8px;margin:8px 0;border:1px solid #e0e0e0';
-  questionDiv.innerHTML = `
-    <div class="question-header" style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
-      <span class="question-number" style="font-weight:600;color:var(--brand)">Question ${qcmQuestionCount}</span>
-      <button type="button" class="danger" onclick="this.parentElement.parentElement.remove()" style="background:#e53e3e;color:#fff;border:0;padding:6px 10px;border-radius:8px;cursor:pointer">Supprimer</button>
-    </div>
-    <label>Question:</label>
-    <input type="text" class="qcm-question" placeholder="Entrez la question" style="width:100%;padding:8px;border:1px solid #ddd;border-radius:8px;margin-bottom:8px">
-    <label>Options (une par ligne, préfixez la bonne réponse avec *):</label>
-    <textarea class="qcm-options" placeholder="*Paris\nLyon\nMarseille\nToulouse" style="width:100%;padding:8px;border:1px solid #ddd;border-radius:8px;min-height:80px;margin-bottom:8px"></textarea>
-    <div class="input-row" style="display:grid;grid-template-columns:1fr auto;gap:8px;align-items:end">
-      <div>
-        <label>Points:</label>
-        <input type="number" class="qcm-points points-input" value="1" min="0" step="0.5" style="width:80px;padding:8px;border:1px solid #ddd;border-radius:8px">
-      </div>
-    </div>
-  `;
-  $('#qcmQuestions').appendChild(questionDiv);
-};
-
-let vfQuestionCount = 0;
-
-// Define addVfQuestion globally
-window.addVfQuestion = function() {
-  vfQuestionCount++;
-  const questionDiv = document.createElement('div');
-  questionDiv.className = 'question-item';
-  questionDiv.style.cssText = 'background:#f9f9f9;padding:12px;border-radius:8px;margin:8px 0;border:1px solid #e0e0e0';
-  questionDiv.innerHTML = `
-    <div class="question-header" style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
-      <span class="question-number" style="font-weight:600;color:var(--brand)">Affirmation ${vfQuestionCount}</span>
-      <button type="button" class="danger" onclick="this.parentElement.parentElement.remove()" style="background:#e53e3e;color:#fff;border:0;padding:6px 10px;border-radius:8px;cursor:pointer">Supprimer</button>
-    </div>
-    <label>Affirmation:</label>
-    <input type="text" class="vf-statement" placeholder="Entrez l'affirmation" style="width:100%;padding:8px;border:1px solid #ddd;border-radius:8px;margin-bottom:8px">
-    <div style="display:flex;gap:16px;margin-bottom:8px">
-      <label style="display:flex;align-items:center;gap:6px;cursor:pointer">
-        <input type="radio" name="vf-answer-${vfQuestionCount}" value="true" class="vf-answer" checked>
-        <span>Vrai</span>
-      </label>
-      <label style="display:flex;align-items:center;gap:6px;cursor:pointer">
-        <input type="radio" name="vf-answer-${vfQuestionCount}" value="false" class="vf-answer">
-        <span>Faux</span>
-      </label>
-    </div>
-    <div class="input-row" style="display:grid;grid-template-columns:1fr auto;gap:8px;align-items:end">
-      <div>
-        <label>Points:</label>
-        <input type="number" class="vf-points points-input" value="1" min="0" step="0.5" style="width:80px;padding:8px;border:1px solid #ddd;border-radius:8px">
-      </div>
-    </div>
-  `;
-  $('#vfQuestions').appendChild(questionDiv);
-};
-
-function detectBuilderClozeBlanks() {
-  const text = $('#clozeText').value;
-  const regex = /\[([^\]]+)\]/g;
-  const blanks = [];
-  let match;
-  
-  while ((match = regex.exec(text)) !== null) {
-    blanks.push(match[1]);
-  }
-  
-  if (blanks.length === 0) {
-    alert('Aucun trou détecté. Utilisez [crochets] pour marquer les réponses.');
-    return;
-  }
-  
-  const config = $('#builderClozeBlanksConfig');
-  const list = $('#builderClozeBlankslist');
-  
-  list.innerHTML = '';
-  blanks.forEach((blank, i) => {
-    const div = document.createElement('div');
-    div.style.cssText = 'display:flex;gap:8px;align-items:center;margin-bottom:8px;padding:8px;background:#fff;border-radius:6px';
-    div.innerHTML = `
-      <span style="flex:1;font-weight:500">Trou ${i + 1}: "${blank}"</span>
-      <label style="display:flex;align-items:center;gap:4px">
-        Points: <input type="number" class="cloze-blank-points" value="1" min="0" step="0.5" style="width:60px;padding:4px;border:1px solid #ddd;border-radius:4px">
-      </label>
-    `;
-    list.appendChild(div);
-  });
-  
-  config.style.display = 'block';
-}
-
-// CHANGE: Removing problematic switchTab override and fixing init
-function initCreatorTab() {
-  toggleBoxes();
-  
-  // Reset QCM and VF counters when initializing the tab
-  qcmQuestionCount = 0;
-  vfQuestionCount = 0;
-  
-  // Ensure the form is reset if not editing
-  if (!editingExerciseId) {
-    resetExerciseForm();
-  }
-}
-
-// Helper function to reset the exercise form
-function resetExerciseForm() {
-  const form = $('#exerciseForm');
-  if (form) form.reset();
-  
-  const passageBox = $('#passageBox');
-  if (passageBox) passageBox.classList.add('hidden');
-  
-  $$('.ecoute-only').forEach(el => el.style.display = 'none');
-  
-  const qcmQuestions = $('#qcmQuestions');
-  if (qcmQuestions) qcmQuestions.innerHTML = '';
-  
-  const vfQuestions = $('#vfQuestions');
-  if (vfQuestions) vfQuestions.innerHTML = '';
-  
-  const clozeText = $('#clozeText');
-  if (clozeText) clozeText.value = '';
-  
-  const transText = $('#transText');
-  if (transText) transText.value = '';
-  
-  const clozeBlanks = $('#builderClozeBlanksConfig');
-  if (clozeBlanks) clozeBlanks.style.display = 'none';
-  
-  const audioPreview = $('#audioPreview');
-  if (audioPreview) audioPreview.style.display = 'none';
-  
-  qcmQuestionCount = 0;
-  vfQuestionCount = 0;
-  editingExerciseId = null;
-  
-  const addBtn = $('#addItem');
-  if (addBtn) addBtn.textContent = 'Ajouter à la banque';
-
-  const idInput = $('#id');
-  if (idInput) idInput.removeAttribute('readonly'); // Make ID field editable again
-
-  const addInfo = $('#addInfo');
-  if (addInfo) addInfo.textContent = '';
-}
-
-// Initial call to load resources and update tables on page load
-document.addEventListener('DOMContentLoaded', function() {
+  // Check authentication
   checkAuth();
-  loadBank();
-  loadResources();
+  
+  // Load bank and update dashboard
+  await loadBank();
+  
+  // Load users table
   updateUsersTable();
+  
+  // Load recipient options for messaging
+  loadRecipientOptions();
+  
+  // Load resources table
+  updateResourcesTable();
+  
+  // Load chat users
   loadChatUsers();
   
   // Logout button handler
@@ -2274,6 +2078,21 @@ document.addEventListener('DOMContentLoaded', function() {
   const addItemBtn = $('#addItem');
   if (addItemBtn) {
     addItemBtn.addEventListener('click', addExerciseFromBuilder);
+    console.log('[v0] Add item button listener attached');
+  }
+  
+  // Add QCM button
+  const addQcmBtn = $('#addQcmQuestion');
+  if (addQcmBtn) {
+    addQcmBtn.addEventListener('click', addFormQcmQuestion);
+    console.log('[v0] QCM button listener attached');
+  }
+  
+  // Add V/F button
+  const addVfBtn = $('#addVfQuestion');
+  if (addVfBtn) {
+    addVfBtn.addEventListener('click', addVfQuestion);
+    console.log('[v0] V/F button listener attached');
   }
 
   // Update difficulty value display
@@ -2284,17 +2103,6 @@ document.addEventListener('DOMContentLoaded', function() {
     difficultySlider.addEventListener('input', function() {
       difficultyValue.textContent = `Niveau ${this.value}`;
     });
-  }
-  
-  // Initialize QCM and VF add buttons
-  const addQcmBtn = $('#addQcmQuestion');
-  if (addQcmBtn) {
-    addQcmBtn.addEventListener('click', window.addQcmQuestion); // Use global function
-  }
-  
-  const addVfBtn = $('#addVfQuestion');
-  if (addVfBtn) {
-    addVfBtn.addEventListener('click', window.addVfQuestion); // Use global function
   }
 });
 
@@ -2344,23 +2152,23 @@ function addExerciseFromBuilder() {
   }
   
   // QCM questions
-  const qcmQuestions = $$('#qcmQuestions .question-item').map(qDiv => {
-    const questionText = qDiv.querySelector('.qcm-question').value.trim();
-    const optionsRaw = qDiv.querySelector('.qcm-options').value.split('\n').map(line => line.trim()).filter(Boolean);
+  const qcmQuestions = $$('#qcmQuestions .form-qcm-question').map(qInput => {
+    const qDiv = qInput.closest('div[data-form-qcm-id]');
+    const questionText = qInput.value.trim();
+    const optionsHtmlDivs = qDiv.querySelectorAll(':scope > .form-qcm-options-container > div[data-option-letter]');
     const options = {};
     let correctAnswer = '';
-    let points = parseInt(qDiv.querySelector('.qcm-points').value) || 1;
+    let points = parseInt(qDiv.querySelector('.form-qcm-points').value) || 1;
     
-    optionsRaw.forEach(optionLine => {
-      let letter = String.fromCharCode(97 + Object.keys(options).length); // a, b, c, ...
-      if (optionLine.startsWith('*')) {
-        correctAnswer = letter;
-        options[letter] = optionLine.substring(1).trim();
-      } else {
-        options[letter] = optionLine;
-      }
+    optionsHtmlDivs.forEach((optionDiv, index) => {
+        const letter = optionDiv.dataset.optionLetter;
+        const optionInput = optionDiv.querySelector('.form-qcm-option');
+        options[letter] = optionInput.value.trim();
     });
-    
+
+    const answerDropdown = qDiv.querySelector('.form-qcm-answer');
+    correctAnswer = answerDropdown.value;
+
     if (!correctAnswer && Object.keys(options).length > 0) {
         correctAnswer = Object.keys(options)[0]; // Default to first option if none marked
     }
@@ -2370,11 +2178,14 @@ function addExerciseFromBuilder() {
   if (qcmQuestions.length > 0) exercise.qcm = qcmQuestions;
 
   // Vrai/Faux questions
-  const vfQuestions = $$('#vfQuestions .question-item').map(qDiv => {
-    const statement = qDiv.querySelector('.vf-statement').value.trim();
-    const answer = qDiv.querySelector('.vf-answer:checked').value;
-    const points = parseInt(qDiv.querySelector('.vf-points').value) || 1;
-    return { statement, answer, points };
+  const vfQuestions = $$('#vfQuestions .form-vf-statement').map(vfInput => {
+    const qDiv = vfInput.closest('div[data-form-vf-id]');
+    const statement = vfInput.value.trim();
+    const answer = qDiv.querySelector('.form-vf-answer:checked').value;
+    const points = parseInt(qDiv.querySelector('.form-vf-points').value) || 1;
+    const keywordsInput = qDiv.querySelector('.form-vf-keywords');
+    const keywords = keywordsInput ? keywordsInput.value.split('|').map(k => k.trim()).filter(Boolean) : [];
+    return { statement, answer, keywords, points };
   });
   if (vfQuestions.length > 0) exercise.vf = vfQuestions;
 
@@ -2385,8 +2196,6 @@ function addExerciseFromBuilder() {
     
     const blankConfigs = $$('#builderClozeBlankslist .cloze-blank-points').map(input => parseInt(input.value) || 1);
     if (blankConfigs.length > 0) {
-        // This part assumes clozeText already has placeholder numbers like [1], [2]
-        // We are adding points based on the order of detected blanks
         exercise.clozePoints = blankConfigs;
     }
   }
@@ -2411,6 +2220,62 @@ function addExerciseFromBuilder() {
   $('#addInfo').textContent = editingExerciseId ? 'Exercice mis à jour !' : 'Exercice ajouté à la banque !';
   $('#addInfo').style.color = 'green';
   setTimeout(() => $('#addInfo').textContent = '', 3000);
+}
+
+// Helper function to reset the exercise form
+function resetExerciseForm() {
+  const form = $('#exerciseForm');
+  if (form) form.reset();
+  
+  const passageBox = $('#passageBox');
+  if (passageBox) passageBox.classList.add('hidden');
+  
+  $$('.ecoute-only').forEach(el => el.style.display = 'none');
+  
+  const qcmQuestions = $('#qcmQuestions');
+  if (qcmQuestions) qcmQuestions.innerHTML = '';
+  
+  const vfQuestions = $('#vfQuestions');
+  if (vfQuestions) vfQuestions.innerHTML = '';
+  
+  const clozeText = $('#clozeText');
+  if (clozeText) clozeText.value = '';
+  
+  const transText = $('#transText');
+  if (transText) transText.value = '';
+  
+  const clozeBlanks = $('#builderClozeBlanksConfig');
+  if (clozeBlanks) clozeBlanks.style.display = 'none';
+  
+  const audioPreview = $('#audioPreview');
+  if (audioPreview) audioPreview.style.display = 'none';
+  
+  qcmQuestionCount = 0;
+  vfQuestionCount = 0;
+  editingExerciseId = null;
+  
+  const addBtn = $('#addItem');
+  if (addBtn) addBtn.textContent = 'Ajouter à la banque';
+
+  const idInput = $('#id');
+  if (idInput) idInput.removeAttribute('readonly'); // Make ID field editable again
+
+  const addInfo = $('#addInfo');
+  if (addInfo) addInfo.textContent = '';
+}
+
+// Helper function to initialize creator tab
+function initCreatorTab() {
+  toggleBoxes();
+  
+  // Reset QCM and VF counters when initializing the tab
+  qcmQuestionCount = 0;
+  vfQuestionCount = 0;
+  
+  // Ensure the form is reset if not editing
+  if (!editingExerciseId) {
+    resetExerciseForm();
+  }
 }
 </script>
 </body>
