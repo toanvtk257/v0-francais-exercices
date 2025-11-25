@@ -1625,6 +1625,25 @@ window.removeFormVfQuestion = function(questionId) {
   });
   formVfCounter = $$('#formVfQuestions [data-form-vf-id]').length;
 };
+
+// </CHANGE> Added initialization code and logout handler
+// Initialization
+document.addEventListener('DOMContentLoaded', function() {
+  checkAuth();
+  loadBank();
+  loadResources();
+  updateUsersTable();
+  loadChatUsers();
+  
+  // Logout button handler
+  const logoutBtn = $('#logoutBtn');
+  if (logoutBtn) {
+    logoutBtn.addEventListener('click', function() {
+      localStorage.removeItem(AUTH_KEY);
+      window.location.href = 'login.html';
+    });
+  }
+});
 </script>
 </body>
 </html>
