@@ -332,7 +332,7 @@ h1 {
             <label>Titre</label>
             <input id="addTitle" placeholder="ex. Leçon 01">
           </div>
-          <!-- Removed Titre field - not needed -->
+          <!-- Removed Titre field - not needed per user request -->
         </div>
 
         <div id="addFormContent"></div>
@@ -2524,9 +2524,9 @@ async function uploadToCloudinary(file) {
   formData.append('file', file);
   formData.append('upload_preset', CLOUDINARY_UPLOAD_PRESET);
   formData.append('folder', 'french-audio');
+  formData.append('resource_type', 'video'); // Audio files need 'video' resource type
 
-  // Use 'raw' resource type for audio files
-  const url = `https://api.cloudinary.com/v1_1/${CLOUDINARY_CLOUD_NAME}/raw/upload`;
+  const url = `https://api.cloudinary.com/v1_1/${CLOUDINARY_CLOUD_NAME}/upload`;
 
   try {
     const response = await fetch(url, {
