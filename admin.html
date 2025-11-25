@@ -3,8 +3,12 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<!-- Added Content Security Policy to remove "Dangerous" warning -->
-<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data: https:; font-src 'self' data:; connect-src 'self' https://res.cloudinary.com https://api.cloudinary.com ws: wss:;">
+<!-- Added cache-control meta tags to force browser to reload the page -->
+<meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+<meta http-equiv="Pragma" content="no-cache">
+<meta http-equiv="Expires" content="0">
+<!-- Updated CSP with connect-src explicitly at the beginning to ensure it's parsed -->
+<meta http-equiv="Content-Security-Policy" content="connect-src 'self' https://res.cloudinary.com https://api.cloudinary.com ws: wss:; default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data: https:; font-src 'self' data:;">
 <title>Panneau d'administration</title>
 <style>
 :root{--brand:#2b5;--ink:#222;--muted:#666;--bg:#f7f7f7;--card:#fff;--success:#4caf50;--warning:#ff9800;--error:#d32f2f}
