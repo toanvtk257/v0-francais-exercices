@@ -2505,12 +2505,12 @@ function deleteUser(userId) {
   // Remove user statistics
   const allStats = JSON.parse(localStorage.getItem('fr_stats_db') || '{}');
   delete allStats[userId];
-  localStorage.setItem('fr_stats_db', JSON.JSON.stringify(allStats));
+  localStorage.setItem('fr_stats_db', JSON.stringify(allStats));
   
   // Remove user drafts
   const allDrafts = JSON.parse(localStorage.getItem('fr_drafts_db') || '{}');
   delete allDrafts[userId];
-  localStorage.setItem('fr_drafts_db', JSON.JSON.stringify(allDrafts));
+  localStorage.setItem('fr_drafts_db', JSON.stringify(allDrafts));
   
   alert(`Le compte de ${user.name} a été supprimé avec succès`);
   
