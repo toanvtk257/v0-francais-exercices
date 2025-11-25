@@ -283,7 +283,7 @@ h1 {
         <button class="btn-primary" onclick="document.getElementById('importBank').click()">Importer JSON</button>
         <button class="btn-secondary" onclick="exportBank()">Exporter JSON</button>
         <button class="btn-secondary" onclick="loadDefaultBank()">Charger exemple</button>
-        <button class="btn-primary" onclick="syncFromCloudinary()">🔄 Synchroniser Cloudinary</button>
+        <button class="btn-primary" onclick="syncFromCloudinary()">🔄 Synchroniser Vercel Blob</button>
       </div>
       
       <div id="importMsg" class="success-msg"></div>
@@ -545,11 +545,10 @@ const $$ = s => [...document.querySelectorAll(s)];
 const AUTH_KEY = 'fr_auth_user';
 const BANK_KEY = 'fr_bank_data';
 const USERS_KEY = 'fr_users_db';
-const FILES_INDEX_KEY = 'fr_json_files_index'; // Track all uploaded JSON files from Cloudinary
+const FILES_INDEX_KEY = 'fr_json_files_vercel_blob'; // Changed to match builder.html - now using Vercel Blob
 
 const CLOUDINARY_CLOUD_NAME = 'dvbsn45rk';
 const CLOUDINARY_UPLOAD_PRESET = 'francais_exercices';
-const CLOUDINARY_JSON_FOLDER = 'entrainement-francais';
 
 let currentUser = null;
 let bank = null;
@@ -586,12 +585,10 @@ function checkAuth() {
 async function loadBank() {
   console.log('[v0] === LOADING BANK ===');
   
-  // Load localStorage data
   const stored = localStorage.getItem(BANK_KEY);
   let localData = stored ? JSON.parse(stored) : {lecture:[], ecoute:[], grammaire:[], lexique:[]};
   console.log('[v0] Loaded from localStorage:', localData);
   
-  // Load Cloudinary files index
   const filesIndexRaw = localStorage.getItem(FILES_INDEX_KEY);
   console.log('[v0] Raw FILES_INDEX_KEY from localStorage:', filesIndexRaw);
   
@@ -600,20 +597,19 @@ async function loadBank() {
   console.log('[v0] Number of files in index:', filesIndex.length);
   
   if (filesIndex.length === 0) {
-    console.log('[v0] No Cloudinary files found in index, displaying localStorage only');
+    console.log('[v0] No Vercel Blob files found in index, displaying localStorage only');
     bank = localData;
-    updateExercisesTable(); // Ensure table is updated even if no Cloudinary data
+    updateExercisesTable();
     return;
   }
   
-  // Fetch all JSON files from Cloudinary
-  console.log('[v0] Loading files from Cloudinary...');
-  const cloudinaryExercises = [];
+  console.log('[v0] Loading files from Vercel Blob...');
+  const blobExercises = [];
   
   for (const fileInfo of filesIndex) {
     try {
-      console.log('[v0] Fetching:', fileInfo.fileName, 'from', fileInfo.cloudinaryUrl);
-      const response = await fetch(fileInfo.cloudinaryUrl);
+      console.log('[v0] Fetching:', fileInfo.fileName, 'from', fileInfo.blobUrl);
+      const response = await fetch(fileInfo.blobUrl);
       
       if (!response.ok) {
         console.error('[v0] Failed to fetch', fileInfo.fileName, '- Status:', response.status);
@@ -623,31 +619,26 @@ async function loadBank() {
       const data = await response.json();
       console.log('[v0] Loaded data from', fileInfo.fileName, ':', data);
       
-      // Handle different data formats
       if (Array.isArray(data)) {
-        // Direct array of exercises
         console.log('[v0] Format: Array with', data.length, 'exercises');
-        cloudinaryExercises.push(...data);
+        blobExercises.push(...data);
       } else if (typeof data === 'object' && data !== null) {
-        // Object with categories (lecture, ecoute, etc.)
         console.log('[v0] Format: Object with categories');
-        if (data.lecture)cloudinaryExercises.push(...data.lecture);
-        if (data.ecoute)cloudinaryExercises.push(...data.ecoute);
-        if (data.grammaire)cloudinaryExercises.push(...data.grammaire);
-        if (data.lexique)cloudinaryExercises.push(...data.lexique);
+        if (data.lecture) blobExercises.push(...data.lecture);
+        if (data.ecoute) blobExercises.push(...data.ecoute);
+        if (data.grammaire) blobExercises.push(...data.grammaire);
+        if (data.lexique) blobExercises.push(...data.lexique);
       }
     } catch (error) {
       console.error('[v0] Error loading', fileInfo.fileName, ':', error);
     }
   }
   
-  console.log('[v0] Total exercises loaded from Cloudinary:', cloudinaryExercises.length);
-  console.log('[v0] Cloudinary exercises:', cloudinaryExercises);
+  console.log('[v0] Total exercises loaded from Vercel Blob:', blobExercises.length);
+  console.log('[v0] Vercel Blob exercises:', blobExercises);
   
-  // Merge with localStorage data
-  const allExercises = [...cloudinaryExercises];
+  const allExercises = [...blobExercises];
   
-  // Add localStorage exercises that aren't in Cloudinary
   ['lecture', 'ecoute', 'grammaire', 'lexique'].forEach(cat => {
     if (localData[cat]) {
       localData[cat].forEach(ex => {
@@ -658,17 +649,12 @@ async function loadBank() {
     }
   });
   
-  console.log('[v0] Total exercises after merge:', allExercises.length);
-  
-  // Organize into categories
   bank = {lecture:[], ecoute:[], grammaire:[], lexique:[]};
   allExercises.forEach(ex => {
-    // Correctly map type strings to bank keys
     const cat = ex.type === 'lecture' || ex.type === 'CE' ? 'lecture' : 
                 ex.type === 'ecoute' || ex.type === 'CO' ? 'ecoute' :
-                ex.type === 'grammaire' || ex.type === 'Grammaire' ? 'grammaire' : 'lexique'; // Default to lexique if unrecognized
+                ex.type === 'grammaire' || ex.type === 'Grammaire' ? 'grammaire' : 'lexique';
     
-    // Ensure 'type' property is consistent for later use
     if (!ex.type) {
         if (cat === 'lecture') ex.type = 'CE';
         else if (cat === 'ecoute') ex.type = 'CO';
@@ -676,7 +662,6 @@ async function loadBank() {
         else ex.type = 'Lexique';
     }
 
-    // Add unique ID if missing (though Cloudinary files should have them)
     if (!ex.id) {
         ex.id = `${cat}_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`;
     }
@@ -687,104 +672,23 @@ async function loadBank() {
   console.log('[v0] Final bank structure:', bank);
   console.log('[v0] lecture:', bank.lecture.length, 'ecoute:', bank.ecoute.length, 
               'grammaire:', bank.grammaire.length, 'lexique:', bank.lexique.length);
-  updateExercisesTable(); // Update table after loading
+  updateExercisesTable(); 
 }
 
-async function syncFromCloudinary() {
+async function syncFromCloudinary() { // Updated function name and messages to reflect Vercel Blob usage
   try {
-    console.log('[v0] Manual sync from Cloudinary triggered');
+    console.log('[v0] Manual sync from Vercel Blob triggered');
     
     const filesIndex = JSON.parse(localStorage.getItem(FILES_INDEX_KEY) || '[]');
     console.log('[v0] Files index from localStorage:', filesIndex);
     
     if (filesIndex.length > 0) {
-      // Use the index if available
       await loadBank();
-      alert('✅ Synchronisation réussie! ' + filesIndex.length + ' fichier(s) chargé(s) depuis Cloudinary.');
+      alert('✅ Synchronisation réussie! ' + filesIndex.length + ' fichier(s) chargé(s) depuis Vercel Blob.');
       return;
     }
     
-    console.log('[v0] No index found, trying to load known files directly...');
-    const cloudName = CLOUDINARY_CLOUD_NAME;
-    const knownFiles = ['tous_exercices.json', 'questions.json', 'a1_CO.json', 'a1_CE.json', 'a2_CO.json', 'a2_CE.json', 'b1_CO.json', 'b1_CE.json', 'b2_CO.json', 'b2_CE.json', 'c1_CO.json', 'c1_CE.json', 'c2_CO.json', 'c2_CE.json'];
-    
-    let loadedCount = 0;
-    const allExercises = [];
-    
-    for (const fileName of knownFiles) {
-      try {
-        const url = `https://res.cloudinary.com/${cloudName}/raw/upload/entrainement-francais/${fileName}`;
-        console.log('[v0] Trying to fetch:', url);
-        
-        const response = await fetch(url);
-        if (response.ok) {
-          const data = await response.json();
-          console.log('[v0] Successfully loaded:', fileName, data);
-          
-          // Handle different data formats
-          if (Array.isArray(data)) {
-            allExercises.push(...data);
-          } else if (data.exercises && Array.isArray(data.exercises)) {
-            allExercises.push(...data.exercises);
-          } else {
-            // Try to extract exercises from category structure
-            ['lecture', 'ecoute', 'grammaire', 'lexique'].forEach(cat => {
-              if (data[cat] && Array.isArray(data[cat])) {
-                allExercises.push(...data[cat]);
-              }
-            });
-          }
-          
-          loadedCount++;
-        }
-      } catch (err) {
-        console.log('[v0] Could not load', fileName, '(file may not exist)');
-      }
-    }
-    
-    if (loadedCount > 0) {
-      console.log('[v0] Total exercises loaded:', allExercises.length);
-      
-      // Merge with existing localStorage data
-      const stored = JSON.parse(localStorage.getItem(BANK_KEY) || '{"lecture":[],"ecoute":[],"grammaire":[],"lexique":[]}');
-      
-      // Categorize and merge exercises
-      allExercises.forEach(ex => {
-        const category = ex.type === 'lecture' || ex.type === 'CE' ? 'lecture' : 
-                         ex.type === 'ecoute' || ex.type === 'CO' ? 'ecoute' :
-                         ex.type === 'grammaire' || ex.type === 'Grammaire' ? 'grammaire' : 'lexique'; // Default to lexique if unrecognized
-        
-        if (!stored[category]) stored[category] = [];
-        
-        // Ensure 'type' property is consistent for later use
-        if (!ex.type) {
-            if (category === 'lecture') ex.type = 'CE';
-            else if (category === 'ecoute') ex.type = 'CO';
-            else if (category === 'grammaire') ex.type = 'Grammaire';
-            else ex.type = 'Lexique';
-        }
-
-        // Add unique ID if missing
-        if (!ex.id) {
-            ex.id = `${category}_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`;
-        }
-
-        // Avoid duplicates
-        const exists = stored[category].some(e => e.id === ex.id);
-        if (!exists) {
-          stored[category].push(ex);
-        }
-      });
-      
-      // Save back to localStorage
-      localStorage.setItem(BANK_KEY, JSON.stringify(stored));
-      bank = stored;
-      
-      updateExercisesTable();
-      alert('✅ Synchronisation réussie! ' + loadedCount + ' fichier(s) trouvé(s), ' + allExercises.length + ' exercice(s) chargé(s).');
-    } else {
-      alert('⚠️ Aucun fichier trouvé sur Cloudinary. Vérifiez que les fichiers sont bien uploadés dans le dossier "entrainement-francais".');
-    }
+    alert('⚠️ Aucun fichier trouvé sur Vercel Blob.\n\nVeuillez d\'abord uploader des fichiers JSON depuis la page Builder (Créateur) en cliquant sur "Sauvegarder sur Cloudinary" (qui sauvegarde maintenant sur Vercel Blob).');
     
   } catch (error) {
     console.error('[v0] Sync error:', error);
