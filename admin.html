@@ -532,6 +532,11 @@ const AUTH_KEY = 'fr_auth_user';
 const BANK_KEY = 'fr_bank_data';
 const USERS_KEY = 'fr_users_db';
 
+const CLOUDINARY_CLOUD_NAME = 'dvbsn45rk';
+const CLOUDINARY_UPLOAD_PRESET = 'francais_exercices';
+const CLOUDINARY_JSON_FOLDER = 'french-json';
+const FILES_INDEX_KEY = 'fr_json_files_index'; // Track all uploaded JSON files from Cloudinary
+
 let currentUser = null;
 let bank = null;
 let editingExerciseId = null;
@@ -565,11 +570,73 @@ function checkAuth() {
 }
 
 function loadBank() {
+  console.log('[v0] Loading bank...');
+  
+  // Load from localStorage first
   const stored = localStorage.getItem(BANK_KEY);
   if (stored) {
     bank = JSON.parse(stored);
+    console.log('[v0] Loaded from localStorage:', bank);
   } else {
-    bank = { lecture: [], ecoute: [], grammaire: [], lexique: [] }; // Initialize all types
+    bank = { lecture: [], ecoute: [], grammaire: [], lexique: [] };
+    console.log('[v0] No localStorage data, using empty bank');
+  }
+  
+  const filesIndex = JSON.parse(localStorage.getItem(FILES_INDEX_KEY) || '[]');
+  console.log('[v0] Files index from Cloudinary:', filesIndex);
+  
+  if (filesIndex.length > 0) {
+    // Load all JSON files from the index and combine them
+    Promise.all(
+      filesIndex.map(fileInfo => 
+        fetch(fileInfo.cloudinaryUrl)
+          .then(res => res.ok ? res.json() : null)
+          .catch(err => {
+            console.error(`[v0] Error loading ${fileInfo.fileName}:`, err);
+            return null;
+          })
+      )
+    ).then(allData => {
+      console.log('[v0] Loaded all Cloudinary files:', allData);
+      
+      // Combine all data from different files
+      const combined = { lecture: [], ecoute: [], grammaire: [], lexique: [] };
+      
+      allData.forEach((data, index) => {
+        if (data) {
+          console.log(`[v0] Processing file ${filesIndex[index].fileName}:`, data);
+          if (data.lecture) combined.lecture.push(...data.lecture);
+          if (data.ecoute) combined.ecoute.push(...data.ecoute);
+          if (data.grammaire) combined.grammaire.push(...data.grammaire);
+          if (data.lexique) combined.lexique.push(...data.lexique);
+        }
+      });
+      
+      console.log('[v0] Combined data from Cloudinary:', combined);
+      
+      // Merge with localStorage data (avoid duplicates based on id)
+      ['lecture', 'ecoute', 'grammaire', 'lexique'].forEach(type => {
+        combined[type].forEach(ex => {
+          const exists = bank[type].some(e => e.id === ex.id);
+          if (!exists) {
+            bank[type].push(ex);
+          }
+        });
+      });
+      
+      console.log('[v0] Final merged bank:', bank);
+      console.log('[v0] Total exercises found:', 
+        (bank.lecture?.length || 0) + 
+        (bank.ecoute?.length || 0) + 
+        (bank.grammaire?.length || 0) + 
+        (bank.lexique?.length || 0)
+      );
+      
+      updateExercisesTable();
+    });
+  } else {
+    console.log('[v0] No Cloudinary files found in index');
+    updateExercisesTable();
   }
 }
 
@@ -2191,7 +2258,8 @@ setTimeout(() => {
 
 document.getElementById('logoutBtn').addEventListener('click', function() {
   if (confirm('Voulez-vous vraiment vous déconnecter ?')) {
-    localStorage.removeItem('fr_auth_user');
+    localStorage.removeItem(AUTH_KEY);
+    localStorage.removeItem('fr_current_user');
     window.location.replace('https://v0-francais-exercices.vercel.app/login.html');
   }
 });
