@@ -164,6 +164,8 @@ h1 {
   <div class="user-info">
     <span class="user-name" id="adminUserName">Admin</span>
     <span class="user-email" id="adminUserEmail"></span>
+    <!-- CHANGE: Added button to change own PIN -->
+    <button class="logout-btn" style="background:#f59e0b;margin-right:8px" onclick="openChangePinModal()">Modifier PIN</button>
     <button class="logout-btn" id="logoutBtn">Déconnexion</button>
   </div>
 </header>
@@ -538,6 +540,47 @@ h1 {
   </div>
 </div>
 
+<!-- CHANGE: Add modal for changing own PIN -->
+<div id="changePinModal" class="modal">
+  <div class="modal-content" style="max-width:400px">
+    <span class="close-btn" onclick="closeChangePinModal()">&times;</span>
+    <h2>Modifier mon code PIN</h2>
+    <div class="form-group">
+      <label for="currentPin">Code PIN actuel</label>
+      <input type="password" id="currentPin" maxlength="6" pattern="[0-9]*" inputmode="numeric" placeholder="••••••">
+    </div>
+    <div class="form-group">
+      <label for="newPin">Nouveau code PIN (6 chiffres)</label>
+      <input type="password" id="newPin" maxlength="6" pattern="[0-9]*" inputmode="numeric" placeholder="••••••">
+    </div>
+    <div class="form-group">
+      <label for="confirmNewPin">Confirmer le nouveau code PIN</label>
+      <input type="password" id="confirmNewPin" maxlength="6" pattern="[0-9]*" inputmode="numeric" placeholder="••••••">
+    </div>
+    <div id="changePinError" style="color:#c33;font-size:.9rem;margin:8px 0;display:none"></div>
+    <button class="btn-primary" onclick="saveNewPin()">Enregistrer</button>
+  </div>
+</div>
+
+<!-- CHANGE: Add modal for resetting student PIN -->
+<div id="resetStudentPinModal" class="modal">
+  <div class="modal-content" style="max-width:400px">
+    <span class="close-btn" onclick="closeResetStudentPinModal()">&times;</span>
+    <h2>Réinitialiser le code PIN</h2>
+    <p id="resetStudentInfo" style="margin-bottom:16px"></p>
+    <div class="form-group">
+      <label for="resetNewPin">Nouveau code PIN (6 chiffres)</label>
+      <input type="password" id="resetNewPin" maxlength="6" pattern="[0-9]*" inputmode="numeric" placeholder="••••••">
+    </div>
+    <div class="form-group">
+      <label for="resetConfirmPin">Confirmer le nouveau code PIN</label>
+      <input type="password" id="resetConfirmPin" maxlength="6" pattern="[0-9]*" inputmode="numeric" placeholder="••••••">
+    </div>
+    <div id="resetPinError" style="color:#c33;font-size:.9rem;margin:8px 0;display:none"></div>
+    <button class="btn-primary" onclick="saveResetPin()">Réinitialiser</button>
+  </div>
+</div>
+
 <script src="lib/stats.js"></script>
 <script>
 const $ = s => document.querySelector(s);
@@ -566,6 +609,9 @@ let selectedChatUserId = null;
 // Added variables for new QCM and passage features
 let passageImageData = null;
 let optionCounter = {}; // Used for tracking option count per QCM question
+
+// Variable to store user ID for PIN reset
+let resetPinUserId = null;
 
 function checkAuth() {
   const auth = localStorage.getItem(AUTH_KEY);
@@ -1204,6 +1250,7 @@ function updateUsersTable() {
         <td>
           <div class="action-btns">
             <button class="btn-secondary" onclick="viewUserStats('${user.id}')">Statistiques</button>
+            <button class="btn-secondary" onclick="openResetStudentPinModal('${user.id}')" style="background:#f59e0b;color:#fff">Réinit. PIN</button>
             <button class="btn-danger" onclick="deleteUser('${user.id}')">Supprimer</button>
           </div>
         </td>
@@ -1281,6 +1328,128 @@ function viewUserStats(userId) {
 
 function closeUserStatsModal() {
   $('#userStatsModal').classList.remove('active');
+}
+
+// CHANGE: PIN Management Modals
+function openChangePinModal() {
+  $('#changePinModal').classList.add('active');
+  $('#currentPin').value = '';
+  $('#newPin').value = '';
+  $('#confirmNewPin').value = '';
+  $('#changePinError').style.display = 'none';
+}
+
+function closeChangePinModal() {
+  $('#changePinModal').classList.remove('active');
+}
+
+function saveNewPin() {
+  const currentPin = $('#currentPin').value;
+  const newPin = $('#newPin').value;
+  const confirmNewPin = $('#confirmNewPin').value;
+  const errorEl = $('#changePinError');
+
+  if (!currentPin || !newPin || !confirmNewPin) {
+    errorEl.textContent = 'Veuillez remplir tous les champs.';
+    errorEl.style.display = 'block';
+    return;
+  }
+  if (newPin.length !== 6 || !/^\d{6}$/.test(newPin)) {
+    errorEl.textContent = 'Le nouveau code PIN doit contenir exactement 6 chiffres.';
+    errorEl.style.display = 'block';
+    return;
+  }
+  if (newPin !== confirmNewPin) {
+    errorEl.textContent = 'Les nouveaux codes PIN ne correspondent pas.';
+    errorEl.style.display = 'block';
+    return;
+  }
+
+  // Retrieve user data from localStorage
+  const users = JSON.parse(localStorage.getItem(USERS_KEY) || '[]');
+  const userIndex = users.findIndex(u => u.id === currentUser.id);
+
+  if (userIndex === -1) {
+    errorEl.textContent = 'Erreur: Utilisateur non trouvé.';
+    errorEl.style.display = 'block';
+    return;
+  }
+
+  // Check current PIN
+  if (users[userIndex].pin !== currentPin) {
+    errorEl.textContent = 'Le code PIN actuel est incorrect.';
+    errorEl.style.display = 'block';
+    return;
+  }
+
+  // Update PIN
+  users[userIndex].pin = newPin;
+  localStorage.setItem(USERS_KEY, JSON.stringify(users));
+  
+  // Update currentUser object in memory as well, if needed for session
+  currentUser.pin = newPin; // This is optional if you don't re-authenticate
+
+  alert('Code PIN modifié avec succès !');
+  closeChangePinModal();
+}
+
+function openResetStudentPinModal(userId) {
+  const users = JSON.parse(localStorage.getItem(USERS_KEY) || '[]');
+  const student = users.find(u => u.id === userId && u.role === 'student');
+
+  if (!student) {
+    alert('Étudiant non trouvé.');
+    return;
+  }
+
+  $('#resetStudentInfo').textContent = `Réinitialisation du code PIN pour ${student.name} (${student.email}).`;
+  $('#resetStudentPinModal').classList.add('active');
+  $('#resetNewPin').value = '';
+  $('#resetConfirmPin').value = '';
+  $('#resetPinError').style.display = 'none';
+  $('#resetStudentPinModal').dataset.userId = userId; // Store the userId for saveResetPin
+}
+
+function closeResetStudentPinModal() {
+  $('#resetStudentPinModal').classList.remove('active');
+}
+
+function saveResetPin() {
+  const userId = $('#resetStudentPinModal').dataset.userId;
+  const newPin = $('#resetNewPin').value;
+  const confirmNewPin = $('#resetConfirmPin').value;
+  const errorEl = $('#resetPinError');
+
+  if (!newPin || !confirmNewPin) {
+    errorEl.textContent = 'Veuillez remplir tous les champs.';
+    errorEl.style.display = 'block';
+    return;
+  }
+  if (newPin.length !== 6 || !/^\d{6}$/.test(newPin)) {
+    errorEl.textContent = 'Le nouveau code PIN doit contenir exactement 6 chiffres.';
+    errorEl.style.display = 'block';
+    return;
+  }
+  if (newPin !== confirmNewPin) {
+    errorEl.textContent = 'Les nouveaux codes PIN ne correspondent pas.';
+    errorEl.style.display = 'block';
+    return;
+  }
+
+  const users = JSON.parse(localStorage.getItem(USERS_KEY) || '[]');
+  const userIndex = users.findIndex(u => u.id === userId);
+
+  if (userIndex === -1) {
+    errorEl.textContent = 'Erreur: Utilisateur non trouvé.';
+    errorEl.style.display = 'block';
+    return;
+  }
+
+  users[userIndex].pin = newPin; // Assuming PIN is stored directly
+  localStorage.setItem(USERS_KEY, JSON.stringify(users));
+  
+  alert('Code PIN de l\'étudiant réinitialisé avec succès !');
+  closeResetStudentPinModal();
 }
 
 // Add, Edit, Delete Resources

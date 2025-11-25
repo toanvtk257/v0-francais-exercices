@@ -90,7 +90,10 @@ select{padding:8px 12px;border:1px solid #ddd;border-radius:8px;font-size:.95rem
   <div class="user-info">
     <span id="userName">Utilisateur</span>
     <span class="user-email" id="userEmail"></span>
-    <button class="logout-btn" id="logoutBtn">Déconnexion</button>
+    <div style="display:flex;gap:8px;margin-top:4px">
+      <button class="logout-btn" style="background:#f59e0b" onclick="openChangePinModal()">Modifier PIN</button>
+      <button class="logout-btn" id="logoutBtn">Déconnexion</button>
+    </div>
   </div>
 </header>
 
@@ -179,12 +182,42 @@ select{padding:8px 12px;border:1px solid #ddd;border-radius:8px;font-size:.95rem
   </div>
 </main>
 
+<!-- CHANGE: Added modal for students to change their PIN -->
+<div id="changePinModal" style="display:none;position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,0.5);z-index:1000;align-items:center;justify-content:center">
+  <div style="background:#fff;border-radius:14px;padding:24px;max-width:400px;width:90%;margin:20px">
+    <h2 style="margin:0 0 16px;color:var(--brand)">Modifier mon code PIN</h2>
+    
+    <div class="form-group" style="margin-bottom:16px">
+      <label for="currentPin" style="display:block;margin-bottom:6px;font-weight:600">Code PIN actuel</label>
+      <input type="password" id="currentPin" maxlength="6" pattern="[0-9]*" inputmode="numeric" placeholder="••••••" style="width:100%;padding:12px;border:1px solid #ddd;border-radius:10px;font-size:1rem;box-sizing:border-box;text-align:center;letter-spacing:8px">
+    </div>
+    
+    <div class="form-group" style="margin-bottom:16px">
+      <label for="newPin" style="display:block;margin-bottom:6px;font-weight:600">Nouveau code PIN (6 chiffres)</label>
+      <input type="password" id="newPin" maxlength="6" pattern="[0-9]*" inputmode="numeric" placeholder="••••••" style="width:100%;padding:12px;border:1px solid #ddd;border-radius:10px;font-size:1rem;box-sizing:border-box;text-align:center;letter-spacing:8px">
+    </div>
+    
+    <div class="form-group" style="margin-bottom:16px">
+      <label for="confirmNewPin" style="display:block;margin-bottom:6px;font-weight:600">Confirmer le nouveau code PIN</label>
+      <input type="password" id="confirmNewPin" maxlength="6" pattern="[0-9]*" inputmode="numeric" placeholder="••••••" style="width:100%;padding:12px;border:1px solid #ddd;border-radius:10px;font-size:1rem;box-sizing:border-box;text-align:center;letter-spacing:8px">
+    </div>
+    
+    <div id="changePinError" style="color:#c33;font-size:.9rem;margin:8px 0;display:none"></div>
+    
+    <div style="display:flex;gap:8px;margin-top:16px">
+      <button class="btn-primary" onclick="saveNewPin()" style="flex:1">Enregistrer</button>
+      <button class="btn-secondary" onclick="closeChangePinModal()" style="flex:1">Annuler</button>
+    </div>
+  </div>
+</div>
+
 <script src="lib/stats.js"></script>
 <script>
 const $ = s => document.querySelector(s);
 const $$ = s => [...document.querySelectorAll(s)];
 const AUTH_KEY = 'fr_auth_user';
 const BANK_KEY = 'fr_bank_data';
+const USERS_KEY = 'fr_users_db';
 
 let currentUser = null;
 let bank = null;
@@ -773,6 +806,66 @@ function deleteStudentChatHistory() {
   $('#studentMessageInput').value = '';
   
   alert('Historique de conversation supprimé avec succès');
+}
+
+// CHANGE: Added PIN change functions for students
+function openChangePinModal() {
+  $('#changePinModal').style.display = 'flex';
+  $('#currentPin').value = '';
+  $('#newPin').value = '';
+  $('#confirmNewPin').value = '';
+  $('#changePinError').style.display = 'none';
+}
+
+function closeChangePinModal() {
+  $('#changePinModal').style.display = 'none';
+}
+
+function saveNewPin() {
+  const currentPin = $('#currentPin').value;
+  const newPin = $('#newPin').value;
+  const confirmNewPin = $('#confirmNewPin').value;
+  const errorEl = $('#changePinError');
+
+  if (!currentPin || !newPin || !confirmNewPin) {
+    errorEl.textContent = 'Veuillez remplir tous les champs.';
+    errorEl.style.display = 'block';
+    return;
+  }
+  if (newPin.length !== 6 || !/^\d{6}$/.test(newPin)) {
+    errorEl.textContent = 'Le nouveau code PIN doit contenir exactement 6 chiffres.';
+    errorEl.style.display = 'block';
+    return;
+  }
+  if (newPin !== confirmNewPin) {
+    errorEl.textContent = 'Les nouveaux codes PIN ne correspondent pas.';
+    errorEl.style.display = 'block';
+    return;
+  }
+
+  // Retrieve user data from localStorage
+  const users = JSON.parse(localStorage.getItem(USERS_KEY) || '[]');
+  const userIndex = users.findIndex(u => u.id === currentUser.id);
+
+  if (userIndex === -1) {
+    errorEl.textContent = 'Erreur: Utilisateur non trouvé.';
+    errorEl.style.display = 'block';
+    return;
+  }
+
+  // Check current PIN
+  if (users[userIndex].pin !== currentPin) {
+    errorEl.textContent = 'Le code PIN actuel est incorrect.';
+    errorEl.style.display = 'block';
+    return;
+  }
+
+  // Update PIN
+  users[userIndex].pin = newPin;
+  localStorage.setItem(USERS_KEY, JSON.stringify(users));
+
+  alert('Code PIN modifié avec succès !');
+  closeChangePinModal();
 }
 
 checkAuth();

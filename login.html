@@ -64,6 +64,10 @@ button:hover{opacity:.9}
     </div>
 
     <button type="button" onclick="handleLogin()">Connexion</button>
+    <!-- Added forgot PIN link for admins -->
+    <p style="text-align:center;margin-top:12px">
+      <a href="#" onclick="showForgotPinModal()" style="color:var(--brand);text-decoration:none;font-size:.9rem">Code PIN oublié? (Admin uniquement)</a>
+    </p>
     <div id="login-error" class="error"></div>
   </div>
 
@@ -100,6 +104,41 @@ button:hover{opacity:.9}
 
     <button type="button" onclick="handleRegister()">S'inscrire</button>
     <div id="register-error" class="error"></div>
+  </div>
+</div>
+
+<!-- Added forgot PIN modal for admins -->
+<div id="forgotPinModal" style="display:none;position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,0.5);z-index:1000;align-items:center;justify-content:center">
+  <div style="background:#fff;border-radius:14px;padding:24px;max-width:400px;width:90%;margin:20px">
+    <h2 style="margin:0 0 16px;color:var(--brand)">Réinitialiser le code PIN (Admin)</h2>
+    <p style="color:var(--muted);font-size:.9rem;margin-bottom:16px">Entrez votre email et le code secret administrateur pour réinitialiser votre code PIN.</p>
+    
+    <div class="form-group">
+      <label for="forgot-email">Email du compte admin</label>
+      <input type="email" id="forgot-email" placeholder="votre.email@example.com">
+    </div>
+    
+    <div class="form-group">
+      <label for="forgot-secret">Code secret administrateur</label>
+      <input type="text" id="forgot-secret" placeholder="Code secret">
+    </div>
+    
+    <div class="form-group">
+      <label for="forgot-newpin">Nouveau code PIN (6 chiffres)</label>
+      <input type="text" id="forgot-newpin" class="pin-input" maxlength="6" pattern="[0-9]*" inputmode="numeric" placeholder="••••••">
+    </div>
+    
+    <div class="form-group">
+      <label for="forgot-confirmpin">Confirmer le nouveau code PIN</label>
+      <input type="text" id="forgot-confirmpin" class="pin-input" maxlength="6" pattern="[0-9]*" inputmode="numeric" placeholder="••••••">
+    </div>
+    
+    <div id="forgot-error" class="error"></div>
+    
+    <div style="display:flex;gap:8px;margin-top:16px">
+      <button type="button" onclick="resetAdminPin()" style="flex:1">Réinitialiser</button>
+      <button type="button" onclick="closeForgotPinModal()" style="flex:1;background:#e0e0e0;color:#111">Annuler</button>
+    </div>
   </div>
 </div>
 
@@ -363,6 +402,78 @@ function handleRegister() {
     errorDiv.textContent = 'Erreur lors de l\'inscription: ' + error.message;
     errorDiv.style.display = 'block';
   }
+}
+
+function showForgotPinModal() {
+  document.getElementById('forgotPinModal').style.display = 'flex';
+  document.getElementById('forgot-email').value = '';
+  document.getElementById('forgot-secret').value = '';
+  document.getElementById('forgot-newpin').value = '';
+  document.getElementById('forgot-confirmpin').value = '';
+  document.getElementById('forgot-error').style.display = 'none';
+}
+
+function closeForgotPinModal() {
+  document.getElementById('forgotPinModal').style.display = 'none';
+}
+
+function resetAdminPin() {
+  const email = document.getElementById('forgot-email').value.trim();
+  const secret = document.getElementById('forgot-secret').value.trim();
+  const newPin = document.getElementById('forgot-newpin').value;
+  const confirmPin = document.getElementById('forgot-confirmpin').value;
+  const errorDiv = document.getElementById('forgot-error');
+  
+  // Validation
+  if (!email || !secret || !newPin || !confirmPin) {
+    errorDiv.textContent = 'Veuillez remplir tous les champs';
+    errorDiv.style.display = 'block';
+    return;
+  }
+  
+  // Verify secret code
+  if (secret !== ADMIN_SECRET_CODE) {
+    errorDiv.textContent = 'Code secret administrateur incorrect';
+    errorDiv.style.display = 'block';
+    return;
+  }
+  
+  // Verify PIN format
+  if (!/^\d{6}$/.test(newPin)) {
+    errorDiv.textContent = 'Le code PIN doit contenir exactement 6 chiffres';
+    errorDiv.style.display = 'block';
+    return;
+  }
+  
+  if (newPin !== confirmPin) {
+    errorDiv.textContent = 'Les codes PIN ne correspondent pas';
+    errorDiv.style.display = 'block';
+    return;
+  }
+  
+  // Find user
+  const users = JSON.parse(localStorage.getItem(USERS_STORAGE_KEY) || '[]');
+  const userIndex = users.findIndex(u => u.email === email);
+  
+  if (userIndex === -1) {
+    errorDiv.textContent = 'Aucun compte trouvé avec cet email';
+    errorDiv.style.display = 'block';
+    return;
+  }
+  
+  // Verify user is admin
+  if (users[userIndex].role !== 'admin') {
+    errorDiv.textContent = 'Cette fonctionnalité est réservée aux administrateurs. Les étudiants doivent contacter un administrateur.';
+    errorDiv.style.display = 'block';
+    return;
+  }
+  
+  // Update PIN
+  users[userIndex].pin = newPin;
+  localStorage.setItem(USERS_STORAGE_KEY, JSON.stringify(users));
+  
+  closeForgotPinModal();
+  alert('Votre code PIN a été réinitialisé avec succès! Vous pouvez maintenant vous connecter.');
 }
 
 document.addEventListener('DOMContentLoaded', function() {
