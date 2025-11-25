@@ -541,11 +541,11 @@ const $$ = s => [...document.querySelectorAll(s)];
 const AUTH_KEY = 'fr_auth_user';
 const BANK_KEY = 'fr_bank_data';
 const USERS_KEY = 'fr_users_db';
+const FILES_INDEX_KEY = 'fr_json_files_index'; // Track all uploaded JSON files from Cloudinary
 
 const CLOUDINARY_CLOUD_NAME = 'dvbsn45rk';
 const CLOUDINARY_UPLOAD_PRESET = 'francais_exercices';
 const CLOUDINARY_JSON_FOLDER = 'french-json';
-const FILES_INDEX_KEY = 'fr_json_files_index'; // Track all uploaded JSON files from Cloudinary
 
 let currentUser = null;
 let bank = null;
@@ -627,10 +627,10 @@ async function loadBank() {
       } else if (typeof data === 'object' && data !== null) {
         // Object with categories (lecture, ecoute, etc.)
         console.log('[v0] Format: Object with categories');
-        if (data.lecture) cloudinaryExercises.push(...data.lecture);
-        if (data.ecoute) cloudinaryExercises.push(...data.ecoute);
-        if (data.grammaire) cloudinaryExercises.push(...data.grammaire);
-        if (data.lexique) cloudinaryExercises.push(...data.lexique);
+        if (data.lecture)cloudinaryExercises.push(...data.lecture);
+        if (data.ecoute)cloudinaryExercises.push(...data.ecoute);
+        if (data.grammaire)cloudinaryExercises.push(...data.grammaire);
+        if (data.lexique)cloudinaryExercises.push(...data.lexique);
       }
     } catch (error) {
       console.error('[v0] Error loading', fileInfo.fileName, ':', error);
@@ -689,14 +689,88 @@ async function loadBank() {
 async function syncFromCloudinary() {
   try {
     console.log('[v0] Manual sync from Cloudinary triggered');
-    await loadBank(); // loadBank now also updates the exercises table internally
-    alert('✅ Synchronisation réussie! Les exercices depuis Cloudinary ont été chargés.');
+    
+    const filesIndex = JSON.parse(localStorage.getItem(FILES_INDEX_KEY) || '[]');
+    console.log('[v0] Files index from localStorage:', filesIndex);
+    
+    if (filesIndex.length > 0) {
+      // Use the index if available
+      await loadBank();
+      alert('✅ Synchronisation réussie! ' + filesIndex.length + ' fichier(s) chargé(s) depuis Cloudinary.');
+      return;
+    }
+    
+    console.log('[v0] No index found, trying to load known files directly...');
+    const cloudName = CLOUDINARY_CLOUD_NAME;
+    const knownFiles = ['questions.json', 'a1_CO.json', 'a1_CE.json', 'a2_CO.json', 'a2_CE.json'];
+    
+    let loadedCount = 0;
+    const allExercises = [];
+    
+    for (const fileName of knownFiles) {
+      try {
+        const url = `https://res.cloudinary.com/${cloudName}/raw/upload/french-json/${fileName}`;
+        console.log('[v0] Trying to fetch:', url);
+        
+        const response = await fetch(url);
+        if (response.ok) {
+          const data = await response.json();
+          console.log('[v0] Successfully loaded:', fileName, data);
+          
+          // Handle different data formats
+          if (Array.isArray(data)) {
+            allExercises.push(...data);
+          } else if (data.exercises && Array.isArray(data.exercises)) {
+            allExercises.push(...data.exercises);
+          } else {
+            // Try to extract exercises from category structure
+            ['lecture', 'ecoute', 'grammaire', 'lexique'].forEach(cat => {
+              if (data[cat] && Array.isArray(data[cat])) {
+                allExercises.push(...data[cat]);
+              }
+            });
+          }
+          
+          loadedCount++;
+        }
+      } catch (err) {
+        console.log('[v0] Could not load', fileName, '(file may not exist)');
+      }
+    }
+    
+    if (loadedCount > 0) {
+      console.log('[v0] Total exercises loaded:', allExercises.length);
+      
+      // Merge with existing localStorage data
+      const stored = JSON.parse(localStorage.getItem(BANK_KEY) || '{"lecture":[],"ecoute":[],"grammaire":[],"lexique":[]}');
+      
+      // Categorize and merge exercises
+      allExercises.forEach(ex => {
+        const category = ex.category || 'lecture';
+        if (!stored[category]) stored[category] = [];
+        
+        // Avoid duplicates
+        const exists = stored[category].some(e => e.id === ex.id);
+        if (!exists) {
+          stored[category].push(ex);
+        }
+      });
+      
+      // Save back to localStorage
+      localStorage.setItem(BANK_KEY, JSON.stringify(stored));
+      bank = stored;
+      
+      updateExercisesTable();
+      alert('✅ Synchronisation réussie! ' + loadedCount + ' fichier(s) trouvé(s), ' + allExercises.length + ' exercice(s) chargé(s).');
+    } else {
+      alert('⚠️ Aucun fichier trouvé sur Cloudinary. Vérifiez que les fichiers sont bien uploadés dans le dossier "french-json".');
+    }
+    
   } catch (error) {
     console.error('[v0] Sync error:', error);
     alert('❌ Erreur lors de la synchronisation: ' + error.message);
   }
 }
-
 
 function switchTab(tabName) {
   $$('.tab-content').forEach(t => t.classList.remove('active'));
@@ -935,7 +1009,7 @@ window.addFormQcmOption = function(questionId) {
   
   optionDiv.innerHTML = `
     <label style="margin:0;font-weight:600;min-width:60px">Choix ${optionLetter.toUpperCase()}</label>
-    <input class="form-qcm-option" data-option-letter="${optionLetter}" placeholder="Réponse ${optionLetter.toUpperCase()}" style="flex:1;padding:10px;border:1px solid #ddd;border-radius:8px;font-size:.95rem;box-sizing:border-box">
+    <input class="form-qcm-option" data-option-letter="${optionLetter}" placeholder="Réponse ${letter.toUpperCase()}" style="flex:1;padding:10px;border:1px solid #ddd;border-radius:8px;font-size:.95rem;box-sizing:border-box">
     <button onclick="removeFormQcmOption(${questionId}, '${optionLetter}')" style="background:#e53e3e;color:#fff;border:none;padding:8px 12px;border-radius:6px;cursor:pointer;font-size:.85rem">✕</button>
   `;
   container.appendChild(optionDiv);
@@ -2089,7 +2163,7 @@ function cancelResourceEdit() {
 function deleteResource(id) {
   if (!confirm('Êtes-vous sûr de vouloir supprimer cette ressource ?')) return;
   
-  const resources = JSON.Parse(localStorage.getItem('fr_resources') || '[]');
+  const resources = JSON.parse(localStorage.getItem('fr_resources') || '[]');
   const filtered = resources.filter(r => r.id !== id);
   localStorage.setItem('fr_resources', JSON.stringify(filtered));
   updateResourcesTable();
