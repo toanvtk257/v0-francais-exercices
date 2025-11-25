@@ -4,8 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <!-- Added Content Security Policy to remove "Dangerous" warning -->
-<!-- Added Cloudinary domain to CSP connect-src to allow API calls -->
-<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data: https:; font-src 'self' data:; connect-src 'self' https://res.cloudinary.com ws: wss:;">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data: https:; font-src 'self' data:; connect-src 'self' ws: wss:;">
 <title>Panneau d'administration</title>
 <style>
 :root{--brand:#2b5;--ink:#222;--muted:#666;--bg:#f7f7f7;--card:#fff;--success:#4caf50;--warning:#ff9800;--error:#d32f2f}
@@ -150,20 +149,6 @@ h1 {
   background:#1ea34a;
 }
 /* END NEW STYLES */
-
-/* Updated CSP with explicit connect-src and added timestamp to force browser reload */
-<meta http-equiv="Content-Security-Policy" 
-          content="default-src 'self'; 
-                   script-src 'self' 'unsafe-inline' 'unsafe-eval'; 
-                   style-src 'self' 'unsafe-inline'; 
-                   connect-src 'self' https://res.cloudinary.com https://api.cloudinary.com ws: wss:; 
-                   img-src 'self' data: https: blob:; 
-                   media-src 'self' https: blob:; 
-                   font-src 'self' data:">
-<meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
-<meta http-equiv="Pragma" content="no-cache">
-<meta http-equiv="Expires" content="0">
-
 </style>
 </head>
 <body>
@@ -181,12 +166,13 @@ h1 {
 
 <main>
   <div class="tabs">
-    <button class="tab-btn active" data-tab="dashboard">Tableau de bord</button>
-    <button class="tab-btn" data-tab="exercises">Exercices</button>
-    <button class="tab-btn" data-tab="users">Utilisateurs</button>
-    <button class="tab-btn" data-tab="builder">Créateur</button>
-    <button class="tab-btn" data-tab="resources">Ressources externes</button>
-    <button class="tab-btn" data-tab="chat">Messages</button>
+    <button class="tab-btn active" onclick="switchTab('dashboard')">Tableau de bord</button>
+    <button class="tab-btn" onclick="switchTab('exercises')">Exercices</button>
+    <button class="tab-btn" onclick="switchTab('users')">Utilisateurs</button>
+    <button class="tab-btn" onclick="switchTab('builder')">Créateur</button>
+    <!-- Added new tabs for resources and chat -->
+    <button class="tab-btn" onclick="switchTab('resources')">Ressources externes</button>
+    <button class="tab-btn" onclick="switchTab('chat')">Messages</button>
   </div>
 
   <!-- Dashboard Tab -->
@@ -323,16 +309,10 @@ h1 {
             <label>Thème</label>
             <input id="addTheme" placeholder="ex. Salutations">
           </div>
-          <!-- Added exercise number field like in builder.html -->
-          <div>
-            <label>N° exercice</label>
-            <input type="number" id="addExerciseNumber" min="1" placeholder="ex. 1">
-          </div>
           <div>
             <label>Titre</label>
             <input id="addTitle" placeholder="ex. Leçon 01">
           </div>
-          <!-- Removed Titre field - not needed per user request -->
         </div>
 
         <div id="addFormContent"></div>
@@ -341,13 +321,13 @@ h1 {
         <div id="formQcmBox" style="display:none">
           <h3 style="margin:16px 0 8px;font-size:1.1rem">Questions QCM</h3>
           <div id="formQcmQuestions"></div>
-          <button class="btn-secondary" id="addFormQcmBtn">+ Ajouter une question QCM</button>
+          <button class="btn-secondary" onclick="addFormQcmQuestion()">+ Ajouter une question QCM</button>
         </div>
 
         <div id="formVfBox" style="display:none">
           <h3 style="margin:16px 0 8px;font-size:1.1rem">Questions Vrai/Faux</h3>
           <div id="formVfQuestions"></div>
-          <button class="btn-secondary" id="addFormVfBtn">+ Ajouter une question Vrai/Faux</button>
+          <button class="btn-secondary" onclick="addFormVfQuestion()">+ Ajouter une question Vrai/Faux</button>
         </div>
         
         <!-- CHANGE: Added interactive Cloze builder with automatic blank detection -->
@@ -550,20 +530,10 @@ const $ = s => document.querySelector(s);
 const $$ = s => [...document.querySelectorAll(s)];
 const AUTH_KEY = 'fr_auth_user';
 const BANK_KEY = 'fr_bank_data';
-const USERS_KEY = 'fr_users'; // Changed from fr_users_db to fr_users for consistency
-const CLOUDINARY_CLOUD_NAME = 'dvbsn45rk';
-const CLOUDINARY_UPLOAD_PRESET = 'francais_exercices';
-const CLOUDINARY_FOLDER = 'french-json';
-const CLOUDINARY_FILES_KEY = 'fr_cloudinary_files'; // Renamed from FILES_INDEX_KEY
-const CACHE_DURATION = 24 * 60 * 60 * 1000;
-// Define CLOUDINARY_BASE_URL and BANK/BANK_KEY as global constants
-const CLOUDINARY_BASE_URL = `https://res.cloudinary.com/${CLOUDINARY_CLOUD_NAME}/raw/upload`;
-
-// These are assumed to be global or initialized elsewhere
-let BANK = { lecture: [], ecoute: [], grammaire: [], lexique: [] }; // Initialize BANK globally
+const USERS_KEY = 'fr_users_db';
 
 let currentUser = null;
-// let bank = null; // Redundant, BANK is used
+let bank = null;
 let editingExerciseId = null;
 
 // Added counters and reset for form questions
@@ -576,96 +546,7 @@ let selectedChatUserId = null;
 
 // Added variables for new QCM and passage features
 let passageImageData = null;
-let optionCounter = {}; // This might be intended for tracking dynamic options per question
-let passageType = 'text'; // Default passage type
-
-document.addEventListener('DOMContentLoaded', async () => {
-  console.log('[v0] Admin page loading...');
-  
-  // Attach event listeners to tab buttons
-  document.querySelectorAll('.tab-btn').forEach(btn => {
-    btn.addEventListener('click', (e) => {
-      const tabName = e.target.getAttribute('data-tab');
-      console.log('[v0] Tab clicked:', tabName);
-      switchTab(tabName, e);
-    });
-  });
-  
-  // Attach event listener to Synchroniser Cloudinary button
-  // Dynamically add the button to the header if it doesn't exist
-  if (!$('header h1 button')) { // Simple check to avoid adding multiple buttons
-    addCloudinarySyncButton();
-  }
-  const syncBtn = $('header h1 button'); // Get the newly added button
-  if (syncBtn) {
-    syncBtn.addEventListener('click', async () => {
-      console.log('[v0] Sync button clicked');
-      syncBtn.disabled = true;
-      syncBtn.textContent = 'Synchronisation...';
-      try {
-        await loadBank(); // Load the bank which now includes Cloudinary sync logic
-        alert('Synchronisation avec Cloudinary terminée!');
-      } catch (error) {
-        console.error('[v0] Sync failed:', error);
-        alert('Une erreur est survenue lors de la synchronisation.');
-      } finally {
-        syncBtn.disabled = false;
-        syncBtn.textContent = 'Synchroniser Cloudinary';
-      }
-    });
-  }
-  
-  // Attach event listener to logout button
-  const logoutBtn = $('#logoutBtn');
-  if (logoutBtn) {
-    logoutBtn.addEventListener('click', () => {
-      console.log('[v0] Logout button clicked');
-      if (confirm('Voulez-vous vraiment vous déconnecter ?')) {
-        localStorage.removeItem(AUTH_KEY);
-        localStorage.removeItem('fr_current_user');
-        window.location.href = 'login.html';
-      }
-    });
-  }
-
-  const addFormQcmBtn = document.getElementById('addFormQcmBtn');
-  const addFormVfBtn = document.getElementById('addFormVfBtn');
-  
-  if (addFormQcmBtn) {
-    addFormQcmBtn.addEventListener('click', () => {
-      console.log('[v0] Add QCM button clicked');
-      addFormQcmQuestion();
-    });
-  }
-  
-  if (addFormVfBtn) {
-    addFormVfBtn.addEventListener('click', () => {
-      console.log('[v0] Add VF button clicked');
-      addFormVfQuestion();
-    });
-  }
-  
-  // Load initial data
-  console.log('[v0] Loading initial bank data...');
-  await loadBank(); // This function now handles both localStorage and Cloudinary
-  console.log('[v0] Initial load complete');
-  
-  console.log('[v0] Admin page loaded');
-});
-
-function addCloudinarySyncButton() {
-  const header = document.querySelector('h1'); // Targeting h1 specifically
-  if (header) {
-    const syncBtn = document.createElement('button');
-    syncBtn.id = 'syncCloudinaryBtn'; // Give it an ID for easier selection
-    syncBtn.textContent = 'Synchroniser Cloudinary';
-    syncBtn.className = 'btn-primary'; // Use existing btn-primary style
-    syncBtn.style.marginLeft = '20px';
-    syncBtn.style.padding = '8px 12px'; // Adjust padding for better appearance
-    syncBtn.style.fontSize = '.85rem'; // Match logout button font size
-    header.appendChild(syncBtn);
-  }
-}
+let optionCounter = {};
 
 function checkAuth() {
   const auth = localStorage.getItem(AUTH_KEY);
@@ -683,150 +564,21 @@ function checkAuth() {
   $('#adminUserEmail').textContent = currentUser.email;
 }
 
-async function loadBank() {
-  console.log('[v0] === STARTING BANK LOADING ===');
-  
-  // Load from localStorage first if available and not expired
-  const storedBank = localStorage.getItem(BANK_KEY);
-  const cachedIndex = localStorage.getItem(CLOUDINARY_FILES_KEY);
-  const cachedIndexData = cachedIndex ? JSON.parse(cachedIndex) : null;
-
-  if (storedBank) {
-    BANK = JSON.parse(storedBank);
-    console.log('[v0] Loaded from localStorage:', BANK);
-    console.log('[v0] localStorage bank structure:', {
-      lecture: BANK.lecture?.length || 0,
-      ecoute: BANK.ecoute?.length || 0,
-      grammaire: BANK.grammaire?.length || 0,
-      lexique: BANK.lexique?.length || 0
-    });
+function loadBank() {
+  const stored = localStorage.getItem(BANK_KEY);
+  if (stored) {
+    bank = JSON.parse(stored);
   } else {
-    BANK = { lecture: [], ecoute: [], grammaire: [], lexique: [] };
-    console.log('[v0] No localStorage data, starting with empty bank');
+    bank = { lecture: [], ecoute: [], grammaire: [], lexique: [] }; // Initialize all types
   }
-
-  // Try to load from Cloudinary if index exists and is recent
-  if (cachedIndexData && cachedIndexData.timestamp && (Date.now() - cachedIndexData.timestamp < CACHE_DURATION)) {
-    console.log('[v0] Using cached Cloudinary files index.');
-    // Attempt to load bank data from the cached index
-    await loadBankDataFromIndex(cachedIndexData.files);
-    // If Cloudinary load was successful, it will overwrite BANK.
-    // If it fails or returns nothing, the localStorage data (or initial empty BANK) remains.
-  } else {
-    // If index is old or missing, fetch a fresh index
-    console.log('[v0] Fetching Cloudinary files index...');
-    try {
-      const response = await fetch(`https://res.cloudinary.com/${CLOUDINARY_CLOUD_NAME}/raw/list/${CLOUDINARY_FOLDER}.json`);
-      if (!response.ok) {
-        console.warn(`[v0] Failed to fetch Cloudinary index: ${response.status}`);
-      } else {
-        const data = await response.json();
-        const fileNames = data.resources.map(r => r.public_id.split('/').pop()); // Get filename without folder path
-        const jsonFileNames = fileNames.filter(name => name.endsWith('.json'));
-
-        if (jsonFileNames.length > 0) {
-          localStorage.setItem(CLOUDINARY_FILES_KEY, JSON.JSON.stringify({ files: jsonFileNames, timestamp: Date.now() }));
-          console.log('[v0] Fetched and cached Cloudinary files index.');
-          // Load bank data from the new index
-          await loadBankDataFromIndex(jsonFileNames);
-        } else {
-          console.log('[v0] No JSON files found in Cloudinary folder.');
-          localStorage.removeItem(CLOUDINARY_FILES_KEY); // Clear old index if no json files
-        }
-      }
-    } catch (error) {
-      console.error('[v0] Error fetching Cloudinary index:', error);
-    }
-  }
-
-  // After attempting Cloudinary load, save the final merged bank to localStorage
-  localStorage.setItem(BANK_KEY, JSON.stringify(BANK));
-  
-  console.log('[v0] === FINAL BANK STATE ===');
-  console.log('[v0] Bank from Cloudinary/localStorage:', BANK);
-  console.log('[v0] Totals:', {
-    lecture: BANK.lecture.length,
-    ecoute: BANK.ecoute.length,
-    grammaire: BANK.grammaire.length,
-    lexique: BANK.lexique.length
-  });
-  
-  updateExercisesTable();
-  updateDashboard();
-  updateUsersTable();
 }
 
-
-async function loadBankDataFromIndex(fileNames) {
-  console.log('[v0] loadBankDataFromIndex called with', fileNames.length, 'files');
-  
-  for (const filename of fileNames) {
-    try {
-      console.log('[v0] Fetching file:', filename);
-      const url = `${CLOUDINARY_BASE_URL}/${CLOUDINARY_FOLDER}/${filename}`;
-      console.log('[v0] Full URL:', url);
-      
-      const response = await fetch(url);
-      console.log('[v0] Response status:', response.status);
-      
-      if (!response.ok) {
-        console.error('[v0] Failed to fetch', filename, '- Status:', response.status);
-        continue;
-      }
-      
-      const text = await response.text();
-      console.log('[v0] Response text length:', text.length);
-      
-      const data = JSON.parse(text);
-      console.log('[v0] Parsed data for', filename, ':', {
-        hasLecture: !!data.lecture,
-        hasEcoute: !!data.ecoute,
-        hasGrammaire: !!data.grammaire,
-        hasLexique: !!data.lexique,
-        lectureCount: data.lecture ? data.lecture.length : 0,
-        ecouteCount: data.ecoute ? data.ecoute.length : 0,
-        grammaireCount: data.grammaire ? data.grammaire.length : 0,
-        lexiqueCount: data.lexique ? data.lexique.length : 0
-      });
-      
-      // Merge data into BANK
-      if (data.lecture && Array.isArray(data.lecture)) {
-        console.log('[v0] Adding', data.lecture.length, 'lecture exercises');
-        BANK.lecture = BANK.lecture.concat(data.lecture);
-      }
-      if (data.ecoute && Array.isArray(data.ecoute)) {
-        console.log('[v0] Adding', data.ecoute.length, 'ecoute exercises');
-        BANK.ecoute = BANK.ecoute.concat(data.ecoute);
-      }
-      if (data.grammaire && Array.isArray(data.grammaire)) {
-        console.log('[v0] Adding', data.grammaire.length, 'grammaire exercises');
-        BANK.grammaire = BANK.grammaire.concat(data.grammaire);
-      }
-      if (data.lexique && Array.isArray(data.lexique)) {
-        console.log('[v0] Adding', data.lexique.length, 'lexique exercises');
-        BANK.lexique = BANK.lexique.concat(data.lexique);
-      }
-    } catch (err) {
-      console.error('[v0] Error loading', filename, ':', err);
-    }
-  }
-  
-  console.log('[v0] Final BANK state after merging files:', {
-    lecture: BANK.lecture.length,
-    ecoute: BANK.ecoute.length,
-    grammaire: BANK.grammaire.length,
-    lexique: BANK.lexique.length
-  });
-}
-
-function switchTab(tabName, event) {
-  console.log('[v0] Switching to tab:', tabName);
+function switchTab(tabName) {
   $$('.tab-content').forEach(t => t.classList.remove('active'));
   $$('.tab-btn').forEach(b => b.classList.remove('active'));
   $(`#${tabName}`).classList.add('active');
   event.target.classList.add('active');
 
-  // Load data only when the tab is activated
   if (tabName === 'dashboard') updateDashboard();
   if (tabName === 'exercises') updateExercisesTable();
   if (tabName === 'users') updateUsersTable();
@@ -855,12 +607,7 @@ function updateDashboard() {
   });
 
   $('#totalUsers').textContent = users.length;
-  // Calculate total exercises from the current bank object
-  let totalExercises = 0;
-  if (BANK) { // Use BANK instead of bank
-    totalExercises = (BANK.lecture?.length || 0) + (BANK.ecoute?.length || 0) + (BANK.grammaire?.length || 0) + (BANK.lexique?.length || 0);
-  }
-  $('#totalExercises').textContent = totalExercises;
+  $('#totalExercises').textContent = (bank.lecture?.length || 0) + (bank.ecoute?.length || 0) + (bank.grammaire?.length || 0) + (bank.lexique?.length || 0);
   $('#totalAttempts').textContent = totalAttempts;
   $('#avgScore').textContent = attemptCount > 0 ? Math.round(totalScore / attemptCount) + '%' : '0%';
 
@@ -871,18 +618,13 @@ function updateDashboard() {
 }
 
 function updateExercisesTable() {
-  console.log('[v0] Updating exercises table');
-  console.log('[v0] Bank content:', BANK); // Use BANK
-  
   const tbody = $('#exercisesBody');
   const allExercises = [
-    ...(BANK.lecture || []).map(e => ({ ...e, type: 'lecture' })), // Use BANK
-    ...(BANK.ecoute || []).map(e => ({ ...e, type: 'ecoute' })), // Use BANK
-    ...(BANK.grammaire || []).map(e => ({ ...e, type: 'grammaire' })), // Use BANK
-    ...(BANK.lexique || []).map(e => ({ ...e, type: 'lexique' })) // Use BANK
+    ...(bank.lecture || []).map(e => ({ ...e, type: 'lecture' })), 
+    ...(bank.ecoute || []).map(e => ({ ...e, type: 'ecoute' })),
+    ...(bank.grammaire || []).map(e => ({ ...e, type: 'grammaire' })),
+    ...(bank.lexique || []).map(e => ({ ...e, type: 'lexique' }))
   ];
-
-  console.log('[v0] Total exercises found:', allExercises.length);
 
   if (allExercises.length === 0) {
     tbody.innerHTML = '<tr><td colspan="6" class="empty-state">Aucun exercice</td></tr>';
@@ -894,7 +636,7 @@ function updateExercisesTable() {
     let typeLabel = 'CE';
     let typeClass = 'badge-lecture';
     if (ex.type === 'ecoute') { typeLabel = 'CO'; typeClass = 'badge-ecoute'; }
-    else if (ex.type === 'grammaire') { typeLabel = 'Grammaire'; typeClass = 'badge-lecture'; }
+    else if (ex.type === 'grammaire') { typeLabel = 'Grammaire'; typeClass = 'badge-lecture'; } // Reusing style or add new one
     else if (ex.type === 'lexique') { typeLabel = 'Lexique'; typeClass = 'badge-ecoute'; }
 
     const levelClass = 'badge-' + (ex.niveau || 'a1').toLowerCase();
@@ -908,47 +650,22 @@ function updateExercisesTable() {
         <td>${qCount}</td>
         <td>
           <div class="action-btns">
-            <button class="btn-secondary edit-exercise-btn" data-exercise-id="${ex.id}">Éditer</button>
-            <button class="btn-danger delete-exercise-btn" data-exercise-id="${ex.id}" data-exercise-type="${ex.type}">Supprimer</button>
+            <button class="btn-secondary" onclick="editExercise('${ex.id}')">Éditer</button>
+            <button class="btn-danger" onclick="deleteExercise('${ex.id}', '${ex.type}')">Supprimer</button>
           </div>
         </td>
       </tr>
     `;
   }).join('');
-  
-  attachExerciseActionListeners();
-}
-
-function attachExerciseActionListeners() {
-  document.querySelectorAll('.edit-exercise-btn').forEach(btn => {
-    btn.addEventListener('click', (e) => {
-      const exerciseId = e.target.dataset.exerciseId;
-      console.log('[v0] Edit exercise:', exerciseId);
-      // alert('Édition d\'exercice - fonctionnalité à implémenter'); // Replaced alert with actual edit call
-      editExercise(exerciseId); // Call the editExercise function
-    });
-  });
-  
-  document.querySelectorAll('.delete-exercise-btn').forEach(btn => {
-    btn.addEventListener('click', (e) => {
-      const exerciseId = e.target.dataset.exerciseId;
-      const exerciseType = e.target.dataset.exerciseType;
-      deleteExercise(exerciseId, exerciseType);
-    });
-  });
 }
 
 function deleteExercise(id, type) {
   if (!confirm('Êtes-vous sûr de vouloir supprimer cet exercice ?')) return;
   let arr;
-  if (type === 'lecture') arr = BANK.lecture; // Use BANK
-  else if (type === 'ecoute') arr = BANK.ecoute; // Use BANK
-  else if (type === 'grammaire') arr = BANK.grammaire; // Use BANK
-  else if (type === 'lexique') arr = BANK.lexique; // Use BANK
-  else {
-      console.error(`[v0] Unknown exercise type for deletion: ${type}`);
-      return;
-  }
+  if (type === 'lecture') arr = bank.lecture;
+  else if (type === 'ecoute') arr = bank.ecoute;
+  else if (type === 'grammaire') arr = bank.grammaire;
+  else if (type === 'lexique') arr = bank.lexique;
   
   const idx = arr.findIndex(e => e.id === id);
   if (idx >= 0) {
@@ -959,7 +676,7 @@ function deleteExercise(id, type) {
 }
 
 function exportBank() {
-  const blob = new Blob([JSON.stringify(BANK, null, 2)], { type: 'application/json' }); // Use BANK
+  const blob = new Blob([JSON.stringify(bank, null, 2)], { type: 'application/json' });
   const a = document.createElement('a');
   a.href = URL.createObjectURL(blob);
   a.download = 'questions.json';
@@ -997,7 +714,7 @@ function loadDefaultBank() {
     lexique: []
   };
 
-  BANK = defaultBank; // Use BANK
+  bank = defaultBank;
   saveBank();
   updateExercisesTable();
   alert('Banque par défaut chargée !');
@@ -1010,13 +727,9 @@ function switchCreatorTab(tab) {
     btn.style.borderBottomColor = 'transparent';
   });
   
-  // Find the button that was clicked and add active class to it
-  const clickedButton = event.target.closest('.tab-btn-creator');
-  if (clickedButton) {
-    clickedButton.classList.add('active');
-    clickedButton.style.color = 'var(--brand)';
-    clickedButton.style.borderBottomColor = 'var(--brand)';
-  }
+  event.target.classList.add('active');
+  event.target.style.color = 'var(--brand)';
+  event.target.style.borderBottomColor = 'var(--brand)';
   
   if (tab === 'form') {
     $('#creatorFormTab').style.display = 'block';
@@ -1028,25 +741,24 @@ function switchCreatorTab(tab) {
 }
 
 function addFormQcmQuestion() {
-  console.log('[v0] Adding form QCM question');
-  formQcmCounter++; // Increment the global counter
-  const questionDiv = document.createElement('div');
-  questionDiv.style.cssText = 'background:#f9f9f9;padding:12px;border-radius:8px;margin:8px 0;border:1px solid #e0e0e0';
-  questionDiv.dataset.formQcmId = formQcmCounter;
+  formQcmCounter++;
+  const div = document.createElement('div');
+  div.style.cssText = 'background:#f9f9f9;padding:12px;border-radius:8px;margin:8px 0;border:1px solid #e0e0e0';
+  div.dataset.formQcmId = formQcmCounter;
   
   const isGrammar = $('#addType').value === 'grammaire';
   
-  questionDiv.innerHTML = `
+  div.innerHTML = `
     <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
       <span style="font-weight:600;color:var(--brand)">Question ${formQcmCounter}</span>
-      <button class="btn-danger remove-form-qcm-question-btn" data-qcm-id="${formQcmCounter}" style="padding:6px 10px;font-size:.85rem">Supprimer</button>
+      <button class="btn-danger" onclick="removeFormQcmQuestion(${formQcmCounter})" style="padding:6px 10px;font-size:.85rem">Supprimer</button>
     </div>
     <label>Question</label>
     <input class="form-qcm-question" placeholder="Quelle est la capitale de la France ?" style="width:100%;padding:10px;border:1px solid #ddd;border-radius:8px;font-size:.95rem;box-sizing:border-box;margin-bottom:8px">
     
     <div class="form-qcm-options-container"></div>
     
-    <button class="btn-secondary add-form-option-btn" data-qcm-id="${formQcmCounter}" style="margin-bottom:8px;padding:6px 10px;font-size:.85rem">+ Ajouter une réponse</button>
+    <button class="btn-secondary" onclick="addFormQcmOption(${formQcmCounter})" style="margin-bottom:8px;padding:6px 10px;font-size:.85rem">+ Ajouter une réponse</button>
     
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:8px">
       <div>
@@ -1065,91 +777,37 @@ function addFormQcmQuestion() {
       <textarea class="form-qcm-explanation" placeholder="Expliquez la règle grammaticale..." style="width:100%;padding:10px;border:1px solid #ddd;border-radius:8px;font-size:.95rem;box-sizing:border-box;min-height:60px"></textarea>
     </div>
   `;
-  $('#formQcmQuestions').appendChild(questionDiv);
-  
-  // Initialize options counter for this new question
-  optionCounter[formQcmCounter] = 0;
+  $('#formQcmQuestions').appendChild(div);
   
   // Add default 3 options
   addFormQcmOption(formQcmCounter);
   addFormQcmOption(formQcmCounter);
   addFormQcmOption(formQcmCounter);
-  
-  attachFormQcmEventListeners();
 }
-
-window.removeFormQcmQuestion = function(questionId) {
-  console.log('[v0] Removing QCM question:', questionId);
-  if (confirm('Voulez-vous vraiment supprimer cette question?')) {
-    const questionDiv = document.querySelector(`[data-form-qcm-id="${questionId}"]`);
-    if (questionDiv) {
-      questionDiv.remove();
-      console.log('[v0] Question removed successfully');
-    } else {
-      console.error('[v0] Could not find question div for removal with ID:', questionId);
-    }
-  }
-};
-
-window.attachFormQcmEventListeners = function() {
-  // Attach event listeners to all "Add response" buttons
-  document.querySelectorAll('.add-form-option-btn').forEach(btn => {
-    btn.onclick = function() {
-      const questionId = this.dataset.qcmId;
-      addFormQcmOption(parseInt(questionId));
-    };
-  });
-  
-  // Attach event listeners to all "Remove" buttons (X)
-  document.querySelectorAll('.remove-form-option-btn').forEach(btn => {
-    btn.onclick = function() {
-      const questionId = this.dataset.qcmId;
-      const optionLetter = this.dataset.optIdx; // Get the letter (a, b, c, etc.)
-      removeFormQcmOption(parseInt(questionId), optionLetter);
-    };
-  });
-  
-  // Attach event listeners to all "Delete question" buttons
-  document.querySelectorAll('.remove-form-qcm-question-btn').forEach(btn => {
-    btn.onclick = function() {
-      const questionId = this.dataset.qcmId;
-      removeFormQcmQuestion(parseInt(questionId));
-    };
-  });
-}
-
 
 window.addFormQcmOption = function(questionId) {
   const questionDiv = document.querySelector(`[data-form-qcm-id="${questionId}"]`);
   if (!questionDiv) return;
   
   const container = questionDiv.querySelector('.form-qcm-options-container');
-  if (!container) return; // Added check for container existence
-  
-  // Get the current count for this specific questionId from optionCounter
-  let currentOptionCount = optionCounter[questionId] || 0;
-  
-  const optionLetter = String.fromCharCode(97 + currentOptionCount); // a, b, c, etc.
+  const existingOptions = container.querySelectorAll('[data-option-id]'); // Changed from [data-option-letter] to match relabel function
+  const optionIndex = existingOptions.length + 1; // 1, 2, 3, 4...
+  const optionLetter = String.fromCharCode(96 + optionIndex); // a, b, c, d, etc.
   
   const optionDiv = document.createElement('div');
-  optionDiv.dataset.optionId = optionLetter;
-  optionDiv.dataset.optionLetter = optionLetter; // Ensure data-option-letter is set
+  optionDiv.dataset.optionId = optionLetter; // Add data-option-id
+  optionDiv.dataset.optionLetter = optionLetter; // Add data-option-letter
   optionDiv.style.cssText = 'display:flex;gap:8px;margin-bottom:8px;align-items:center';
   
   optionDiv.innerHTML = `
     <label style="margin:0;font-weight:600;min-width:60px">Choix ${optionLetter.toUpperCase()}</label>
-    <input class="form-qcm-option" data-option-letter="${optionLetter}" placeholder="Réponse ${letter.toUpperCase()}" style="flex:1;padding:10px;border:1px solid #ddd;border-radius:8px;font-size:.95rem;box-sizing:border-box">
-    <button class="btn-danger remove-form-option-btn" data-qcm-id="${questionId}" data-opt-idx="${optionLetter}" style="background:#e53e3e;color:#fff;border:none;padding:8px 12px;border-radius:6px;cursor:pointer;font-size:.85rem">✕</button>
+    <input class="form-qcm-option" data-option-letter="${optionLetter}" placeholder="Réponse ${optionLetter.toUpperCase()}" style="flex:1;padding:10px;border:1px solid #ddd;border-radius:8px;font-size:.95rem;box-sizing:border-box">
+    <button onclick="removeFormQcmOption(${questionId}, '${optionLetter}')" style="background:#e53e3e;color:#fff;border:none;padding:8px 12px;border-radius:6px;cursor:pointer;font-size:.85rem">✕</button>
   `;
   container.appendChild(optionDiv);
   
-  // Increment the counter for this questionId
-  optionCounter[questionId] = currentOptionCount + 1;
-  
   // Update answer dropdown
   updateFormQcmAnswerDropdown(questionId);
-  
-  attachFormQcmEventListeners(); // Re-attach listeners as new elements are added
 };
 
 window.removeFormQcmOption = function(questionId, optionLetter) {
@@ -1165,17 +823,13 @@ window.removeFormQcmOption = function(questionId, optionLetter) {
     return;
   }
   
-  const optionDivToRemove = container.querySelector(`[data-option-id="${optionLetter}"]`);
-  if (optionDivToRemove) {
-    optionDivToRemove.remove();
-    relabelFormQcmOptions(questionId); // Relabel remaining options
-    updateFormQcmAnswerDropdown(questionId); // Update answer dropdown
-    
-    // Decrement the counter for this questionId
-    if (optionCounter[questionId] !== undefined) {
-        optionCounter[questionId]--;
-    }
-  }
+  const optionDiv = container.querySelector(`[data-option-id="${optionLetter}"]`);
+  if (optionDiv) optionDiv.remove();
+  
+  relabelFormQcmOptions(questionId);
+  
+  // Update answer dropdown
+  updateFormQcmAnswerDropdown(questionId);
 };
 
 function relabelFormQcmOptions(questionId) {
@@ -1186,8 +840,8 @@ function relabelFormQcmOptions(questionId) {
   const optionDivs = container.querySelectorAll('[data-option-id]');
   
   optionDivs.forEach((optionDiv, index) => {
-    const newIndex = index; // Start from 0 for the letter calculation
-    const newLetter = String.fromCharCode(97 + newIndex); // a, b, c, d...
+    const newIndex = index + 1;
+    const newLetter = String.fromCharCode(96 + newIndex); // a, b, c, d...
     
     optionDiv.dataset.optionId = newLetter;
     optionDiv.dataset.optionLetter = newLetter;
@@ -1204,116 +858,21 @@ function relabelFormQcmOptions(questionId) {
     }
     
     // Update remove button with correct letter reference
-    const button = optionDiv.querySelector('.remove-form-option-btn');
+    const button = optionDiv.querySelector('button');
     if (button) {
-      button.setAttribute('data-opt-idx', newLetter); // Use the new letter for the button's data attribute
+      button.setAttribute('onclick', `removeFormQcmOption(${questionId}, '${newLetter}')`);
     }
   });
-}
-
-function updateFormQcmAnswerDropdown(questionId) {
-  const questionDiv = document.querySelector(`[data-form-qcm-id="${questionId}"]`);
-  if (!questionDiv) return;
-  
-  const select = questionDiv.querySelector('.form-qcm-answer');
-  const optionsContainer = questionDiv.querySelector('.form-qcm-options-container');
-  const optionDivs = optionsContainer.querySelectorAll('[data-option-id]');
-  
-  const currentSelectedValue = select.value;
-  
-  select.innerHTML = ''; // Clear existing options
-  
-  optionDivs.forEach(optionDiv => {
-    const letter = optionDiv.dataset.optionLetter;
-    const optionLabel = optionDiv.querySelector('label').textContent;
-    const optionValue = letter; // Use the letter (a, b, c...) as the value
-    
-    const optionElement = document.createElement('option');
-    optionElement.value = optionValue;
-    optionElement.textContent = `${optionLabel} (${optionValue.toUpperCase()})`;
-    select.appendChild(optionElement);
-  });
-  
-  // Try to maintain the selected answer if it still exists
-  if (Array.from(select.options).some(opt => opt.value === currentSelectedValue)) {
-    select.value = currentSelectedValue;
-  } else if (select.options.length > 0) {
-    // Otherwise, select the first available option
-    select.value = select.options[0].value;
-  }
-}
-
-
-function addFormVfQuestion() {
-  formVfCounter++;
-  const div = document.createElement('div');
-  div.style.cssText = 'background:#f9f9f9;padding:12px;border-radius:8px;margin:8px 0;border:1px solid #e0e0e0';
-  div.dataset.formVfId = formVfCounter;
-  
-  const type = $('#addType').value;
-  const isLecture = type === 'lecture';
-  
-  div.innerHTML = `
-    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
-      <span style="font-weight:600;color:var(--brand)">Question V/F ${formVfCounter}</span>
-      <button class="btn-danger" onclick="removeFormVfQuestion(${formVfCounter})" style="padding:6px 10px;font-size:.85rem">Supprimer</button>
-    </div>
-    <label>Énoncé</label>
-    <input class="form-vf-statement" placeholder="Le ciel est bleu." style="width:100%;padding:10px;border:1px solid #ddd;border-radius:8px;font-size:.95rem;box-sizing:border-box;margin-bottom:8px">
-    
-    <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:8px">
-      <div>
-        <label>Réponse</label>
-        <select class="form-vf-answer" style="width:100%;padding:10px;border:1px solid #ddd;border-radius:8px;font-size:.95rem;box-sizing:border-box">
-          <option value="vrai">Vrai</option>
-          <option value="faux">Faux</option>
-        </select>
-      </div>
-      <div>
-        <label>Points</label>
-        <input type="number" class="form-vf-points" value="1" min="1" style="width:100%;padding:10px;border:1px solid #ddd;border-radius:8px;font-size:.95rem;box-sizing:border-box">
-      </div>
-    </div>
-
-    <div style="margin-top:8px;display:${isLecture ? 'block' : 'none'}">
-      <label>Mots-clés (séparés par | pour la recherche)</label>
-      <input class="form-vf-keywords" placeholder="Ex: ciel|bleu" style="width:100%;padding:10px;border:1px solid #ddd;border-radius:8px;font-size:.95rem;box-sizing:border-box">
-    </div>
-  `;
-  $('#formVfQuestions').appendChild(div);
-}
-
-function removeFormVfQuestion(id) {
-  $(`[data-form-vf-id="${id}"]`).remove();
-}
-
-function collectFormVfQuestions() {
-  const questions = [];
-  $$('#formVfQuestions [data-form-vf-id]').forEach(qDiv => {
-    const statement = qDiv.querySelector('.form-vf-statement').value.trim();
-    const answer = qDiv.querySelector('.form-vf-answer').value;
-    const points = parseInt(qDiv.querySelector('.form-vf-points').value) || 1;
-    const keywordsInput = qDiv.querySelector('.form-vf-keywords');
-    const keywords = keywordsInput ? keywordsInput.value.split('|').map(s => s.trim()).filter(Boolean) : [];
-    
-    if (statement) {
-      questions.push({ statement, answer, points, keywords });
-    }
-  });
-  return questions;
 }
 
 function togglePassageType() {
   const type = document.querySelector('input[name="passageType"]:checked').value;
-  passageType = type; // Store the selected type
   $('#passageTextBox').style.display = type === 'text' ? 'block' : 'none';
   $('#passageImageBox').style.display = type === 'image' ? 'block' : 'none';
 };
 
 function handlePassageImageDrop(event) {
   event.preventDefault();
-  event.currentTarget.style.borderColor = '#cbd5e0'; // Reset border color
-  event.currentTarget.style.background = '#f7fafc'; // Reset background
   const file = event.dataTransfer.files[0];
   if (file && file.type.startsWith('image/')) {
     processPassageImage(file);
@@ -1345,64 +904,19 @@ window.removePassageImage = function() {
   $('#passageImageInput').value = '';
 };
 
-function detectClozeBlanks() {
-  const text = $('#formClozeText').value;
-  const blanks = text.match(/\[(.*?)\]/g); // Find text within square brackets
-  
-  if (!blanks || blanks.length === 0) {
-    $('#clozeBlanksConfig').style.display = 'none';
-    alert('Aucun trou trouvé. Assurez-vous d\'utiliser des crochets `[...]` pour délimiter les mots à trous.');
-    return;
-  }
-  
-  const blankListDiv = $('#clozeBlankslist');
-  blankListDiv.innerHTML = ''; // Clear previous list
-  
-  blanks.forEach((blank, index) => {
-    const word = blank.substring(1, blank.length - 1); // Remove brackets
-    const div = document.createElement('div');
-    div.style.cssText = 'display:flex;gap:10px;align-items:center;margin-bottom:10px';
-    div.innerHTML = `
-      <div style="flex:1"><strong>Trou ${index + 1}</strong>: <code>${word}</code></div>
-      <label>Points:</label>
-      <input type="number" class="cloze-blank-points" data-blank-index="${index}" value="1" min="1" style="width:60px;padding:8px;border:1px solid #ddd;border-radius:6px;font-size:.9rem">
-    `;
-    blankListDiv.appendChild(div);
-  });
-  
-  $('#clozeBlanksConfig').style.display = 'block';
-}
-
-function collectClozeData() {
-  const clozeText = $('#formClozeText').value;
-  const transcription = $('#formClozeTranscription').value;
-  
-  const processedText = clozeText.replace(/\[(.*?)\]/g, '$1'); // Remove brackets for the main cloze field
-  const clozePointsInputs = $$('.cloze-blank-points');
-  const points = Array.from(clozePointsInputs).map(input => parseInt(input.value) || 1);
-  
-  if (!processedText.trim() && !transcription.trim()) return null;
-  
-  const data = { cloze: processedText, clozePoints: points };
-  if (transcription.trim()) data.transcription = transcription;
-  
-  return data;
-}
-
 function addExercise() { // Renamed from addFormExercise to match original
   const type = $('#addType').value;
   const level = $('#addLevel').value;
   const theme = $('#addTheme').value.trim();
   const title = $('#addTitle').value.trim();
-  const exerciseNumber = $('#addExerciseNumber').value.trim(); // Get exercise number
-  const id = editingExerciseId || `${type}_${level}_${theme.replace(/\s+/g, '_')}_${exerciseNumber || Date.now()}`; // Construct ID including number
+  const id = editingExerciseId || `${type}_${level}_${Date.now()}`;
 
-  if (!theme || !title || !exerciseNumber) { // Added exerciseNumber to validation
-    alert('Veuillez remplir le thème, le titre et le numéro d\'exercice');
+  if (!theme || !title) {
+    alert('Veuillez remplir le thème et le titre');
     return;
   }
 
-  const exercice = {id, niveau: level, theme, titre: title, number: exerciseNumber}; // Added number field
+  const exercice = {id, niveau: level, theme, titre: title}; // Corrected keys
 
   // Handle CE with image or text
   if (type === 'lecture') {
@@ -1415,10 +929,10 @@ function addExercise() { // Renamed from addFormExercise to match original
       }
       // Ensure the image data is correctly stored
       if (editingExerciseId) {
-        const idx = BANK.lecture.findIndex(e => e.id === editingExerciseId); // Use BANK
+        const idx = bank.lecture.findIndex(e => e.id === editingExerciseId);
         if (idx >= 0) {
-          BANK.lecture[idx].passage_image = passageImageData; // Use BANK
-          BANK.lecture[idx].passage_html = undefined; // Remove html if image is used
+          bank.lecture[idx].passage_image = passageImageData;
+          bank.lecture[idx].passage_html = undefined; // Remove html if image is used
         }
       } else {
         exercice.passage_image = passageImageData;
@@ -1430,7 +944,7 @@ function addExercise() { // Renamed from addFormExercise to match original
       
       let passage = '';
       if (passageTitle) passage += `<h3 style="font-weight:700;margin-bottom:12px">${passageTitle}</h3>`;
-      if (passageText) passage += `<p>${passageText}</p>`; // Assuming one main paragraph for simplicity
+      if (passageText) passage += `<p>${passageText}</p>`;
       if (passageSource) passage += `<p style="font-style:italic;text-align:right;color:#666;margin-top:12px">${passageSource}</p>`;
       
       if (!passage) {
@@ -1439,10 +953,10 @@ function addExercise() { // Renamed from addFormExercise to match original
       }
       
       if (editingExerciseId) {
-        const idx = BANK.lecture.findIndex(e => e.id === editingExerciseId); // Use BANK
+        const idx = bank.lecture.findIndex(e => e.id === editingExerciseId);
         if (idx >= 0) {
-          BANK.lecture[idx].passage_html = passage; // Use BANK
-          BANK.lecture[idx].passage_image = undefined; // Remove image if text is used
+          bank.lecture[idx].passage_html = passage;
+          bank.lecture[idx].passage_image = undefined; // Remove image if text is used
         }
       } else {
         exercice.passage_html = passage;
@@ -1499,27 +1013,16 @@ function addExercise() { // Renamed from addFormExercise to match original
       }
     }
   }
-  
-  // Handle Audio file path for CO exercises
-  if (type === 'ecoute') {
-    const audioPath = $('#addAudio').value;
-    if (audioPath) {
-      exercice.audio = audioPath;
-    } else {
-      alert('Veuillez fournir un fichier audio.');
-      return; // Stop if no audio provided for CO
-    }
-  }
 
   // Save and update
   if (editingExerciseId) {
-    const idx = BANK[type].findIndex(e => e.id === editingExerciseId); // Use BANK
+    const idx = bank[type].findIndex(e => e.id === editingExerciseId);
     if (idx >= 0) {
-      BANK[type][idx] = {...BANK[type][idx], ...exercice}; // Merge with existing exercise data
+      bank[type][idx] = {...bank[type][idx], ...exercice}; // Merge with existing exercise data
     }
   } else {
-    if (!BANK[type]) BANK[type] = []; // Ensure array exists
-    BANK[type].push(exercice);
+    if (!bank[type]) bank[type] = []; // Ensure array exists
+    bank[type].push(exercice);
   }
   
   saveBank();
@@ -1544,16 +1047,8 @@ function addExercise() { // Renamed from addFormExercise to match original
   $('input[name="passageType"][value="text"]').checked = true;
   togglePassageType(); // Reset the UI
   
-  // Reset audio input fields
-  $('#addAudio').value = '';
-  $('#audioFileName').textContent = '';
-  $('#audioFileName').style.display = 'none';
-  $('#audioDropText').style.display = 'block';
-  $('#audioPreview').removeAttribute('src'); // Clear audio preview
-
   $('#addTheme').value = '';
   $('#addTitle').value = '';
-  $('#addExerciseNumber').value = ''; // Clear exercise number field
   $('#cancelEditBtn').style.display = 'none';
   editingExerciseId = null;
   
@@ -1614,7 +1109,7 @@ function updateAddForm() {
   } else if (type === 'ecoute') {
     html = `
     <div class="form-group">
-      <label>Fichier audio</label>
+      <label>Chemin audio</label>
       <div id="audioDropZone" style="border:2px dashed #ddd;border-radius:8px;padding:20px;text-align:center;cursor:pointer;transition:all .2s;background:#f9f9f9">
         <input type="file" id="audioFileInput" accept="audio/*" style="display:none">
         <div id="audioDropText">
@@ -1623,9 +1118,8 @@ function updateAddForm() {
           <p style="margin:4px 0 0;font-size:.85rem;color:#999">Formats acceptés: MP3, WAV, OGG</p>
         </div>
         <div id="audioFileName" style="display:none;color:var(--success);font-weight:600"></div>
-        <audio id="audioPreview" controls style="width:100%;margin-top:10px;display:none"></audio>
       </div>
-      <input type="hidden" id="addAudio" value=""> <!-- This will store the path like 'audio/filename.mp3' -->
+      <input type="hidden" id="addAudio" value="">
     </div>
   `;
   } else {
@@ -1667,164 +1161,57 @@ function updateAddForm() {
 
 function updateBulkForm() {
   const type = $('#bulkType').value;
-  let html = '';
-
-  if (type === 'lecture') {
-    html = `
-      <div class="form-group">
-        <label>Titre du texte (affiché en gras)</label>
-        <input id="bulkPassageTitle" placeholder="ex. La Tour Eiffel">
-      </div>
-      <div class="form-group">
-        <label>Texte principal (chaque ligne sera un paragraphe)</label>
-        <textarea id="bulkPassage" placeholder="Exemple: La Tour Eiffel est un monument.
-Elle se trouve à Paris."></textarea>
-      </div>
-      <div class="form-group">
-        <label>Source (affichée en italique à droite)</label>
-        <input id="bulkPassageSource" placeholder="ex. Source: Le Monde, 2024">
-      </div>
-      <div class="form-group">
-        <label>Questions QCM (format: Question ; A ; B ; C ; réponse ; points ; explanation)</label>
-        <textarea id="bulkQCM" placeholder="Exemple: Quelle est la capitale ? ; Paris ; Lyon ; Marseille ; a ; 2 ; La capitale est Paris."></textarea>
-      </div>
-      <div class="form-group">
-        <label>Questions Vrai/Faux (format: Énoncé ; vrai|faux ; mots-clés ; points)</label>
-        <textarea id="bulkVF" placeholder="Exemple: Paris est en France. ; vrai ; Paris|France ; 1"></textarea>
-      </div>
-    `;
-  } else if (type === 'ecoute') {
-    html = `
-      <div class="form-group">
-        <label>Chemin audio (relatif au répertoire 'audio/')</label>
-        <input id="bulkAudio" placeholder="ex. lesson1.mp3">
-      </div>
-      <div class="form-group">
-        <label>Questions QCM (format: Question ; A ; B ; C ; réponse ; points)</label>
-        <textarea id="bulkQCM" placeholder="Exemple: Quel est le sujet ? ; A ; B ; C ; a ; 2"></textarea>
-      </div>
-      <div class="form-group">
-        <label>Cloze (entourez les réponses avec [crochets])</label>
-        <textarea id="bulkCloze" placeholder="Exemple: Je vais au [marché] à [10h]."></textarea>
-      </div>
-      <div class="form-group">
-        <label>Points par trou (séparés par des virgules)</label>
-        <input id="bulkClozePoints" placeholder="ex. 2,3,2">
-      </div>
-      <div class="form-group">
-        <label>Transcription</label>
-        <textarea id="bulkTranscription" placeholder="Entrez la transcription..."></textarea>
-      </div>
-    `;
-  } else { // Grammaire/Lexique
-    html = `
-      <p style="color:#666;font-style:italic">Ajoutez des questions QCM ci-dessous pour cet exercice de ${type}.</p>
-      <div class="form-group">
-        <label>Questions QCM (format: Question ; A ; B ; C ; réponse ; points ; explanation)</label>
-        <textarea id="bulkQCM" placeholder="Exemple: Quel est le participe passé ? ; Mangé ; Mange ; Mangea ; a ; 2 ; Le participe passé de manger..."></textarea>
-      </div>
-    `;
-  }
+  const html = type === 'lecture' ? `
+    <div class="form-group">
+      <label>Titre du texte (affiché en gras)</label>
+      <input id="bulkPassageTitle" placeholder="ex. La Tour Eiffel">
+    </div>
+    <div class="form-group">
+      <label>Texte principal</label>
+      <textarea id="bulkPassage" placeholder="Entrez le texte à lire..."></textarea>
+    </div>
+    <div class="form-group">
+      <label>Source (affichée en italique à droite)</label>
+      <input id="bulkPassageSource" placeholder="ex. Source: Le Monde, 2024">
+    </div>
+    <div class="form-group">
+      <label>Questions QCM (format: Question ; A ; B ; C ; réponse ; points)</label>
+      <textarea id="bulkQCM" placeholder="Exemple: Quelle est la capitale ? ; Paris ; Lyon ; Marseille ; a ; 2"></textarea>
+    </div>
+    <div class="form-group">
+      <label>Questions Vrai/Faux (format: Énoncé ; vrai|faux ; mots-clés ; points)</label>
+      <textarea id="bulkVF" placeholder="Exemple: Paris est en France. ; vrai ; Paris|France ; 1"></textarea>
+    </div>
+  ` : type === 'ecoute' ? `
+    <div class="form-group">
+      <label>Chemin audio</label>
+      <input id="bulkAudio" placeholder="ex. audio/lesson.mp3">
+    </div>
+    <div class="form-group">
+      <label>Questions QCM (format: Question ; A ; B ; C ; réponse ; points)</label>
+      <textarea id="bulkQCM" placeholder="Exemple: Quel est le sujet ? ; A ; B ; C ; a ; 2"></textarea>
+    </div>
+    <div class="form-group">
+      <label>Cloze (entourez les réponses avec [crochets])</label>
+      <textarea id="bulkCloze" placeholder="Exemple: Je vais au [marché] à [10h]."></textarea>
+    </div>
+    <div class="form-group">
+      <label>Points par trou (séparés par des virgules)</label>
+      <input id="bulkClozePoints" placeholder="ex. 2,3,2">
+    </div>
+    <div class="form-group">
+      <label>Transcription</label>
+      <textarea id="bulkTranscription" placeholder="Entrez la transcription..."></textarea>
+    </div>
+  ` : `
+    <!-- Bulk import for Grammaire/Lexique -->
+    <p style="color:#666;font-style:italic">Ajoutez des questions QCM ci-dessous pour cet exercice de ${type}.</p>
+    <div class="form-group">
+      <label>Questions QCM (format: Question ; A ; B ; C ; réponse ; points ; explanation)</label>
+      <textarea id="bulkQCM" placeholder="Exemple: Quel est le participe passé ? ; Mangé ; Mange ; Mangea ; a ; 2 ; Le participe passé de manger..."></textarea>
+    </div>
+  `;
   $('#bulkFormContent').innerHTML = html;
-}
-
-function addBulkExercise() {
-  const type = $('#bulkType').value;
-  const level = $('#bulkLevel').value;
-  const theme = $('#bulkTheme').value.trim();
-  const title = $('#bulkTitle').value.trim();
-  
-  if (!theme || !title) {
-    alert('Veuillez remplir le thème et le titre.');
-    return;
-  }
-
-  const exercisesToAdd = [];
-  let qcmText = $('#bulkQCM').value;
-  let vfText = $('#bulkVF').value;
-  let clozeText = $('#bulkCloze').value;
-  let transcriptionText = $('#bulkTranscription').value;
-  let clozePointsText = $('#bulkClozePoints').value;
-  let passageTitle = $('#bulkPassageTitle').value;
-  let passageText = $('#bulkPassage').value;
-  let passageSource = $('#bulkPassageSource').value;
-  let audioPath = $('#bulkAudio').value;
-
-  const newExercises = [];
-  const baseId = `${type}_${level}_${theme.replace(/\s+/g, '_')}_${Date.now()}`; // Use theme and timestamp for uniqueness
-
-  // Parse QCMs
-  const parsedQcm = qcmText ? parseBulkQCM(qcmText) : [];
-  const parsedVf = vfText ? parseVF(vfText) : [];
-  const parsedCloze = clozeText ? { cloze: clozeText.replace(/\[(.*?)\]/g, '$1'), transcription: transcriptionText, clozePoints: (clozePointsText || '').split(',').map(p => parseInt(p) || 1) } : null;
-
-  // Format passage for CE type
-  let formattedPassage = '';
-  if (type === 'lecture') {
-    if (passageTitle || passageText || passageSource) {
-      if (passageTitle) formattedPassage += `<h3 style="font-weight:700;margin-bottom:12px">${passageTitle}</h3>`;
-      if (passageText) {
-        const paragraphs = passageText.split('\n').filter(p => p.trim());
-        formattedPassage += paragraphs.map(p => `<p>${p}</p>`).join('');
-      }
-      if (passageSource) formattedPassage += `<p style="font-style:italic;text-align:right;color:#666;margin-top:12px">${passageSource}</p>`;
-    } else {
-      alert('Pour les exercices CE, veuillez fournir un titre, un texte ou une source.');
-      return;
-    }
-  }
-
-  // Create a single exercise if there's content, otherwise handle multiple based on QCM/VF lines
-  if (parsedQcm.length > 0 || parsedVf.length > 0 || parsedCloze || (type === 'lecture' && formattedPassage) || (type === 'ecoute' && audioPath)) {
-    const exercise = {
-      id: `${baseId}_0`, // Assign index 0 for now, will be updated if multiple are added by parsing
-      niveau: level,
-      theme: theme,
-      titre: title,
-    };
-    
-    if (type === 'lecture') {
-      exercise.passage_html = formattedPassage;
-      if (parsedQcm.length > 0) exercise.qcm = parsedQcm;
-      if (parsedVf.length > 0) exercise.vf = parsedVf;
-    } else if (type === 'ecoute') {
-      exercise.audio = audioPath;
-      if (parsedQcm.length > 0) exercise.qcm = parsedQcm;
-      if (parsedCloze) {
-        exercise.cloze = parsedCloze.cloze;
-        exercise.transcription = parsedCloze.transcription;
-        exercise.clozePoints = parsedCloze.clozePoints;
-      }
-    } else { // Grammaire, Lexique
-      if (parsedQcm.length > 0) exercise.qcm = parsedQcm;
-    }
-
-    newExercises.push(exercise);
-  } else {
-    alert('Aucun contenu valideFound for import.');
-    return;
-  }
-
-  // Add to bank
-  if (!BANK[type]) BANK[type] = []; // Use BANK
-  BANK[type].push(...newExercises); // Use BANK
-  
-  saveBank();
-  updateExercisesTable();
-  alert(`${newExercises.length} exercice(s) ajouté(s) avec succès !`);
-  
-  // Reset form fields
-  $('#bulkTheme').value = '';
-  $('#bulkTitle').value = '';
-  $('#bulkQCM').value = '';
-  $('#bulkVF').value = '';
-  $('#bulkCloze').value = '';
-  $('#bulkTranscription').value = '';
-  $('#bulkClozePoints').value = '';
-  $('#bulkPassageTitle').value = '';
-  $('#bulkPassage').value = '';
-  $('#bulkPassageSource').value = '';
-  $('#bulkAudio').value = '';
 }
 
 function editExercise(id) {
@@ -1832,14 +1219,12 @@ function editExercise(id) {
   let type = null;
   
   // Find the exercise and its type
-  for (const exType in BANK) { // Use BANK
-    if (BANK.hasOwnProperty(exType)) { // Use BANK
-      const found = BANK[exType].find(e => e.id === id); // Use BANK
-      if (found) {
-        exercise = found;
-        type = exType;
-        break;
-      }
+  for (const exType in bank) {
+    const found = bank[exType].find(e => e.id === id);
+    if (found) {
+      exercise = found;
+      type = exType;
+      break;
     }
   }
   
@@ -1848,7 +1233,7 @@ function editExercise(id) {
     return;
   }
   
-  switchTab('builder', { target: { getAttribute: () => 'builder'} }); // Programmatically switch tab
+  switchTab('builder');
   switchCreatorTab('form'); // Switch to form tab when editing
   
   editingExerciseId = id;
@@ -1858,7 +1243,6 @@ function editExercise(id) {
   $('#addLevel').value = exercise.niveau;
   $('#addTheme').value = exercise.theme;
   $('#addTitle').value = exercise.titre;
-  $('#addExerciseNumber').value = exercise.number || ''; // Populate exercise number
   
   updateAddForm(); // This will render the correct fields based on type
   
@@ -1868,83 +1252,41 @@ function editExercise(id) {
     optionCounter = {}; // Reset option counters
     $('#formQcmQuestions').innerHTML = ''; // Clear existing questions
     
-    exercise.qcm.forEach((q, qIndex) => {
-      formQcmCounter++; // Increment counter for each question
-      const questionDiv = document.createElement('div');
-      questionDiv.style.cssText = 'background:#f9f9f9;padding:12px;border-radius:8px;margin:8px 0;border:1px solid #e0e0e0';
-      questionDiv.dataset.formQcmId = formQcmCounter;
-      
-      const isGrammar = type === 'grammaire';
-      
-      questionDiv.innerHTML = `
-        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
-          <span style="font-weight:600;color:var(--brand)">Question ${formQcmCounter}</span>
-          <button class="btn-danger remove-form-qcm-question-btn" data-qcm-id="${formQcmCounter}" style="padding:6px 10px;font-size:.85rem">Supprimer</button>
-        </div>
-        <label>Question</label>
-        <input class="form-qcm-question" placeholder="Quelle est la capitale de la France ?" style="width:100%;padding:10px;border:1px solid #ddd;border-radius:8px;font-size:.95rem;box-sizing:border-box;margin-bottom:8px" value="${q.question}">
-        
-        <div class="form-qcm-options-container"></div>
-        
-        <button class="btn-secondary add-form-option-btn" data-qcm-id="${formQcmCounter}" style="margin-bottom:8px;padding:6px 10px;font-size:.85rem">+ Ajouter une réponse</button>
-        
-        <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:8px">
-          <div>
-            <label>Bonne réponse</label>
-            <select class="form-qcm-answer" style="width:100%;padding:10px;border:1px solid #ddd;border-radius:8px;font-size:.95rem;box-sizing:border-box">
-            </select>
-          </div>
-          <div>
-            <label>Points</label>
-            <input type="number" class="form-qcm-points" value="${q.points || 1}" min="1" style="width:100%;padding:10px;border:1px solid #ddd;border-radius:8px;font-size:.95rem;box-sizing:border-box">
-          </div>
-        </div>
-        
-        <div style="margin-top:8px;display:${isGrammar ? 'block' : 'none'}">
-          <label>Explication (affichée dans le corrigé)</label>
-          <textarea class="form-qcm-explanation" placeholder="Expliquez la règle grammaticale..." style="width:100%;padding:10px;border:1px solid #ddd;border-radius:8px;font-size:.95rem;box-sizing:border-box;min-height:60px">${q.explanation || ''}</textarea>
-        </div>
-      `;
-      $('#formQcmQuestions').appendChild(questionDiv);
+    exercise.qcm.forEach(q => {
+      addFormQcmQuestion();
+      const lastAdded = $('#formQcmQuestions > div:last-child');
+      lastAdded.querySelector('.form-qcm-question').value = q.question;
       
       // Populate dynamic options
-      let currentOptionCount = 0; // Initialize currentOptionCount locally for this loop iteration
-      // Iterate over known option letters (a, b, c, d...)
-      for (let i = 0; i < 26; i++) { // Check up to 'z'
-        const letter = String.fromCharCode(97 + i); // 'a', 'b', 'c', ...
-        if (q.hasOwnProperty(letter) && q[letter]) {
-          currentOptionCount++; // Increment for each option added
+      let currentOptionIndex = 0;
+      for (const letter in q) {
+        if (letter.length === 1 && q.hasOwnProperty(letter) && letter !== 'question' && letter !== 'answer' && letter !== 'points' && letter !== 'explanation') {
+          currentOptionIndex++;
+          const optionLetter = letter;
           const optionValue = q[letter];
           
-          const container = questionDiv.querySelector('.form-qcm-options-container');
+          const container = lastAdded.querySelector('.form-qcm-options-container');
           const optionDiv = document.createElement('div');
-          optionDiv.dataset.optionId = letter;
-          optionDiv.dataset.optionLetter = letter; // Ensure data-option-letter is set
+          optionDiv.dataset.optionId = optionLetter;
+          optionDiv.dataset.optionLetter = optionLetter; // Ensure data-option-letter is set
           optionDiv.style.cssText = 'display:flex;gap:8px;margin-bottom:8px;align-items:center';
           optionDiv.innerHTML = `
-            <label style="margin:0;font-weight:600;min-width:60px">Choix ${letter.toUpperCase()}</label>
-            <input class="form-qcm-option" data-option-letter="${letter}" placeholder="Réponse ${letter.toUpperCase()}" value="${optionValue}" style="flex:1;padding:10px;border:1px solid #ddd;border-radius:8px;font-size:.95rem;box-sizing:border-box">
-            <button class="btn-danger remove-form-option-btn" data-qcm-id="${formQcmCounter}" data-opt-idx="${letter}" style="background:#e53e3e;color:#fff;border:none;padding:8px 12px;border-radius:6px;cursor:pointer;font-size:.85rem">✕</button>
+            <label style="margin:0;font-weight:600;min-width:60px">Choix ${optionLetter.toUpperCase()}</label>
+            <input class="form-qcm-option" data-option-letter="${optionLetter}" placeholder="Réponse ${optionLetter.toUpperCase()}" value="${optionValue}" style="flex:1;padding:10px;border:1px solid #ddd;border-radius:8px;font-size:.95rem;box-sizing:border-box">
+            <button onclick="removeFormQcmOption(${formQcmCounter}, '${optionLetter}')" style="background:#e53e3e;color:#fff;border:none;padding:8px 12px;border-radius:6px;cursor:pointer;font-size:.85rem">✕</button>
           `;
           container.appendChild(optionDiv);
         }
       }
-      optionCounter[formQcmCounter] = currentOptionCount; // Store the number of options added
+      optionCounter[formQcmCounter] = currentOptionIndex; // Set the counter for this question
       
-      // Set the answer and update the dropdown
-      if (q.answer) {
-        const answerSelect = questionDiv.querySelector('.form-qcm-answer');
-        // Wait for options to be populated before setting value
-        setTimeout(() => {
-           answerSelect.value = q.answer;
-        }, 0);
+      lastAdded.querySelector('.form-qcm-answer').value = q.answer;
+      lastAdded.querySelector('.form-qcm-points').value = q.points;
+      if (q.explanation && lastAdded.querySelector('.form-qcm-explanation')) {
+        lastAdded.querySelector('.form-qcm-explanation').value = q.explanation;
       }
     });
-    // Update dropdowns after populating all questions and options
-    $$('[data-form-qcm-id]').forEach(qDiv => {
-      const qId = parseInt(qDiv.dataset.formQcmId);
-      updateFormQcmAnswerDropdown(qId);
-    });
+    updateFormQcmAnswerDropdown(formQcmCounter); // Update dropdowns after populating options
   }
 
   // Populate Vrai/Faux questions
@@ -1953,41 +1295,14 @@ function editExercise(id) {
     $('#formVfQuestions').innerHTML = ''; // Clear existing
     
     exercise.vf.forEach(q => {
-      formVfCounter++;
-      const vfDiv = document.createElement('div');
-      vfDiv.style.cssText = 'background:#f9f9f9;padding:12px;border-radius:8px;margin:8px 0;border:1px solid #e0e0e0';
-      vfDiv.dataset.formVfId = formVfCounter;
-
-      const isLecture = type === 'lecture';
-      
-      vfDiv.innerHTML = `
-        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
-          <span style="font-weight:600;color:var(--brand)">Question V/F ${formVfCounter}</span>
-          <button class="btn-danger" onclick="removeFormVfQuestion(${formVfCounter})" style="padding:6px 10px;font-size:.85rem">Supprimer</button>
-        </div>
-        <label>Énoncé</label>
-        <input class="form-vf-statement" placeholder="Le ciel est bleu." style="width:100%;padding:10px;border:1px solid #ddd;border-radius:8px;font-size:.95rem;box-sizing:border-box;margin-bottom:8px" value="${q.statement}">
-        
-        <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:8px">
-          <div>
-            <label>Réponse</label>
-            <select class="form-vf-answer" style="width:100%;padding:10px;border:1px solid #ddd;border-radius:8px;font-size:.95rem;box-sizing:border-box">
-              <option value="vrai" ${q.answer === 'vrai' ? 'selected' : ''}>Vrai</option>
-              <option value="faux" ${q.answer === 'faux' ? 'selected' : ''}>Faux</option>
-            </select>
-          </div>
-          <div>
-            <label>Points</label>
-            <input type="number" class="form-vf-points" value="${q.points || 1}" min="1" style="width:100%;padding:10px;border:1px solid #ddd;border-radius:8px;font-size:.95rem;box-sizing:border-box">
-          </div>
-        </div>
-
-        <div style="margin-top:8px;display:${isLecture ? 'block' : 'none'}">
-          <label>Mots-clés (séparés par | pour la recherche)</label>
-          <input class="form-vf-keywords" placeholder="Ex: ciel|bleu" style="width:100%;padding:10px;border:1px solid #ddd;border-radius:8px;font-size:.95rem;box-sizing:border-box" value="${(q.keywords || []).join('|')}">
-        </div>
-      `;
-      $('#formVfQuestions').appendChild(vfDiv);
+      addFormVfQuestion();
+      const lastAdded = $('#formVfQuestions > div:last-child');
+      lastAdded.querySelector('.form-vf-statement').value = q.statement;
+      lastAdded.querySelector('.form-vf-answer').value = q.answer;
+      if (type === 'lecture') {
+        lastAdded.querySelector('.form-vf-keywords').value = (q.keywords || []).join('|');
+      }
+      lastAdded.querySelector('.form-vf-points').value = q.points;
     });
   }
   
@@ -2002,17 +1317,14 @@ function editExercise(id) {
     } else if (exercise.passage_html) {
       const passage = exercise.passage_html || '';
       const titleMatch = passage.match(/<h3[^>]*>(.*?)<\/h3>/);
-      // Correctly extract source, which is the last <p> tag with specific styling
-      const sourceMatch = passage.match(/<p\s+style="[^"]*italic[^"]*[^"]*">([^<]*)<\/p>/);
-      // Extract text content, excluding title and source if present
-      let textContent = passage;
-      if (titleMatch) textContent = textContent.replace(titleMatch[0], '');
-      if (sourceMatch) textContent = textContent.replace(sourceMatch[0], '');
-      const textMatch = textContent.match(/<p>(.*?)<\/p>/g); // Get all paragraphs
+      const sourceMatch = passage.match(/<p[^>]*style="[^"]*italic[^"]*"[^>]*>(.*?)<\/p>/);
+      const textMatch = passage.match(/<p>(.*?)<\/p>/); // Might need to adjust if there are multiple <p> tags
       
       if (titleMatch) $('#passageTitle').value = titleMatch[1].replace(/<[^>]*>/g, '');
-      if (textMatch) {
-        $('#passageText').value = textMatch.map(p => p.replace(/<p>|<\/p>/g, '')).join('\n'); // Join paragraphs with newlines
+      // Extract text carefully, considering potential multiple paragraphs
+      const allPs = passage.match(/<p>(.*?)<\/p>/g);
+      if (allPs) {
+        $('#passageText').value = allPs.map(p => p.replace(/<p>|<\/p>/g, '')).join('\n'); // Join paragraphs with newlines
       }
       if (sourceMatch) $('#passageSource').value = sourceMatch[1].replace(/<[^>]*>/g, '');
       
@@ -2029,7 +1341,7 @@ function editExercise(id) {
         $('#formClozeTranscription').value = exercise.transcription;
       }
       // Automatically detect blanks and populate points
-      detectClozeBlanks(); // This populates the UI
+      detectClozeBlanks();
       if (exercise.clozePoints) {
         exercise.clozePoints.forEach((points, index) => {
           const input = document.querySelector(`[data-blank-index="${index}"]`);
@@ -2037,19 +1349,13 @@ function editExercise(id) {
         });
       }
     }
-    // Populate audio path
     if (exercise.audio) {
       $('#addAudio').value = exercise.audio;
       const fileNameDisplay = $('#audioFileName');
       const audioDropText = $('#audioDropText');
-      const audioPreview = $('#audioPreview');
-      
       audioDropText.style.display = 'none';
       fileNameDisplay.textContent = exercise.audio.split('/').pop(); // Display just the file name
       fileNameDisplay.style.display = 'block';
-      fileNameDisplay.style.color = '#10b981';
-      audioPreview.src = exercise.audio; // Set audio preview src
-      audioPreview.style.display = 'block';
     }
   }
   
@@ -2061,7 +1367,6 @@ function cancelEdit() {
   $('#cancelEditBtn').style.display = 'none';
   $('#addTheme').value = '';
   $('#addTitle').value = '';
-  $('#addExerciseNumber').value = ''; // Clear exercise number field
   
   // Reset form question counters and clear questions
   formQcmCounter = 0;
@@ -2085,19 +1390,11 @@ function cancelEdit() {
   $('input[name="passageType"][value="text"]').checked = true;
   togglePassageType(); // Ensure UI is reset
   
-  // Reset audio input fields
-  $('#addAudio').value = '';
-  $('#audioFileName').textContent = '';
-  $('#audioFileName').style.display = 'none';
-  $('#audioDropText').style.display = 'block';
-  $('#audioPreview').removeAttribute('src'); // Clear audio preview
-  $('#audioPreview').style.display = 'none';
-
   updateAddForm(); // Re-renders the form fields based on default type
 }
 
 function saveBank() {
-  localStorage.setItem(BANK_KEY, JSON.stringify(BANK)); // Use BANK
+  localStorage.setItem(BANK_KEY, JSON.stringify(bank));
 }
 
 function parseQCM(text) {
@@ -2148,12 +1445,12 @@ function parseVF(text) {
 }
 
 function findLessonById(lessonId) {
-  if (!BANK) return null; // Use BANK
+  if (!bank) return null;
   let found = null;
   // Check all exercise types
-  for (const type in BANK) { // Use BANK
-    if (BANK.hasOwnProperty(type)) { // Use BANK
-      const lesson = BANK[type].find(l => l.id === lessonId); // Use BANK
+  for (const type in bank) {
+    if (bank.hasOwnProperty(type)) {
+      const lesson = bank[type].find(l => l.id === lessonId);
       if (lesson) {
         found = { ...lesson, type: type };
         break;
@@ -2478,7 +1775,7 @@ function resetUserPassword(userId) {
   }
   
   users[userIndex].pin = newPin;
-  localStorage.setItem(USERS_KEY, JSON.JSON.stringify(users));
+  localStorage.setItem(USERS_KEY, JSON.stringify(users));
   
   alert(`Code PIN réinitialisé avec succès pour ${user.name}`);
 }
@@ -2500,7 +1797,7 @@ function deleteUser(userId) {
   
   // Remove user from users list
   const updatedUsers = users.filter(u => u.id !== userId);
-  localStorage.setItem(USERS_KEY, JSON.JSON.stringify(updatedUsers));
+  localStorage.setItem(USERS_KEY, JSON.stringify(updatedUsers));
   
   // Remove user statistics
   const allStats = JSON.parse(localStorage.getItem('fr_stats_db') || '{}');
@@ -2510,7 +1807,7 @@ function deleteUser(userId) {
   // Remove user drafts
   const allDrafts = JSON.parse(localStorage.getItem('fr_drafts_db') || '{}');
   delete allDrafts[userId];
-  localStorage.setItem('fr_drafts_db', JSON.JSON.stringify(allDrafts));
+  localStorage.setItem('fr_drafts_db', JSON.stringify(allDrafts));
   
   alert(`Le compte de ${user.name} a été supprimé avec succès`);
   
@@ -2519,112 +1816,25 @@ function deleteUser(userId) {
   updateDashboard();
 }
 
-async function uploadToCloudinary(file) {
-  const formData = new FormData();
-  formData.append('file', file);
-  formData.append('upload_preset', CLOUDINARY_UPLOAD_PRESET);
-  formData.append('folder', 'french-audio');
-  formData.append('resource_type', 'video'); // Audio files need 'video' resource type
-
-  const url = `https://api.cloudinary.com/v1_1/${CLOUDINARY_CLOUD_NAME}/upload`;
-
-  try {
-    const response = await fetch(url, {
-      method: 'POST',
-      body: formData
-    });
-
-    if (!response.ok) {
-      const errorData = await response.json();
-      console.error('[v0] Cloudinary error response:', errorData);
-      
-      let errorMsg = `Erreur Cloudinary: ${errorData.error?.message || response.statusText}\n\n`;
-      errorMsg += `Vérifiez:\n`;
-      errorMsg += `- Votre upload preset "${CLOUDINARY_UPLOAD_PRESET}" existe et est "unsigned"\n`;
-      errorMsg += `- Votre cloud name est correct: ${CLOUDINARY_CLOUD_NAME}\n`;
-      errorMsg += `- Le fichier ne dépasse pas les limites de votre plan Cloudinary`;
-      
-      throw new Error(errorMsg);
-    }
-
-    const data = await response.json();
-    return data.secure_url;
-  } catch (error) {
-    console.error('[v0] Cloudinary upload error:', error);
-    alert(error.message || 'Erreur lors de l\'upload vers Cloudinary');
-    throw error;
-  }
-}
-
 // Helper function for handling audio file uploads
-async function handleAudioFile(file, inputElement, fileNameDisplay, hiddenAudioInput) {
+function handleAudioFile(file, inputElement, fileNameDisplay, hiddenAudioInput) {
   if (!file) return;
   
   const allowedTypes = ['audio/mpeg', 'audio/wav', 'audio/ogg'];
   if (!allowedTypes.includes(file.type)) {
     alert('Format de fichier audio non supporté. Veuillez choisir un fichier MP3, WAV ou OGG.');
-    inputElement.value = '';
+    inputElement.value = ''; // Clear the input
     return;
   }
 
-  const niveau = $('#addLevel')?.value || '';
-  const theme = $('#addTheme')?.value?.trim() || '';
-  const exerciseNum = $('#addExerciseNumber')?.value?.trim() || '';
-  
-  if (!niveau || !theme || !exerciseNum) {
-    alert('Veuillez d\'abord remplir le Niveau, le Thème et le N° exercice avant d\'importer un fichier audio.');
-    inputElement.value = '';
-    return;
-  }
-  
-  const cleanTheme = theme.replace(/[^a-zA-Z0-9À-ÿ\s]/g, '').replace(/\s+/g, '_');
-  const originalExt = file.name.split('.').pop().toLowerCase();
-  const newFileName = `${niveau}_${cleanTheme}_Exo${exerciseNum}.${originalExt}`;
-  
-  const renamedFile = new File([file], newFileName, { type: file.type });
-  
-  // Display filename and upload status
-  if (fileNameDisplay) {
-    fileNameDisplay.textContent = `📁 ${newFileName} - ⏳ Upload en cours...`;
-    fileNameDisplay.style.color = '#f59e0b';
-    document.getElementById('audioDropText').style.display = 'none';
-  }
-  
-  try {
-    const cloudinaryUrl = await uploadToCloudinary(renamedFile);
-    
-    console.log('[v0] Audio uploaded successfully to Cloudinary:', cloudinaryUrl);
-    
-    // Update display with success message
-    if (fileNameDisplay) {
-      fileNameDisplay.textContent = `✅ ${newFileName} - Uploadé vers Cloudinary`;
-      fileNameDisplay.style.color = '#10b981';
-    }
-    
-    // Store Cloudinary URL in hidden input
-    if (hiddenAudioInput) {
-      hiddenAudioInput.value = cloudinaryUrl;
-    }
-    
-    // Preview audio
-    const reader = new FileReader();
-    reader.onload = e => {
-      const audioPreview = document.querySelector('#audioPreview');
-      if (audioPreview) {
-        audioPreview.src = e.target.result;
-        audioPreview.style.display = 'block';
-      }
-    };
-    reader.readAsDataURL(file);
-    
-  } catch (error) {
-    console.error('[v0] Error uploading audio:', error);
-    if (fileNameDisplay) {
-      fileNameDisplay.textContent = `❌ Erreur lors de l'upload`;
-      fileNameDisplay.style.color = '#ef4444';
-    }
-    inputElement.value = '';
-  }
+  // For simplicity, we'll just store the file name for now.
+  // In a real application, you'd upload this file to a server.
+  const fileName = file.name;
+  hiddenAudioInput.value = `audio/${fileName}`; // Store the intended path
+  fileNameDisplay.textContent = fileName;
+  fileNameDisplay.style.display = 'block';
+  document.getElementById('audioDropText').style.display = 'none';
+  inputElement.value = ''; // Clear the input after processing
 }
 
 function addResource() {
@@ -2651,7 +1861,7 @@ function addResource() {
     resources.push({ id, title, level, url, description, type, createdAt: Date.now() });
   }
 
-  localStorage.setItem('fr_resources', JSON.JSON.stringify(resources));
+  localStorage.setItem('fr_resources', JSON.stringify(resources));
   updateResourcesTable();
   
   alert(editingResourceId ? 'Ressource modifiée !' : 'Ressource ajoutée !');
@@ -2688,19 +1898,16 @@ function updateResourcesTable() {
         <td>${res.title}</td>
         <td>${icon} ${res.type}</td>
         <td><span class="badge ${levelClass}">${res.level}</span></td>
-        <td><a href="${res.url}" target="_blank" style="color:var(--brand);text-decoration:none">${res.url.length > 50 ? res.url.substring(0, 50) + '...' : res.url}</a></td>
+        <td><a href="${res.url}" target="_blank" style="color:var(--brand);text-decoration:none">${res.url.substring(0, 40)}...</a></td>
         <td>
           <div class="action-btns">
-            <button class="btn-secondary edit-resource-btn" data-resource-id="${res.id}">Éditer</button>
-            <button class="btn-danger delete-resource-btn" data-resource-id="${res.id}">Supprimer</button>
+            <button class="btn-secondary" onclick="editResource('${res.id}')">Éditer</button>
+            <button class="btn-danger" onclick="deleteResource('${res.id}')">Supprimer</button>
           </div>
         </td>
       </tr>
     `;
   }).join('');
-  
-  // Attach event listeners for resource action buttons
-  attachResourceActionListeners();
 }
 
 function editResource(id) {
@@ -2736,7 +1943,7 @@ function deleteResource(id) {
   
   const resources = JSON.parse(localStorage.getItem('fr_resources') || '[]');
   const filtered = resources.filter(r => r.id !== id);
-  localStorage.setItem('fr_resources', JSON.JSON.stringify(filtered));
+  localStorage.setItem('fr_resources', JSON.stringify(filtered));
   updateResourcesTable();
 }
 
@@ -2755,7 +1962,7 @@ function loadChatUsers() {
     const lastMessage = userMessages[userMessages.length - 1];
     
     return `
-      <div class="chat-user-item" data-user-id="${user.id}" style="padding:12px;border-radius:8px;cursor:pointer;margin-bottom:8px;background:${selectedChatUserId === user.id ? '#e8f5e9' : '#fff'};border:1px solid ${selectedChatUserId === user.id ? 'var(--brand)' : '#e0e0e0'}">
+      <div onclick="selectChatUser('${user.id}')" style="padding:12px;border-radius:8px;cursor:pointer;margin-bottom:8px;background:${selectedChatUserId === user.id ? '#e8f5e9' : '#fff'};border:1px solid ${selectedChatUserId === user.id ? 'var(--brand)' : '#e0e0e0'}">
         <div style="display:flex;justify-content:space-between;align-items:center">
           <strong>${user.name}</strong>
           ${unreadCount > 0 ? `<span style="background:var(--error);color:#fff;padding:2px 6px;border-radius:10px;font-size:.75rem">${unreadCount}</span>` : ''}
@@ -2766,9 +1973,6 @@ function loadChatUsers() {
   }).join('');
 
   $('#chatUsersList').innerHTML = html;
-  
-  // Attach event listeners to dynamically created chat user items
-  attachChatUserListeners();
 }
 
 window.selectChatUser = function(userId) {
@@ -2791,7 +1995,7 @@ function loadChatMessages(userId) {
     if (m.from === userId) m.read = true;
   });
   messages[userId] = userMessages;
-  localStorage.setItem('fr_messages', JSON.JSON.stringify(messages));
+  localStorage.setItem('fr_messages', JSON.stringify(messages));
 
   if (userMessages.length === 0) {
     $('#chatMessagesArea').innerHTML = `<div class="empty-state">Aucun message avec ${user.name}</div>`;
@@ -2834,7 +2038,7 @@ function sendAdminMessage() {
     read: false
   });
 
-  localStorage.setItem('fr_messages', JSON.JSON.stringify(messages));
+  localStorage.setItem('fr_messages', JSON.stringify(messages));
   $('#adminMessageInput').value = '';
   loadChatMessages(selectedChatUserId);
 }
@@ -2853,7 +2057,7 @@ function deleteAdminChatHistory() {
   
   const messages = JSON.parse(localStorage.getItem('fr_messages') || '{}');
   delete messages[selectedChatUserId];
-  localStorage.setItem('fr_messages', JSON.JSON.stringify(messages));
+  localStorage.setItem('fr_messages', JSON.stringify(messages));
   
   // Reset UI
   $('#chatMessagesArea').innerHTML = '<div class="empty-state">Historique supprimé</div>';
@@ -2866,31 +2070,104 @@ function deleteAdminChatHistory() {
   alert('Historique de conversation supprimé avec succès');
 }
 
-// New function to attach event listeners to dynamically created resource action buttons
-function attachResourceActionListeners() {
-  document.querySelectorAll('.edit-resource-btn').forEach(btn => {
-    btn.onclick = () => editResource(btn.dataset.resourceId);
-  });
-  
-  document.querySelectorAll('.delete-resource-btn').forEach(btn => {
-    btn.onclick = () => deleteResource(btn.dataset.resourceId);
-  });
-}
-
-// New function to attach event listeners to dynamically created chat user items
-function attachChatUserListeners() {
-  document.querySelectorAll('.chat-user-item').forEach(item => {
-    item.addEventListener('click', () => selectChatUser(item.dataset.userId));
-  });
-}
-
-
 document.addEventListener('click', (e) => {
-  // Close modal if clicking outside of content
-  if (e.target.id === 'userStatsModal' && $(`#${e.target.id}`).classList.contains('active')) {
+  if (e.target.id === 'userStatsModal') {
     closeUserStatsModal();
   }
 });
+
+$('#logoutBtn').addEventListener('click', () => {
+  localStorage.removeItem(AUTH_KEY);
+  localStorage.removeItem('fr_current_user');
+  window.location.href = 'login.html';
+});
+
+function updateUsersTable() {
+  const users = JSON.parse(localStorage.getItem(USERS_KEY) || '[]');
+  const tbody = $('#usersBody');
+
+  if (users.length === 0) {
+    tbody.innerHTML = '<tr><td colspan="6" class="empty-state">Aucun utilisateur</td></tr>';
+    return;
+  }
+
+  tbody.innerHTML = users.map(user => {
+    const isAdmin = user.role === 'admin';
+    const isCurrentUser = user.id === currentUser.id;
+    
+    if (isAdmin) {
+      // Admin row
+      return `
+        <tr style="background:#f0f8ff">
+          <td><strong>${user.name}</strong> ${isCurrentUser ? '(Vous)' : ''}</td>
+          <td>${user.email}</td>
+          <td><span class="badge" style="background:#2196f3;color:#fff">Admin</span></td>
+          <td colspan="2" style="text-align:center;color:#666">—</td>
+          <td>
+            <div class="action-btns">
+              ${!isCurrentUser ? `
+                <button class="btn-secondary" onclick="resetUserPassword('${user.id}')">Changer code PIN</button>
+                <button class="btn-danger" onclick="deleteAdmin('${user.id}')">Supprimer</button>
+              ` : '<span style="color:#666;font-size:.85rem">Vous ne pouvez pas vous gérer</span>'}
+            </div>
+          </td>
+        </tr>
+      `;
+    } else {
+      // Student row
+      const progress = getUserProgress(user.id);
+      return `
+        <tr>
+          <td>${user.name}</td>
+          <td>${user.email}</td>
+          <td><span class="badge" style="background:#4caf50;color:#fff">Étudiant</span></td>
+          <td>${progress.completedLessons}</td>
+          <td>${progress.avgScore}%</td>
+          <td>
+            <div class="action-btns">
+              <button class="btn-secondary" onclick="viewUserStats('${user.id}')">Voir stats</button>
+              <button class="btn-secondary" onclick="resetUserPassword('${user.id}')">Réinitialiser code</button>
+              <button class="btn-danger" onclick="deleteUser('${user.id}')">Supprimer</button>
+            </div>
+          </td>
+        </tr>
+      `;
+    }
+  }).join('');
+}
+
+function deleteAdmin(adminId) {
+  const users = JSON.parse(localStorage.getItem(USERS_KEY) || '[]');
+  const admin = users.find(u => u.id === adminId);
+  
+  if (!admin) {
+    alert('Administrateur introuvable');
+    return;
+  }
+  
+  // Check if this is the last admin
+  const adminCount = users.filter(u => u.role === 'admin').length;
+  if (adminCount <= 1) {
+    alert('Impossible de supprimer le dernier administrateur. Il doit toujours y avoir au moins un administrateur.');
+    return;
+  }
+  
+  const confirmMessage = `Êtes-vous sûr de vouloir supprimer l'administrateur ${admin.name} (${admin.email})?\n\nCette action ne peut pas être annulée.`;
+  
+  if (!confirm(confirmMessage)) {
+    return;
+  }
+  
+  // Remove admin from users list
+  const updatedUsers = users.filter(u => u.id !== adminId);
+  localStorage.setItem(USERS_KEY, JSON.stringify(updatedUsers));
+  
+  alert(`L'administrateur ${admin.name} a été supprimé avec succès`);
+  
+  // Refresh the users table
+  updateUsersTable();
+  updateDashboard();
+}
 
 // These functions are placeholders as they are not defined in the provided code
 // but are called in the <updates> section.
@@ -2904,98 +2181,20 @@ function drawTypeChart() {}
 
 // Call initialization functions
 checkAuth();
-// loadBank() and related updates are now handled within DOMContentLoaded
-// This ensures data is available before attempting to render.
+loadBank();
+updateUsersTable(); // Call updateUsersTable to display users on page load
+updateDashboard();
+setTimeout(() => {
+  drawAdminActivityChart();
+  drawAdminLevelChart();
+}, 100); // Delayed to ensure canvas is rendered
 
-// Moved initial table updates and chart drawing to be called after loadBank inside DOMContentLoaded
-
-// Moved user table update here to ensure it's called after bank loading if needed
-updateUsersTable(); 
-
-function updateUsersTable() {
-  console.log('[v0] Updating users table');
-  
-  const tbody = document.getElementById('usersBody');
-  if (!tbody) return;
-  
-  // Get users from localStorage
-  const usersData = localStorage.getItem(USERS_KEY); // Assuming 'fr_users' is the correct key
-  if (!usersData) {
-    tbody.innerHTML = '<tr><td colspan="6" class="empty-state">Aucun utilisateur</td></tr>';
-    return;
+document.getElementById('logoutBtn').addEventListener('click', function() {
+  if (confirm('Voulez-vous vraiment vous déconnecter ?')) {
+    localStorage.removeItem('fr_auth_user');
+    window.location.replace('https://v0-francais-exercices.vercel.app/login.html');
   }
-  
-  try {
-    const users = JSON.parse(usersData);
-    // Assuming users is an array of user objects, each with 'id', 'name', 'email', 'role'
-    if (!Array.isArray(users) || users.length === 0) {
-      tbody.innerHTML = '<tr><td colspan="6" class="empty-state">Aucun utilisateur</td></tr>';
-      return;
-    }
-    
-    let html = '';
-    users.forEach(user => {
-      const name = user.name || user.email.split('@')[0]; // Use name if available, else derive from email
-      const role = user.role || 'étudiant';
-      
-      // Calculate completed lessons and average score from user progress
-      // Dynamically construct the key based on user ID
-      const userProgressKey = `fr_progress_${user.id}`; 
-      const progressData = localStorage.getItem(userProgressKey);
-      
-      let completedLessons = 0;
-      let avgScore = 0;
-      
-      if (progressData) {
-        try {
-          const progress = JSON.parse(progressData);
-          // Progress object might be structured differently, assuming it's an object where keys are lesson IDs
-          completedLessons = Object.keys(progress).length;
-          
-          // Calculate average score across all lessons for this user
-          const scores = Object.values(progress).map(p => {
-            // Ensure 'p' is an object and has 'attempts' array
-            if (p && p.attempts && Array.isArray(p.attempts)) {
-              // Sum percentages from all attempts and divide by total attempts
-              return p.attempts.map(att => att.percentage || 0);
-            }
-            return []; // Return empty array if no attempts or invalid structure
-          }).flat(); // Flatten the array of scores from multiple attempts/lessons
-
-          if (scores.length > 0) {
-            avgScore = Math.round(scores.reduce((a, b) => a + b, 0) / scores.length);
-          }
-        } catch (e) {
-          console.error('[v0] Error parsing progress for user ID', user.id, e);
-        }
-      }
-      
-      html += `
-        <tr>
-          <td>${name}</td>
-          <td>${user.email}</td>
-          <td><span class="badge badge-a1">${role}</span></td>
-          <td>${completedLessons}</td>
-          <td>${avgScore}%</td>
-          <td class="action-btns">
-            <button class="btn-secondary" onclick="viewUserStats('${user.id}')">Voir détails</button> 
-            <button class="btn-danger" onclick="deleteUser('${user.id}')">Supprimer</button>
-          </td>
-        </tr>
-      `;
-    });
-    
-    tbody.innerHTML = html;
-    
-    // Update dashboard total users count
-    document.getElementById('totalUsers').textContent = users.length;
-    
-  } catch (error) {
-    console.error('[v0] Error updating users table:', error);
-    tbody.innerHTML = '<tr><td colspan="6" class="empty-state">Erreur lors du chargement des utilisateurs</td></tr>';
-  }
-}
-
+});
 </script>
 </body>
 </html>
