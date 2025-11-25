@@ -549,7 +549,7 @@ const FILES_INDEX_KEY = 'fr_json_files_index'; // Track all uploaded JSON files 
 
 const CLOUDINARY_CLOUD_NAME = 'dvbsn45rk';
 const CLOUDINARY_UPLOAD_PRESET = 'francais_exercices';
-const CLOUDINARY_JSON_FOLDER = 'french-json';
+const CLOUDINARY_JSON_FOLDER = 'entrainement-francais';
 
 let currentUser = null;
 let bank = null;
@@ -565,7 +565,7 @@ let selectedChatUserId = null;
 
 // Added variables for new QCM and passage features
 let passageImageData = null;
-let optionCounter = {};
+let optionCounter = {}; // Used for tracking option count per QCM question
 
 function checkAuth() {
   const auth = localStorage.getItem(AUTH_KEY);
@@ -706,14 +706,14 @@ async function syncFromCloudinary() {
     
     console.log('[v0] No index found, trying to load known files directly...');
     const cloudName = CLOUDINARY_CLOUD_NAME;
-    const knownFiles = ['questions.json', 'a1_CO.json', 'a1_CE.json', 'a2_CO.json', 'a2_CE.json'];
+    const knownFiles = ['questions.json', 'a1_CO.json', 'a1_CE.json', 'a2_CO.json', 'a2_CE.json', 'b1_CO.json', 'b1_CE.json', 'b2_CO.json', 'b2_CE.json', 'c1_CO.json', 'c1_CE.json', 'c2_CO.json', 'c2_CE.json'];
     
     let loadedCount = 0;
     const allExercises = [];
     
     for (const fileName of knownFiles) {
       try {
-        const url = `https://res.cloudinary.com/${cloudName}/raw/upload/french-json/${fileName}`;
+        const url = `https://res.cloudinary.com/${cloudName}/raw/upload/entrainement-francais/${fileName}`;
         console.log('[v0] Trying to fetch:', url);
         
         const response = await fetch(url);
@@ -750,9 +750,25 @@ async function syncFromCloudinary() {
       
       // Categorize and merge exercises
       allExercises.forEach(ex => {
-        const category = ex.category || 'lecture';
+        const category = ex.type === 'lecture' || ex.type === 'CE' ? 'lecture' : 
+                         ex.type === 'ecoute' || ex.type === 'CO' ? 'ecoute' :
+                         ex.type === 'grammaire' || ex.type === 'Grammaire' ? 'grammaire' : 'lexique'; // Default to lexique if unrecognized
+        
         if (!stored[category]) stored[category] = [];
         
+        // Ensure 'type' property is consistent for later use
+        if (!ex.type) {
+            if (category === 'lecture') ex.type = 'CE';
+            else if (category === 'ecoute') ex.type = 'CO';
+            else if (category === 'grammaire') ex.type = 'Grammaire';
+            else ex.type = 'Lexique';
+        }
+
+        // Add unique ID if missing
+        if (!ex.id) {
+            ex.id = `${category}_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`;
+        }
+
         // Avoid duplicates
         const exists = stored[category].some(e => e.id === ex.id);
         if (!exists) {
@@ -767,7 +783,7 @@ async function syncFromCloudinary() {
       updateExercisesTable();
       alert('✅ Synchronisation réussie! ' + loadedCount + ' fichier(s) trouvé(s), ' + allExercises.length + ' exercice(s) chargé(s).');
     } else {
-      alert('⚠️ Aucun fichier trouvé sur Cloudinary. Vérifiez que les fichiers sont bien uploadés dans le dossier "french-json".');
+      alert('⚠️ Aucun fichier trouvé sur Cloudinary. Vérifiez que les fichiers sont bien uploadés dans le dossier "entrainement-francais".');
     }
     
   } catch (error) {
@@ -840,14 +856,15 @@ function updateExercisesTable() {
     let typeLabel = ex.type; // Use the type property directly
     let typeClass = 'badge-lecture';
     if (ex.type === 'CO') { typeClass = 'badge-ecoute'; }
-    // Add more classes if needed for Grammaire/Lexique, or keep generic
+    else if (ex.type === 'Grammaire') { typeClass = 'badge-a1'; } // Example class mapping
+    else if (ex.type === 'Lexique') { typeClass = 'badge-a2'; } // Example class mapping
 
     const levelClass = 'badge-' + (ex.niveau || 'a1').toLowerCase();
 
     return `
       <tr>
         <td>${ex.titre}</td>
-        <td><span class="badge ${typeClass}">${typeLabel}</span></td>
+        <td><span class="badge ${typeClass}">${typeLabel}</td>
         <td><span class="badge ${levelClass}">${ex.niveau}</span></td>
         <td>${ex.theme}</td>
         <td>${qCount}</td>
@@ -883,1250 +900,303 @@ function deleteExercise(id, type) {
   }
 }
 
-function exportBank() {
-  // Ensure the bank is in a clean format before exporting, especially if it's an internal representation.
-  // For this case, `bank` structure is directly used and should be fine.
-  const blob = new Blob([JSON.stringify(bank, null, 2)], { type: 'application/json' });
-  const a = document.createElement('a');
-  a.href = URL.createObjectURL(blob);
-  a.download = 'questions.json';
-  a.click();
-  URL.revokeObjectURL(a.href);
-}
-
-function loadDefaultBank() {
-  const defaultBank = {
-    lecture: [
-      {
-        id: 'lec_a1_01',
-        niveau: 'A1',
-        theme: 'Salutations',
-        titre: 'Bonjour !',
-        type: 'CE', // Added type property
-        passage_html: '<p>Bonjour, je m\'appelle Jean. Comment allez-vous ?</p>',
-        qcm: [{ question: 'Comment s\'appelle la personne ?', a: 'Jean', b: 'Marie', c: 'Pierre', answer: 'a', points: 2 }],
-        vf: [{ statement: 'La personne s\'appelle Jean.', answer: 'vrai', keywords: ['Jean'], points: 1 }]
-      }
-    ],
-    ecoute: [
-      {
-        id: 'eco_a1_01',
-        niveau: 'A1',
-        theme: 'Salutations',
-        titre: 'Écoute simple',
-        type: 'CO', // Added type property
-        audio: 'audio/sample.mp3',
-        qcm: [{ question: 'Quel est le sujet ?', a: 'Salutations', b: 'Nourriture', c: 'Voyage', answer: 'a', points: 2 }],
-        cloze: 'Bonjour, je m\'appelle [Jean].',
-        transcription: 'Bonjour, je m\'appelle Jean.',
-        clozePoints: [2]
-      }
-    ],
-    grammaire: [],
-    lexique: []
-  };
-
-  bank = defaultBank;
-  saveBank();
-  updateExercisesTable();
-  alert('Banque par défaut chargée !');
-}
-
-function switchCreatorTab(tab) {
-  $$('.tab-btn-creator').forEach(btn => {
-    btn.classList.remove('active');
-    btn.style.color = '#666';
-    btn.style.borderBottomColor = 'transparent';
-  });
-  
-  event.target.classList.add('active');
-  event.target.style.color = 'var(--brand)';
-  event.target.style.borderBottomColor = 'var(--brand)';
-  
-  if (tab === 'form') {
-    $('#creatorFormTab').style.display = 'block';
-    $('#creatorBulkTab').style.display = 'none';
-  } else {
-    $('#creatorFormTab').style.display = 'none';
-    $('#creatorBulkTab').style.display = 'block';
-  }
-}
-
-function addFormQcmQuestion() {
-  formQcmCounter++;
-  const div = document.createElement('div');
-  div.style.cssText = 'background:#f9f9f9;padding:12px;border-radius:8px;margin:8px 0;border:1px solid #e0e0e0';
-  div.dataset.formQcmId = formQcmCounter;
-  
-  const isGrammar = $('#addType').value === 'grammaire';
-  
-  div.innerHTML = `
-    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
-      <span style="font-weight:600;color:var(--brand)">Question ${formQcmCounter}</span>
-      <button class="btn-danger" onclick="removeFormQcmQuestion(${formQcmCounter})" style="padding:6px 10px;font-size:.85rem">Supprimer</button>
-    </div>
-    <label>Question</label>
-    <input class="form-qcm-question" placeholder="Quelle est la capitale de la France ?" style="width:100%;padding:10px;border:1px solid #ddd;border-radius:8px;font-size:.95rem;box-sizing:border-box;margin-bottom:8px">
-    
-    <div class="form-qcm-options-container"></div>
-    
-    <button class="btn-secondary" onclick="addFormQcmOption(${formQcmCounter})" style="margin-bottom:8px;padding:6px 10px;font-size:.85rem">+ Ajouter une réponse</button>
-    
-    <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:8px">
-      <div>
-        <label>Bonne réponse</label>
-        <select class="form-qcm-answer" style="width:100%;padding:10px;border:1px solid #ddd;border-radius:8px;font-size:.95rem;box-sizing:border-box">
-        </select>
-      </div>
-      <div>
-        <label>Points</label>
-        <input type="number" class="form-qcm-points" value="1" min="1" style="width:100%;padding:10px;border:1px solid #ddd;border-radius:8px;font-size:.95rem;box-sizing:border-box">
-      </div>
-    </div>
-    
-    <div style="margin-top:8px;display:${isGrammar ? 'block' : 'none'}">
-      <label>Explication (affichée dans le corrigé)</label>
-      <textarea class="form-qcm-explanation" placeholder="Expliquez la règle grammaticale..." style="width:100%;padding:10px;border:1px solid #ddd;border-radius:8px;font-size:.95rem;box-sizing:border-box;min-height:60px"></textarea>
-    </div>
-  `;
-  $('#formQcmQuestions').appendChild(div);
-  
-  // Add default 3 options
-  addFormQcmOption(formQcmCounter);
-  addFormQcmOption(formQcmCounter);
-  addFormQcmOption(formQcmCounter);
-}
-
-window.addFormQcmOption = function(questionId) {
-  const questionDiv = document.querySelector(`[data-form-qcm-id="${questionId}"]`);
-  if (!questionDiv) return;
-  
-  const container = questionDiv.querySelector('.form-qcm-options-container');
-  const existingOptions = container.querySelectorAll('[data-option-id]'); // Changed from [data-option-letter] to match relabel function
-  const optionIndex = existingOptions.length + 1; // 1, 2, 3, 4...
-  const optionLetter = String.fromCharCode(96 + optionIndex); // a, b, c, d, etc.
-  
-  const optionDiv = document.createElement('div');
-  optionDiv.dataset.optionId = optionLetter; // Add data-option-id
-  optionDiv.dataset.optionLetter = optionLetter; // Add data-option-letter
-  optionDiv.style.cssText = 'display:flex;gap:8px;margin-bottom:8px;align-items:center';
-  
-  optionDiv.innerHTML = `
-    <label style="margin:0;font-weight:600;min-width:60px">Choix ${optionLetter.toUpperCase()}</label>
-    <input class="form-qcm-option" data-option-letter="${optionLetter}" placeholder="Réponse ${letter.toUpperCase()}" style="flex:1;padding:10px;border:1px solid #ddd;border-radius:8px;font-size:.95rem;box-sizing:border-box">
-    <button onclick="removeFormQcmOption(${questionId}, '${optionLetter}')" style="background:#e53e3e;color:#fff;border:none;padding:8px 12px;border-radius:6px;cursor:pointer;font-size:.85rem">✕</button>
-  `;
-  container.appendChild(optionDiv);
-  
-  // Update answer dropdown
-  updateFormQcmAnswerDropdown(questionId);
-};
-
-window.removeFormQcmOption = function(questionId, optionLetter) {
-  const questionDiv = document.querySelector(`[data-form-qcm-id="${questionId}"]`);
-  if (!questionDiv) return;
-  
-  const container = questionDiv.querySelector('.form-qcm-options-container');
-  const options = container.querySelectorAll('[data-option-id]');
-  
-  // Don't allow removing if only 2 options left
-  if (options.length <= 2) {
-    alert('Vous devez avoir au moins 2 choix de réponse.');
-    return;
-  }
-  
-  const optionDiv = container.querySelector(`[data-option-id="${optionLetter}"]`);
-  if (optionDiv) optionDiv.remove();
-  
-  relabelFormQcmOptions(questionId);
-  
-  // Update answer dropdown
-  updateFormQcmAnswerDropdown(questionId);
-};
-
-function relabelFormQcmOptions(questionId) {
-  const questionDiv = document.querySelector(`[data-form-qcm-id="${questionId}"]`);
-  if (!questionDiv) return;
-  
-  const container = questionDiv.querySelector('.form-qcm-options-container');
-  const optionDivs = container.querySelectorAll('[data-option-id]');
-  
-  optionDivs.forEach((optionDiv, index) => {
-    const newIndex = index + 1;
-    const newLetter = String.fromCharCode(96 + newIndex); // a, b, c, d...
-    
-    optionDiv.dataset.optionId = newLetter;
-    optionDiv.dataset.optionLetter = newLetter;
-    
-    // Update label
-    const label = optionDiv.querySelector('label');
-    if (label) label.textContent = `Choix ${newLetter.toUpperCase()}`;
-    
-    // Update input
-    const input = optionDiv.querySelector('.form-qcm-option');
-    if (input) {
-      input.dataset.optionLetter = newLetter;
-      input.placeholder = `Réponse ${newLetter.toUpperCase()}`;
-    }
-    
-    // Update remove button with correct letter reference
-    const button = optionDiv.querySelector('button');
-    if (button) {
-      button.setAttribute('onclick', `removeFormQcmOption(${questionId}, '${newLetter}')`);
-    }
-  });
-}
-
-function togglePassageType() {
-  const type = document.querySelector('input[name="passageType"]:checked').value;
-  $('#passageTextBox').style.display = type === 'text' ? 'block' : 'none';
-  $('#passageImageBox').style.display = type === 'image' ? 'block' : 'none';
-};
-
-function handlePassageImageDrop(event) {
-  event.preventDefault();
-  const file = event.dataTransfer.files[0];
-  if (file && file.type.startsWith('image/')) {
-    processPassageImage(file);
-  }
-};
-
-window.handlePassageImageSelect = function(event) {
-  const file = event.target.files[0];
-  if (file) {
-    processPassageImage(file);
-  }
-};
-
-function processPassageImage(file) {
-  const reader = new FileReader();
-  reader.onload = function(e) {
-    passageImageData = e.target.result;
-    $('#passageImagePreviewImg').src = passageImageData;
-    $('#passageImagePreview').style.display = 'block';
-    $('#passageImageDropZone').style.display = 'none';
-  };
-  reader.readAsDataURL(file);
-}
-
-window.removePassageImage = function() {
-  passageImageData = null;
-  $('#passageImagePreview').style.display = 'none';
-  $('#passageImageDropZone').style.display = 'block';
-  $('#passageImageInput').value = '';
-};
-
-function addExercise() { // Renamed from addFormExercise to match original
-  const type = $('#addType').value;
-  const level = $('#addLevel').value;
-  const theme = $('#addTheme').value.trim();
-  const title = $('#addTitle').value.trim();
-  const id = editingExerciseId || `${type}_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`; // Ensure unique ID
-
-  if (!theme || !title) {
-    alert('Veuillez remplir le thème et le titre');
-    return;
-  }
-
-  // Ensure `exercice` object has all required properties and correct keys
-  let exercice = {id, niveau: level, theme, titre: title, type: type}; 
-
-  // Handle CE with image or text
-  if (type === 'lecture') {
-    const passageType = document.querySelector('input[name="passageType"]:checked')?.value;
-    
-    if (passageType === 'image') {
-      if (!passageImageData) {
-        alert('Veuillez ajouter une image');
-        return;
-      }
-      exercice.passage_image = passageImageData;
-    } else { // text passage
-      const passageTitle = $('#passageTitle').value.trim();
-      const passageText = $('#passageText').value.trim();
-      const passageSource = $('#passageSource').value.trim();
-      
-      let passage = '';
-      if (passageTitle) passage += `<h3 style="font-weight:700;margin-bottom:12px">${passageTitle}</h3>`;
-      if (passageText) passage += `<p>${passageText}</p>`;
-      if (passageSource) passage += `<p style="font-style:italic;text-align:right;color:#666;margin-top:12px">${passageSource}</p>`;
-      
-      if (!passage) {
-        alert('Veuillez ajouter un texte ou une image pour le contenu');
-        return;
-      }
-      exercice.passage_html = passage;
-    }
-  }
-
-  // Handle QCM questions
-  if ($('#formQcmQuestions').children.length > 0) {
-    const questions = [];
-    $$('#formQcmQuestions [data-form-qcm-id]').forEach(qDiv => {
-      const question = qDiv.querySelector('.form-qcm-question').value.trim();
-      const options = {};
-      qDiv.querySelectorAll('.form-qcm-option').forEach(opt => {
-        const letter = opt.dataset.optionLetter;
-        const value = opt.value.trim();
-        if (value) options[letter] = value;
-      });
-      const answer = qDiv.querySelector('.form-qcm-answer').value;
-      const points = parseInt(qDiv.querySelector('.form-qcm-points').value) || 1;
-      const explanation = qDiv.querySelector('.form-qcm-explanation')?.value.trim() || '';
-      
-      if (question && Object.keys(options).length >= 2) { // Minimum 2 options
-        const q = {question, ...options, answer, points};
-        if (explanation) q.explanation = explanation;
-        questions.push(q);
-      }
-    });
-    
-    if (questions.length === 0 && !['lecture'].includes(type)) { // Allow lecture without QCM for now
-      alert('Veuillez ajouter au moins une question QCM valide.');
-      return;
-    }
-    if (questions.length > 0) {
-      exercice.qcm = questions;
-    }
-  }
-  
-  // Handle Vrai/Faux questions
-  if ($('#formVfQuestions').children.length > 0) {
-    const vfQuestions = collectFormVfQuestions();
-    if (vfQuestions.length > 0) {
-      exercice.vf = vfQuestions;
-    }
-  }
-
-  // Handle Cloze questions for audio exercises
-  if (type === 'ecoute') {
-    const clozeData = collectClozeData();
-    if (clozeData) {
-      exercice.cloze = clozeData.cloze;
-      exercice.transcription = clozeData.transcription;
-      if (clozeData.clozePoints) {
-        exercice.clozePoints = clozeData.clozePoints;
-      }
-    }
-    // Handle audio file input
-    const audioPath = $('#addAudio').value;
-    if (audioPath) {
-      exercice.audio = audioPath;
-    } else if (!editingExerciseId) { // Don't force audio if editing an existing exercise without audio
-      alert('Veuillez ajouter un fichier audio pour les exercices de type CO.');
-      return;
-    }
-  }
-
-  // Save to bank
-  if (editingExerciseId) {
-    const idx = bank[type].findIndex(e => e.id === editingExerciseId);
-    if (idx >= 0) {
-      // Merge new data with existing, preserving other properties
-      bank[type][idx] = {...bank[type][idx], ...exercice}; 
-    } else {
-      // This case should ideally not happen if editingExerciseId is valid
-      alert(`Erreur: Exercice ${editingExerciseId} non trouvé pour la mise à jour.`);
-      return;
-    }
-  } else {
-    if (!bank[type]) bank[type] = []; // Ensure array exists
-    bank[type].push(exercice);
-  }
-  
-  saveBank();
-  updateExercisesTable();
-  
-  // Reset forms and UI
-  resetFormState(); // Consolidate reset logic
-  
-  alert(editingExerciseId ? 'Exercice modifié !' : 'Exercice ajouté !');
-}
-
-function resetFormState() {
-  // Resetting general fields
-  editingExerciseId = null;
-  $('#cancelEditBtn').style.display = 'none';
-  $('#addTheme').value = '';
-  $('#addTitle').value = '';
-
-  // Reset form question counters and clear questions
-  formQcmCounter = 0;
-  formVfCounter = 0;
-  $('#formQcmQuestions').innerHTML = '';
-  $('#formVfQuestions').innerHTML = '';
-  
-  // Reset Cloze form
-  $('#formClozeText').value = '';
-  $('#formClozeTranscription').value = '';
-  $('#clozeBlanksConfig').style.display = 'none';
-  $('#clozeBlankslist').innerHTML = ''; // Clear previous blank configurations
-  
-  // Reset Passage form
-  passageImageData = null;
-  $('#passageImagePreview').style.display = 'none';
-  $('#passageImageDropZone').style.display = 'block';
-  $('#passageImageInput').value = '';
-  $('#passageTitle').value = '';
-  $('#passageText').value = '';
-  $('#passageSource').value = '';
-  // Ensure default radio button is checked and UI reflects it
-  $('input[name="passageType"][value="text"]').checked = true;
-  togglePassageType(); 
-  
-  // Reset Audio input for 'ecoute' type
-  $('#addAudio').value = '';
-  $('#audioFileName').style.display = 'none';
-  $('#audioDropText').style.display = 'block';
-
-  // Re-render the form based on the current type selection
-  updateAddForm(); 
-}
-
-function updateAddForm() {
-  const type = $('#addType').value;
-  
-  // Show/hide relevant question type containers
-  $('#formQcmBox').style.display = 'block'; // QCM is generally available
-  $('#formVfBox').style.display = (type === 'lecture' || type === 'ecoute' || type === 'grammaire' || type === 'lexique') ? 'block' : 'none'; // V/F can apply to most types
-  $('#formClozeBox').style.display = type === 'ecoute' ? 'block' : 'none'; // Cloze is specific to audio
-  
-  let html = '';
-  
-  if (type === 'lecture') {
-    html = `
-      <div id="passageBox" style="margin-top:16px">
-        <label style="font-weight:600;display:block;margin-bottom:12px;color:#2d3748">Type de contenu</label>
-        <div style="display:flex;gap:16px;margin-bottom:20px;padding:16px;background:#f7fafc;border-radius:8px">
-          <label style="display:flex;align-items:center;gap:8px;cursor:pointer;padding:8px 16px;background:#fff;border:2px solid #e2e8f0;border-radius:8px;transition:all .2s">
-            <input type="radio" name="passageType" value="text" checked onchange="togglePassageType()" style="cursor:pointer">
-            <span style="font-weight:500">📝 Texte</span>
-          </label>
-          <label style="display:flex;align-items:center;gap:8px;cursor:pointer;padding:8px 16px;background:#fff;border:2px solid #e2e8f0;border-radius:8px;transition:all .2s">
-            <input type="radio" name="passageType" value="image" onchange="togglePassageType()" style="cursor:pointer">
-            <span style="font-weight:500">🖼️ Image / Capture d'écran</span>
-          </label>
-        </div>
-        
-        <div id="passageTextBox">
-          <label style="font-weight:600;display:block;margin-bottom:8px;color:#2d3748">Titre (affiché en gras)</label>
-          <input id="passageTitle" placeholder="ex. La Tour Eiffel" style="width:100%;padding:10px;border:1px solid #ddd;border-radius:8px;font-size:.95rem;box-sizing:border-box;margin-bottom:16px">
-          <label style="font-weight:600;display:block;margin-bottom:8px;color:#2d3748">Texte principal</label>
-          <textarea id="passageText" placeholder="Entrez le texte à lire..." style="width:100%;padding:10px;border:1px solid #ddd;border-radius:8px;font-size:.95rem;box-sizing:border-box;min-height:120px;margin-bottom:16px"></textarea>
-          <label style="font-weight:600;display:block;margin-bottom:8px;color:#2d3748">Source (affichée en italique à droite)</label>
-          <input id="passageSource" placeholder="ex. Source: Le Monde, 2024" style="width:100%;padding:10px;border:1px solid #ddd;border-radius:8px;font-size:.95rem;box-sizing:border-box">
-        </div>
-        
-        <div id="passageImageBox" style="display:none">
-          <label style="font-weight:600;display:block;margin-bottom:8px;color:#2d3748">Image du document</label>
-          <div id="passageImageDropZone" style="border:2px dashed #cbd5e0;border-radius:8px;padding:32px;text-align:center;cursor:pointer;background:#f7fafc;margin-bottom:8px;transition:all .2s" ondragover="event.preventDefault();event.currentTarget.style.borderColor='#10b981';event.currentTarget.style.background='#ecfdf5'" ondragleave="event.currentTarget.style.borderColor='#cbd5e0';event.currentTarget.style.background='#f7fafc'" ondrop="handlePassageImageDrop(event);event.currentTarget.style.borderColor='#cbd5e0';event.currentTarget.style.background='#f7fafc'" onclick="$('#passageImageInput').click()">
-            <div style="font-size:2.5rem;margin-bottom:8px">📷</div>
-            <div style="color:#4a5568;font-weight:500">Glissez une image ici ou cliquez pour sélectionner</div>
-            <div style="color:#718096;font-size:.85rem;margin-top:4px">Formats acceptés: JPG, PNG, GIF</div>
-          </div>
-          <input type="file" id="passageImageInput" accept="image/*" style="display:none" onchange="handlePassageImageSelect(event)">
-          <div id="passageImagePreview" style="display:none;margin-top:12px">
-            <img id="passageImagePreviewImg" style="max-width:100%;border-radius:8px;box-shadow:0 4px 12px rgba(0,0,0,.1);margin-bottom:12px">
-            <button onclick="removePassageImage()" style="background:#e53e3e;color:#fff;border:none;padding:10px 16px;border-radius:6px;cursor:pointer;font-weight:500;transition:all .2s" onmouseover="this.style.background='#c53030'" onmouseout="this.style.background='#e53e3e'">🗑️ Supprimer l'image</button>
-          </div>
-        </div>
-      </div>
-    `;
-  } else if (type === 'ecoute') {
-    html = `
-    <div class="form-group">
-      <label>Chemin audio</label>
-      <div id="audioDropZone" style="border:2px dashed #ddd;border-radius:8px;padding:20px;text-align:center;cursor:pointer;transition:all .2s;background:#f9f9f9">
-        <input type="file" id="audioFileInput" accept="audio/*" style="display:none">
-        <div id="audioDropText">
-          <p style="margin:0;font-weight:600;color:var(--brand)">📁 Glissez un fichier audio ici</p>
-          <p style="margin:8px 0 0;font-size:.9rem;color:#666">ou cliquez pour parcourir</p>
-          <p style="margin:4px 0 0;font-size:.85rem;color:#999">Formats acceptés: MP3, WAV, OGG</p>
-        </div>
-        <div id="audioFileName" style="display:none;color:var(--success);font-weight:600"></div>
-      </div>
-      <input type="hidden" id="addAudio" value="">
-    </div>
-  `;
-  } else {
-    // For grammar and vocabulary, provide a placeholder if no specific fields are needed yet.
-    html = `<p style="color:#666;font-style:italic">Configurez les questions ci-dessous pour cet exercice de ${type}.</p>`;
-  }
-  
-  $('#addFormContent').innerHTML = html;
-
-  // Add event listeners for drag and drop for audio file
-  if (type === 'ecoute') {
-    const audioDropZone = $('#audioDropZone');
-    const audioFileInput = $('#audioFileInput');
-    const audioFileNameDisplay = $('#audioFileName');
-    const hiddenAudioInput = $('#addAudio');
-
-    audioDropZone.addEventListener('click', () => audioFileInput.click());
-    audioDropZone.addEventListener('dragover', (e) => {
-      e.preventDefault();
-      audioDropZone.style.borderColor = 'var(--brand)';
-    });
-    audioDropZone.addEventListener('dragleave', () => {
-      audioDropZone.style.borderColor = '#ddd';
-    });
-    audioDropZone.addEventListener('drop', (e) => {
-      e.preventDefault();
-      audioDropZone.style.borderColor = '#ddd';
-      handleAudioFile(e.dataTransfer.files[0], audioFileInput, audioFileNameDisplay, hiddenAudioInput);
-    });
-    audioFileInput.addEventListener('change', (e) => {
-      handleAudioFile(e.target.files[0], audioFileInput, audioFileNameDisplay, hiddenAudioInput);
-    });
-  }
-  
-  // Re-apply togglePassageType after form content is updated to ensure correct initial state
-  if (type === 'lecture') {
-    togglePassageType(); 
-  }
-}
-
-function updateBulkForm() {
-  const type = $('#bulkType').value;
-  const html = type === 'lecture' ? `
-    <div class="form-group">
-      <label>Titre du texte (affiché en gras)</label>
-      <input id="bulkPassageTitle" placeholder="ex. La Tour Eiffel">
-    </div>
-    <div class="form-group">
-      <label>Texte principal</label>
-      <textarea id="bulkPassage" placeholder="Entrez le texte à lire..."></textarea>
-    </div>
-    <div class="form-group">
-      <label>Source (affichée en italique à droite)</label>
-      <input id="bulkPassageSource" placeholder="ex. Source: Le Monde, 2024">
-    </div>
-    <div class="form-group">
-      <label>Questions QCM (format: Question ; A ; B ; C ; réponse ; points)</label>
-      <textarea id="bulkQCM" placeholder="Exemple: Quelle est la capitale ? ; Paris ; Lyon ; Marseille ; a ; 2"></textarea>
-    </div>
-    <div class="form-group">
-      <label>Questions Vrai/Faux (format: Énoncé ; vrai|faux ; mots-clés ; points)</label>
-      <textarea id="bulkVF" placeholder="Exemple: Paris est en France. ; vrai ; Paris|France ; 1"></textarea>
-    </div>
-  ` : type === 'ecoute' ? `
-    <div class="form-group">
-      <label>Chemin audio</label>
-      <input id="bulkAudio" placeholder="ex. audio/lesson.mp3">
-    </div>
-    <div class="form-group">
-      <label>Questions QCM (format: Question ; A ; B ; C ; réponse ; points)</label>
-      <textarea id="bulkQCM" placeholder="Exemple: Quel est le sujet ? ; A ; B ; C ; a ; 2"></textarea>
-    </div>
-    <div class="form-group">
-      <label>Cloze (entourez les réponses avec [crochets])</label>
-      <textarea id="bulkCloze" placeholder="Exemple: Je vais au [marché] à [10h]."></textarea>
-    </div>
-    <div class="form-group">
-      <label>Points par trou (séparés par des virgules)</label>
-      <input id="bulkClozePoints" placeholder="ex. 2,3,2">
-    </div>
-    <div class="form-group">
-      <label>Transcription</label>
-      <textarea id="bulkTranscription" placeholder="Entrez la transcription..."></textarea>
-    </div>
-  ` : `
-    <!-- Bulk import for Grammaire/Lexique -->
-    <p style="color:#666;font-style:italic">Ajoutez des questions QCM ci-dessous pour cet exercice de ${type}.</p>
-    <div class="form-group">
-      <label>Questions QCM (format: Question ; A ; B ; C ; réponse ; points ; explanation)</label>
-      <textarea id="bulkQCM" placeholder="Exemple: Quel est le participe passé ? ; Mangé ; Mange ; Mangea ; a ; 2 ; Le participe passé de manger..."></textarea>
-    </div>
-  `;
-  $('#bulkFormContent').innerHTML = html;
-}
-
 function editExercise(id) {
+  // Find the exercise in the bank
   let exercise = null;
-  let type = null;
-  
-  // Find the exercise and its type
-  for (const exType in bank) {
-    if (bank.hasOwnProperty(exType)) {
-      const found = bank[exType].find(e => e.id === id);
-      if (found) {
-        exercise = found;
-        type = exType; // This will be 'lecture', 'ecoute', etc.
-        break;
-      }
+  let exerciseType = null;
+  for (const type in bank) {
+    const found = bank[type].find(e => e.id === id);
+    if (found) {
+      exercise = found;
+      exerciseType = type;
+      break;
     }
   }
-  
+
   if (!exercise) {
-    alert('Exercice introuvable');
+    alert('Exercice non trouvé.');
     return;
   }
-  
-  switchTab('builder');
-  switchCreatorTab('form'); // Switch to form tab when editing
-  
+
+  // Populate the form
   editingExerciseId = id;
-  $('#cancelEditBtn').style.display = 'inline-block';
-  
-  // Set basic form fields
-  $('#addType').value = type;
+  $('#addType').value = exercise.type === 'CE' ? 'lecture' : exercise.type === 'CO' ? 'ecoute' : exercise.type.toLowerCase();
   $('#addLevel').value = exercise.niveau;
   $('#addTheme').value = exercise.theme;
   $('#addTitle').value = exercise.titre;
-  
-  updateAddForm(); // This will render the correct fields based on type
-  
+  $('#cancelEditBtn').style.display = 'block';
+
+  // Update the form content based on the exercise type
+  updateAddForm(); 
+
+  // Populate specific fields based on exercise type
+  if (exerciseType === 'lecture') {
+    if (exercise.passage_image) {
+      passageImageData = exercise.passage_image;
+      $('#passageImagePreviewImg').src = passageImageData;
+      $('#passageImagePreview').style.display = 'block';
+      $('#passageImageDropZone').style.display = 'none';
+      $('input[name="passageType"][value="image"]').checked = true;
+    } else if (exercise.passage_html) {
+      const tempDiv = document.createElement('div');
+      tempDiv.innerHTML = exercise.passage_html;
+      $('#passageTitle').value = tempDiv.querySelector('h3')?.textContent || '';
+      $('#passageText').value = tempDiv.querySelector('p:not([style*="italic"])')?.textContent || '';
+      $('#passageSource').value = tempDiv.querySelector('p[style*="italic"]')?.textContent || '';
+      $('input[name="passageType"][value="text"]').checked = true;
+    }
+    togglePassageType();
+  } else if (exerciseType === 'ecoute') {
+    if (exercise.audio) {
+      $('#addAudio').value = exercise.audio; // Set hidden input value
+      $('#audioFileName').textContent = `Fichier sélectionné: ${exercise.audio}`;
+      $('#audioFileName').style.display = 'block';
+      $('#audioDropText').style.display = 'none';
+    }
+    
+    // Populate Cloze if exists
+    if (exercise.cloze) {
+      $('#formClozeText').value = exercise.cloze.replace(/\[(\d+)\]/g, (match, index) => `[${bank[exerciseType][bank[exerciseType].findIndex(e => e.id === id)].cloze_answers ? bank[exerciseType][bank[exerciseType].findIndex(e => e.id === id)].cloze_answers[index].answer : '??'}
+      ]`);
+      $('#formClozeTranscription').value = exercise.transcription || '';
+      if (exercise.clozePoints) {
+        // This part needs more sophisticated handling if cloze_answers were stored directly
+        // For now, it will only repopulate points if `cloze_answers` existed and was properly saved.
+        // This is a placeholder; a full implementation would require storing `cloze_answers` with points.
+        console.warn("Cloze points population from edit requires advanced handling.");
+      }
+    }
+  }
+
   // Populate QCM questions
   if (exercise.qcm && exercise.qcm.length > 0) {
-    formQcmCounter = 0; // Reset counter for new questions
-    optionCounter = {}; // Reset option counters
-    $('#formQcmQuestions').innerHTML = ''; // Clear existing questions
-    
-    exercise.qcm.forEach(q => {
-      addFormQcmQuestion(); // Add a new question div
-      const lastAdded = $('#formQcmQuestions > div:last-child'); // Get the newly added div
-      lastAdded.querySelector('.form-qcm-question').value = q.question;
+    formQcmCounter = 0; // Reset counter for editing
+    $('#formQcmQuestions').innerHTML = ''; // Clear existing
+    exercise.qcm.forEach((q, index) => {
+      formQcmCounter++;
+      const qDiv = document.createElement('div');
+      qDiv.style.cssText = 'background:#f9f9f9;padding:12px;border-radius:8px;margin:8px 0;border:1px solid #e0e0e0';
+      qDiv.dataset.formQcmId = formQcmCounter;
       
-      // Populate dynamic options
-      let currentOptionIndex = 0;
-      // Iterate through known option letters (a, b, c, d...)
-      const optionLetters = ['a', 'b', 'c', 'd', 'e']; 
-      for (const letter of optionLetters) {
-        if (q.hasOwnProperty(letter) && q[letter]) {
-          currentOptionIndex++;
-          const optionValue = q[letter];
-          
-          const container = lastAdded.querySelector('.form-qcm-options-container');
-          const optionDiv = document.createElement('div');
-          optionDiv.dataset.optionId = letter;
-          optionDiv.dataset.optionLetter = letter; // Ensure data-option-letter is set
-          optionDiv.style.cssText = 'display:flex;gap:8px;margin-bottom:8px;align-items:center';
-          optionDiv.innerHTML = `
+      const isGrammar = $('#addType').value === 'grammaire';
+      
+      let optionsHtml = '';
+      const optionLetters = Object.keys(q).filter(key => key !== 'question' && key !== 'answer' && key !== 'points' && key !== 'explanation');
+      optionLetters.sort(); // Ensure options are added in alphabetical order
+      
+      optionLetters.forEach(letter => {
+        optionsHtml += `
+          <div style="display:flex;gap:8px;margin-bottom:8px;align-items:center" data-option-id="${letter}" data-option-letter="${letter}">
             <label style="margin:0;font-weight:600;min-width:60px">Choix ${letter.toUpperCase()}</label>
-            <input class="form-qcm-option" data-option-letter="${letter}" placeholder="Réponse ${letter.toUpperCase()}" value="${optionValue}" style="flex:1;padding:10px;border:1px solid #ddd;border-radius:8px;font-size:.95rem;box-sizing:border-box">
+            <input class="form-qcm-option" data-option-letter="${letter}" value="${q[letter]}" placeholder="Réponse ${letter.toUpperCase()}" style="flex:1;padding:10px;border:1px solid #ddd;border-radius:8px;font-size:.95rem;box-sizing:border-box">
             <button onclick="removeFormQcmOption(${formQcmCounter}, '${letter}')" style="background:#e53e3e;color:#fff;border:none;padding:8px 12px;border-radius:6px;cursor:pointer;font-size:.85rem">✕</button>
-          `;
-          container.appendChild(optionDiv);
-        }
-      }
-      optionCounter[formQcmCounter] = currentOptionIndex; // Set the counter for this question
+          </div>
+        `;
+      });
       
-      lastAdded.querySelector('.form-qcm-answer').value = q.answer;
-      lastAdded.querySelector('.form-qcm-points').value = q.points;
-      if (q.explanation && lastAdded.querySelector('.form-qcm-explanation')) {
-        lastAdded.querySelector('.form-qcm-explanation').value = q.explanation;
-      }
+      qDiv.innerHTML = `
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
+          <span style="font-weight:600;color:var(--brand)">Question ${formQcmCounter}</span>
+          <button class="btn-danger" onclick="removeFormQcmQuestion(${formQcmCounter})" style="padding:6px 10px;font-size:.85rem">Supprimer</button>
+        </div>
+        <label>Question</label>
+        <input class="form-qcm-question" value="${q.question}" placeholder="Quelle est la capitale de la France ?" style="width:100%;padding:10px;border:1px solid #ddd;border-radius:8px;font-size:.95rem;box-sizing:border-box;margin-bottom:8px">
+        
+        <div class="form-qcm-options-container">${optionsHtml}</div>
+        
+        <button class="btn-secondary" onclick="addFormQcmOption(${formQcmCounter})" style="margin-bottom:8px;padding:6px 10px;font-size:.85rem">+ Ajouter une réponse</button>
+        
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:8px">
+          <div>
+            <label>Bonne réponse</label>
+            <select class="form-qcm-answer" style="width:100%;padding:10px;border:1px solid #ddd;border-radius:8px;font-size:.95rem;box-sizing:border-box">
+            </select>
+          </div>
+          <div>
+            <label>Points</label>
+            <input type="number" class="form-qcm-points" value="${q.points || 1}" min="1" style="width:100%;padding:10px;border:1px solid #ddd;border-radius:8px;font-size:.95rem;box-sizing:border-box">
+          </div>
+        </div>
+        
+        <div style="margin-top:8px;display:${isGrammar ? 'block' : 'none'}">
+          <label>Explication (affichée dans le corrigé)</label>
+          <textarea class="form-qcm-explanation" placeholder="Expliquez la règle grammaticale..." style="width:100%;padding:10px;border:1px solid #ddd;border-radius:8px;font-size:.95rem;box-sizing:border-box;min-height:60px">${q.explanation || ''}</textarea>
+        </div>
+      `;
+      $('#formQcmQuestions').appendChild(qDiv);
+      updateFormQcmAnswerDropdown(formQcmCounter); // Ensure dropdown is populated
+      $(`.form-qcm-answer[value="${q.answer}"]`).selected = true; // Set correct answer
     });
-    updateFormQcmAnswerDropdown(formQcmCounter); // Update dropdowns after populating options
   }
 
   // Populate Vrai/Faux questions
   if (exercise.vf && exercise.vf.length > 0) {
     formVfCounter = 0; // Reset counter
     $('#formVfQuestions').innerHTML = ''; // Clear existing
-    
-    exercise.vf.forEach(q => {
-      addFormVfQuestion();
-      const lastAdded = $('#formVfQuestions > div:last-child');
-      lastAdded.querySelector('.form-vf-statement').value = q.statement;
-      lastAdded.querySelector('.form-vf-answer').value = q.answer;
-      if (type === 'lecture') { // Keywords are relevant for CE
-        lastAdded.querySelector('.form-vf-keywords').value = (q.keywords || []).join('|');
-      }
-      lastAdded.querySelector('.form-vf-points').value = q.points;
+    exercise.vf.forEach((q, index) => {
+      formVfCounter++;
+      const div = document.createElement('div');
+      div.style.cssText = 'background:#f9f9f9;padding:12px;border-radius:8px;margin:8px 0;border:1px solid #e0e0e0';
+      div.dataset.formVfId = formVfCounter;
+      
+      const type = $('#addType').value;
+      const showKeywords = (type === 'lecture');
+      
+      div.innerHTML = `
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
+          <span style="font-weight:600;color:var(--brand)">Question ${formVfCounter}</span>
+          <button class="btn-danger" onclick="removeFormVfQuestion(${formVfCounter})" style="padding:6px 10px;font-size:.85rem">Supprimer</button>
+        </div>
+        <label>Énoncé</label>
+        <input class="form-vf-statement" value="${q.statement}" placeholder="La France est une île." style="width:100%;padding:10px;border:1px solid #ddd;border-radius:8px;font-size:.95rem;box-sizing:border-box;margin-bottom:8px">
+        
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:8px">
+          <div>
+            <label>Réponse</label>
+            <select class="form-vf-answer" style="width:100%;padding:10px;border:1px solid #ddd;border-radius:8px;font-size:.95rem;box-sizing:border-box">
+              <option value="vrai" ${q.answer === 'vrai' ? 'selected' : ''}>Vrai</option>
+              <option value="faux" ${q.answer === 'faux' ? 'selected' : ''}>Faux</option>
+            </select>
+          </div>
+          <div>
+            <label>Points</label>
+            <input type="number" class="form-vf-points" value="${q.points || 1}" min="1" style="width:100%;padding:10px;border:1px solid #ddd;border-radius:8px;font-size:.95rem;box-sizing:border-box">
+          </div>
+        </div>
+        
+        <div style="margin-top:8px;display:${showKeywords ? 'block' : 'none'}">
+          <label>Mots-clés (pour indice ou vérification, séparés par |)</label>
+          <input class="form-vf-keywords" value="${q.keywords ? q.keywords.join('|') : ''}" placeholder="ex. France|île" style="width:100%;padding:10px;border:1px solid #ddd;border-radius:8px;font-size:.95rem;box-sizing:border-box">
+        </div>
+      `;
+      $('#formVfQuestions').appendChild(div);
     });
   }
   
-  // Populate Passage for CE exercises
-  if (type === 'lecture') {
-    if (exercise.passage_image) {
-      passageImageData = exercise.passage_image;
-      $('#passageImagePreviewImg').src = passageImageData;
-      $('#passageImagePreview').style.display = 'block';
-      $('#passageImageDropZone').style.display = 'none';
-      document.querySelector('input[name="passageType"][value="image"]').checked = true;
-    } else if (exercise.passage_html) {
-      const passage = exercise.passage_html || '';
-      // Use regex to extract title, text paragraphs, and source
-      const titleMatch = passage.match(/<h3[^>]*>(.*?)<\/h3>/);
-      const sourceMatch = passage.match(/<p[^>]*style="[^"]*italic[^"]*"[^>]*>(.*?)<\/p>/);
-      
-      // Extract all paragraphs
-      const textParagraphs = (passage.match(/<p>(.*?)<\/p>/g) || []).map(p => p.replace(/<p>|<\/p>/g, ''));
-      
-      if (titleMatch) $('#passageTitle').value = titleMatch[1].replace(/<[^>]*>/g, '');
-      if (textParagraphs.length > 0) {
-          // Join paragraphs with newline for easier editing, remove any remaining HTML tags within paras
-          $('#passageText').value = textParagraphs.map(p => p.replace(/<[^>]*>/g, '')).join('\n');
-      }
-      if (sourceMatch) $('#passageSource').value = sourceMatch[1].replace(/<[^>]*>/g, '');
-      
-      document.querySelector('input[name="passageType"][value="text"]').checked = true;
-    }
-    togglePassageType(); // Ensure correct UI is shown after setting values
-  }
+  // Show appropriate containers after form is updated
+  $('#formQcmBox').style.display = (exercise.qcm && exercise.qcm.length > 0) || (exerciseType !== 'ecoute') ? 'block' : 'none'; // Show QCM if present or not 'ecoute'
+  $('#formVfBox').style.display = (exercise.vf && exercise.vf.length > 0) || (['lecture', 'ecoute', 'grammaire', 'lexique'].includes(exerciseType)) ? 'block' : 'none'; // Show V/F if present or applicable type
+  $('#formClozeBox').style.display = exerciseType === 'ecoute' ? 'block' : 'none'; // Show Cloze only for 'ecoute'
   
-  // Populate Cloze data for CO exercises
-  if (type === 'ecoute') {
-    if (exercise.cloze) {
-      $('#formClozeText').value = exercise.cloze;
-      if (exercise.transcription) {
-        $('#formClozeTranscription').value = exercise.transcription;
-      }
-      // Automatically detect blanks and populate points
-      detectClozeBlanks();
-      if (exercise.clozePoints) {
-        // Assuming clozePoints array matches the order of detected blanks
-        const blankInputs = $('#clozeBlankslist').querySelectorAll('input[type="number"]');
-        exercise.clozePoints.forEach((points, index) => {
-          if (blankInputs[index]) {
-            blankInputs[index].value = points;
-          }
-        });
-      }
-    }
-    // Populate audio file path if it exists
-    if (exercise.audio) {
-      $('#addAudio').value = exercise.audio;
-      const fileNameDisplay = $('#audioFileName');
-      const audioDropText = $('#audioDropText');
-      audioDropText.style.display = 'none';
-      // Extract just the filename from the path
-      fileNameDisplay.textContent = exercise.audio.split('/').pop(); 
-      fileNameDisplay.style.display = 'block';
-    }
-  }
-  
-  document.querySelector('#builder .card:last-child').scrollIntoView({ behavior: 'smooth' });
+  // If editing, ensure the form rendering logic inside updateAddForm() correctly sets up the initial state.
+  // It might be necessary to call updateAddForm() again after setting values if the initial call to updateAddForm()
+  // cleared some fields that are now being repopulated.
+  updateAddForm(); 
 }
 
 function cancelEdit() {
-  resetFormState(); // Use the consolidated reset function
+  if (confirm('Annuler les modifications ?')) {
+    resetFormState();
+    updateExercisesTable(); // Refresh table in case some other changes were made
+  }
 }
 
 function saveBank() {
   localStorage.setItem(BANK_KEY, JSON.stringify(bank));
+  console.log('Bank saved to localStorage');
 }
 
-function parseQCM(text) {
-  return text.split('\n').map(line => {
-    const parts = line.split(';').map(s => s.trim());
-    const points = parseInt(parts[5]) || 1;
-    return { 
-      question: parts[0] || '', 
-      a: parts[1] || '', 
-      b: parts[2] || '', 
-      c: parts[3] || '', 
-      answer: (parts[4] || '').toLowerCase(),
-      points
-    };
-  }).filter(q => q.question);
-}
-
-function parseBulkQCM(text) {
-  return text.split('\n').map(line => {
-    const parts = line.split(';').map(s => s.trim());
-    const points = parseInt(parts[5]) || 1;
-    // Handle explanation field for bulk QCM
-    const explanation = parts.length > 6 ? parts[6] : '';
-    return { 
-      question: parts[0] || '', 
-      a: parts[1] || '', 
-      b: parts[2] || '', 
-      c: parts[3] || '', 
-      answer: (parts[4] || '').toLowerCase(),
-      points,
-      explanation
-    };
-  }).filter(q => q.question);
-}
-
-function parseVF(text) {
-  return text.split('\n').map(line => {
-    const parts = line.split(';').map(s => s.trim());
-    const keywords = (parts[2] || '').split('|').map(s => s.trim()).filter(Boolean);
-    const points = parseInt(parts[3]) || 1;
-    return { 
-      statement: parts[0] || '', 
-      answer: (parts[1] || '').toLowerCase(), 
-      keywords,
-      points
-    };
-  }).filter(q => q.statement);
-}
-
-function findLessonById(lessonId) {
-  if (!bank) return null;
-  let found = null;
-  // Check all exercise types
-  for (const type in bank) {
-    if (bank.hasOwnProperty(type)) {
-      const lesson = bank[type].find(l => l.id === lessonId);
-      if (lesson) {
-        found = { ...lesson, type: lesson.type || type }; // Ensure type property is present
-        break;
-      }
-    }
-  }
-  return found;
-}
-
-function getUserProgress(userId) {
-  const stats = JSON.parse(localStorage.getItem('fr_stats_db') || '{}')[userId] || {};
-  let completedLessons = 0;
-  let totalScore = 0;
-  let totalPoints = 0;
-  let attemptCount = 0;
-
-  Object.entries(stats).forEach(([lessonId, lessonData]) => {
-    if (lessonData.attempts && lessonData.attempts.length > 0) {
-      completedLessons++;
-      lessonData.attempts.forEach(att => {
-        totalScore += att.percentage;
-        totalPoints += att.score || 0;
-        attemptCount++;
-      });
-    }
-  });
-
-  const avgScore = attemptCount > 0 ? Math.round(totalScore / attemptCount) : 0;
-  return { completedLessons, avgScore, totalPoints };
-}
-
+// Placeholder for actual chart drawing logic
 function drawAdminActivityChart() {
-  const canvas = $('#adminActivityChart');
-  if (!canvas) return;
-  const ctx = canvas.getContext('2d');
-  const width = canvas.offsetWidth;
-  const height = canvas.offsetHeight;
-  canvas.width = width;
-  canvas.height = height;
-
-  const allStats = JSON.parse(localStorage.getItem('fr_stats_db') || '{}');
-  const allAttempts = [];
-  
-  Object.values(allStats).forEach(userStats => {
-    Object.values(userStats).forEach(lesson => {
-      if (lesson.attempts) {
-        allAttempts.push(...lesson.attempts);
+  const ctx = document.getElementById('adminActivityChart').getContext('2d');
+  new Chart(ctx, {
+    type: 'line',
+    data: {
+      labels: ['Jour 1', 'Jour 2', 'Jour 3', 'Jour 4', 'Jour 5', 'Jour 6', 'Jour 7'], // Example labels
+      datasets: [{
+        label: 'Nombre de tentatives',
+        data: [10, 15, 12, 20, 18, 25, 22], // Example data
+        borderColor: 'rgba(34, 187, 85, 1)',
+        backgroundColor: 'rgba(34, 187, 85, 0.2)',
+        fill: true,
+        tension: 0.3
+      }]
+    },
+    options: {
+      responsive: true,
+      scales: {
+        y: { beginAtZero: true }
       }
-    });
-  });
-
-  if (allAttempts.length === 0) {
-    ctx.fillStyle = '#999';
-    ctx.font = '14px system-ui';
-    ctx.textAlign = 'center';
-    ctx.fillText('Aucune donnée disponible', width/2, height/2);
-    return;
-  }
-
-  const now = Date.now();
-  const thirtyDaysAgo = now - 30 * 24 * 60 * 60 * 1000;
-  const byDate = {};
-  
-  allAttempts.forEach(att => {
-    if (att.timestamp >= thirtyDaysAgo) {
-      const date = new Date(att.timestamp).toLocaleDateString('fr-FR');
-      byDate[date] = (byDate[date] || 0) + 1;
     }
-  });
-
-  const dates = Object.keys(byDate).sort((a, b) => new Date(a) - new Date(b)); // Sort dates chronologically
-  const counts = dates.map(d => byDate[d]);
-  const maxCount = Math.max(...counts, 1); // Ensure maxCount is at least 1 for division
-
-  if (dates.length === 0) {
-    ctx.fillStyle = '#999';
-    ctx.font = '14px system-ui';
-    ctx.textAlign = 'center';
-    ctx.fillText('Aucune activité récente', width/2, height/2);
-    return;
-  }
-
-  const padding = 40;
-  const chartWidth = width - padding * 2;
-  const chartHeight = height - padding * 2;
-  const step = (dates.length > 1) ? chartWidth / (dates.length - 1) : 0; // Avoid division by zero
-
-  ctx.strokeStyle = '#e0e0e0';
-  ctx.lineWidth = 1;
-  // Draw horizontal grid lines and Y-axis labels
-  for (let i = 0; i <= 4; i++) {
-    const y = padding + (chartHeight / 4) * i;
-    ctx.beginPath();
-    ctx.moveTo(padding, y);
-    ctx.lineTo(width - padding, y);
-    ctx.stroke();
-    
-    ctx.fillStyle = '#999';
-    ctx.font = '11px system-ui';
-    ctx.textAlign = 'right';
-    const value = Math.round(maxCount - (maxCount / 4) * i);
-    ctx.fillText(value.toString(), padding - 8, y + 4);
-  }
-
-  // Draw the line graph
-  ctx.strokeStyle = '#2196f3';
-  ctx.lineWidth = 3;
-  ctx.beginPath();
-  counts.forEach((count, i) => {
-    const x = padding + step * i;
-    const y = padding + chartHeight - (count / maxCount) * chartHeight;
-    if (i === 0) ctx.moveTo(x, y);
-    else ctx.lineTo(x, y);
-  });
-  ctx.stroke();
-
-  // Draw data points
-  ctx.fillStyle = '#2196f3';
-  counts.forEach((count, i) => {
-    const x = padding + step * i;
-    const y = padding + chartHeight - (count / maxCount) * chartHeight;
-    ctx.beginPath();
-    ctx.arc(x, y, 4, 0, Math.PI * 2);
-    ctx.fill();
-  });
-
-  // Draw X-axis labels (dates)
-  ctx.fillStyle = '#666';
-  ctx.font = '10px system-ui';
-  ctx.textAlign = 'center';
-  dates.forEach((date, i) => {
-    // Only label every other date if there are too many to prevent overlap
-    if (dates.length > 10 && i % 2 !== 0) return; 
-    const x = padding + step * i;
-    ctx.fillText(date.split('/').slice(0,2).join('/'), x, height - 10); // Display MM/DD
   });
 }
 
 function drawAdminLevelChart() {
-  const canvas = $('#adminLevelChart');
-  if (!canvas) return;
-  const ctx = canvas.getContext('2d');
-  const width = canvas.offsetWidth;
-  const height = canvas.offsetHeight;
-  canvas.width = width;
-  canvas.height = height;
+  const ctx = document.getElementById('adminLevelChart').getContext('2d');
+  new Chart(ctx, {
+    type: 'bar',
+    data: {
+      labels: ['A1', 'A2', 'B1', 'B2', 'C1', 'C2'], // Example labels
+      datasets: [{
+        label: 'Score moyen',
+        data: [75, 80, 85, 90, 92, 95], // Example data
+        backgroundColor: [
+          'rgba(54, 162, 235, 0.6)',
+          'rgba(255, 206, 86, 0.6)',
+          'rgba(75, 192, 192, 0.6)',
+          'rgba(153, 102, 255, 0.6)',
+          'rgba(255, 159, 64, 0.6)',
+          'rgba(255, 99, 132, 0.6)'
+        ],
+        borderColor: [
+          'rgba(54, 162, 235, 1)',
+          'rgba(255, 206, 86, 1)',
+          'rgba(75, 192, 192, 1)',
+          'rgba(153, 102, 255, 1)',
+          'rgba(255, 159, 64, 1)',
+          'rgba(255, 99, 132, 1)'
+        ],
+        borderWidth: 1
+      }]
+    },
+    options: {
+      responsive: true,
+      scales: {
+        y: {
+          beginAtZero: true,
+          max: 100
+        }
+      }
+    }
+  });
+}
 
-  const allStats = JSON.parse(localStorage.getItem('fr_stats_db') || '{}');
-  const allAttempts = [];
+function updateUsersTable() {
+  const tbody = $('#usersBody');
+  const users = JSON.parse(localStorage.getItem(USERS_KEY) || '[]');
   
-  Object.values(allStats).forEach(userStats => {
+  if (users.length === 0) {
+    tbody.innerHTML = '<tr><td colspan="6" class="empty-state">Aucun utilisateur</td></tr>';
+    return;
+  }
+  
+  tbody.innerHTML = users.map(user => {
+    // Calculate completed lessons and average score (simplified)
+    const userStats = JSON.parse(localStorage.getItem('fr_stats_db') || '{}')[user.id] || {};
+    const lessonCount = Object.keys(userStats).length;
+    let totalScore = 0;
+    let attemptCount = 0;
     Object.values(userStats).forEach(lesson => {
       if (lesson.attempts) {
-        allAttempts.push(...lesson.attempts);
+        lesson.attempts.forEach(a => {
+          totalScore += a.percentage;
+          attemptCount++;
+        });
       }
     });
-  });
-
-  if (allAttempts.length === 0) {
-    ctx.fillStyle = '#999';
-    ctx.font = '14px system-ui';
-    ctx.textAlign = 'center';
-    ctx.fillText('Aucune donnée disponible', width/2, height/2);
-    return;
-  }
-
-  const levels = ['A1', 'A2', 'B1', 'B2', 'C1', 'C2'];
-  const byLevel = {};
-  levels.forEach(l => byLevel[l] = []);
-  
-  allAttempts.forEach(att => {
-    const lesson = findLessonById(att.lessonId);
-    if (lesson && lesson.niveau && byLevel[lesson.niveau]) { // Ensure lesson.niveau exists
-      byLevel[lesson.niveau].push(att.score);
-    }
-  });
-
-  const avgByLevel = levels.map(l => {
-    const scores = byLevel[l];
-    return scores.length > 0 ? scores.reduce((a,b) => a+b, 0) / scores.length : 0;
-  });
-
-  const padding = 40;
-  const chartWidth = width - padding * 2;
-  const chartHeight = height - padding * 2;
-  const barGap = 10; // Space between bars
-  const totalBarWidth = chartWidth - (levels.length - 1) * barGap; // Total width available for bars
-  const barWidth = levels.length > 0 ? totalBarWidth / levels.length : 0; // Avoid division by zero
-  const colors = ['#4caf50', '#8bc34a', '#ffc107', '#ff9800', '#ff5722', '#f44336'];
-
-  // Draw bars and labels
-  levels.forEach((level, i) => {
-    const avg = avgByLevel[i];
-    const x = padding + (barWidth + barGap) * i + barGap; // Calculate x position for each bar
-    const barHeight = (avg / 100) * chartHeight;
-    const y = padding + chartHeight - barHeight;
-
-    ctx.fillStyle = colors[i];
-    ctx.fillRect(x, y, barWidth, barHeight);
-
-    // Draw level label below the bar
-    ctx.fillStyle = '#333';
-    ctx.font = '12px system-ui';
-    ctx.textAlign = 'center';
-    ctx.fillText(level, x + barWidth/2, height - 10);
-    
-    // Draw percentage label above the bar if score is significant
-    if (avg > 0) {
-      ctx.fillText(Math.round(avg) + '%', x + barWidth/2, y - 5);
-    }
-  });
-
-  // Draw horizontal grid lines and Y-axis labels (percentages)
-  ctx.strokeStyle = '#e0e0e0';
-  ctx.lineWidth = 1;
-  for (let i = 0; i <= 4; i++) {
-    const y = padding + (chartHeight / 4) * i;
-    ctx.beginPath();
-    ctx.moveTo(padding, y);
-    ctx.lineTo(width - padding, y);
-    ctx.stroke();
-    
-    ctx.fillStyle = '#999';
-    ctx.font = '11px system-ui';
-    ctx.textAlign = 'right';
-    ctx.fillText((100 - i * 25) + '%', padding - 8, y + 4);
-  }
-}
-
-function viewUserStats(userId) {
-  const users = JSON.parse(localStorage.getItem(USERS_KEY) || '[]');
-  const user = users.find(u => u.id === userId);
-  
-  if (!user) {
-    alert('Utilisateur introuvable');
-    return;
-  }
-
-  const allStats = JSON.parse(localStorage.getItem('fr_stats_db') || '{}');
-  const userStats = allStats[userId] || {};
-  
-  // Display user info
-  $('#modalUserInfo').innerHTML = `
-    <p><strong>Nom:</strong> ${user.name}</p>
-    <p><strong>Email:</strong> ${user.email}</p>
-    <p><strong>ID:</strong> ${user.id}</p>
-  `;
-
-  // Calculate statistics
-  let completedLessons = 0;
-  let totalScore = 0;
-  let totalPoints = 0;
-  let attemptCount = 0;
-  const allAttempts = [];
-
-  Object.entries(userStats).forEach(([lessonId, lessonData]) => {
-    if (lessonData.attempts && lessonData.attempts.length > 0) {
-      completedLessons++;
-      lessonData.attempts.forEach(att => {
-        totalScore += att.percentage;
-        totalPoints += att.score || 0;
-        attemptCount++;
-        allAttempts.push({
-          ...att,
-          lessonId,
-          lessonTitle: findLessonById(lessonId)?.titre || lessonId // Get lesson title
-        });
-      });
-    }
-  });
-
-  const avgScore = attemptCount > 0 ? Math.round(totalScore / attemptCount) : 0;
-
-  // Display summary stats
-  $('#modalCompletedLessons').textContent = completedLessons;
-  $('#modalAvgScore').textContent = avgScore + '%';
-  $('#modalTotalAttempts').textContent = attemptCount;
-  $('#modalTotalPoints').textContent = totalPoints;
-
-  // Display attempts list (sorted by date, most recent first)
-  allAttempts.sort((a, b) => b.timestamp - a.timestamp);
-  
-  if (allAttempts.length === 0) {
-    $('#modalAttemptsList').innerHTML = '<p class="empty-state">Aucune tentative enregistrée</p>';
-  } else {
-    $('#modalAttemptsList').innerHTML = allAttempts.map(att => {
-      const date = new Date(att.timestamp).toLocaleString('fr-FR');
-      const scoreColor = att.percentage >= 80 ? 'var(--success)' : att.percentage >= 60 ? 'var(--warning)' : 'var(--error)';
-      
-      return `
-        <div class="attempt-item">
-          <div>
-            <strong>${att.lessonTitle}</strong>
-            <div class="attempt-date">${date}</div>
-          </div>
-          <div style="text-align:right">
-            <div class="attempt-score" style="color:${scoreColor}">${att.percentage}%</div>
-            <div style="font-size:.85rem;color:#666">${att.score || 0} pts / ${att.maxScore || 0} pts</div>
-          </div>
-        </div>
-      `;
-    }).join('');
-  }
-
-  // Show modal
-  $('#userStatsModal').classList.add('active');
-}
-
-function closeUserStatsModal() {
-  $('#userStatsModal').classList.remove('active');
-}
-
-function resetUserPassword(userId) {
-  const users = JSON.parse(localStorage.getItem(USERS_KEY) || '[]');
-  const userIndex = users.findIndex(u => u.id === userId);
-  
-  if (userIndex === -1) {
-    alert('Utilisateur introuvable');
-    return;
-  }
-  
-  const user = users[userIndex];
-  const newPin = prompt(`Entrez le nouveau code PIN (6 chiffres) pour ${user.name}:`);
-  
-  if (!newPin) {
-    return;
-  }
-  
-  if (!/^\d{6}$/.test(newPin)) {
-    alert('Le code PIN doit contenir exactement 6 chiffres');
-    return;
-  }
-  
-  users[userIndex].pin = newPin;
-  localStorage.setItem(USERS_KEY, JSON.stringify(users));
-  
-  alert(`Code PIN réinitialisé avec succès pour ${user.name}`);
-}
-
-function deleteUser(userId) {
-  const users = JSON.parse(localStorage.getItem(USERS_KEY) || '[]');
-  const user = users.find(u => u.id === userId);
-  
-  if (!user) {
-    alert('Utilisateur introuvable');
-    return;
-  }
-  
-  const confirmMessage = `Êtes-vous sûr de vouloir supprimer le compte de ${user.name} (${user.email})?\n\nCette action supprimera également toutes les statistiques de cet utilisateur et ne peut pas être annulée.`;
-  
-  if (!confirm(confirmMessage)) {
-    return;
-  }
-  
-  // Remove user from users list
-  const updatedUsers = users.filter(u => u.id !== userId);
-  localStorage.setItem(USERS_KEY, JSON.stringify(updatedUsers));
-  
-  // Remove user statistics
-  const allStats = JSON.parse(localStorage.getItem('fr_stats_db') || '{}');
-  delete allStats[userId];
-  localStorage.setItem('fr_stats_db', JSON.stringify(allStats));
-  
-  // Remove user drafts
-  const allDrafts = JSON.parse(localStorage.getItem('fr_drafts_db') || '{}');
-  delete allDrafts[userId];
-  localStorage.setItem('fr_drafts_db', JSON.stringify(allDrafts));
-  
-  alert(`Le compte de ${user.name} a été supprimé avec succès`);
-  
-  // Refresh the users table and dashboard
-  updateUsersTable();
-  updateDashboard();
-}
-
-// Helper function for handling audio file uploads
-function handleAudioFile(file, inputElement, fileNameDisplay, hiddenAudioInput) {
-  if (!file) return;
-  
-  const allowedTypes = ['audio/mpeg', 'audio/wav', 'audio/ogg'];
-  if (!allowedTypes.includes(file.type)) {
-    alert('Format de fichier audio non supporté. Veuillez choisir un fichier MP3, WAV ou OGG.');
-    inputElement.value = ''; // Clear the input
-    return;
-  }
-
-  // For simplicity, we'll just store the file name for now.
-  // In a real application, you'd upload this file to a server.
-  const fileName = file.name;
-  hiddenAudioInput.value = `audio/${fileName}`; // Store the intended path
-  fileNameDisplay.textContent = fileName;
-  fileNameDisplay.style.display = 'block';
-  document.getElementById('audioDropText').style.display = 'none';
-  inputElement.value = ''; // Clear the input after processing
-}
-
-function addResource() {
-  const title = $('#resourceTitle').value.trim();
-  const level = $('#resourceLevel').value;
-  const url = $('#resourceUrl').value.trim();
-  const description = $('#resourceDescription').value.trim();
-  const type = $('#resourceType').value;
-
-  if (!title || !url) {
-    alert('Veuillez remplir le titre et l\'URL.');
-    return;
-  }
-
-  const resources = JSON.parse(localStorage.getItem('fr_resources') || '[]');
-  const id = editingResourceId || `res_${Date.now()}`;
-
-  if (editingResourceId) {
-    const idx = resources.findIndex(r => r.id === editingResourceId);
-    if (idx >= 0) {
-      resources[idx] = { id, title, level, url, description, type, createdAt: resources[idx].createdAt };
-    }
-  } else {
-    resources.push({ id, title, level, url, description, type, createdAt: Date.now() });
-  }
-
-  localStorage.setItem('fr_resources', JSON.stringify(resources));
-  updateResourcesTable();
-  
-  alert(editingResourceId ? 'Ressource modifiée !' : 'Ressource ajoutée !');
-  
-  // Reset form fields after adding/editing
-  $('#resourceTitle').value = '';
-  $('#resourceUrl').value = '';
-  $('#resourceDescription').value = '';
-  $('#resourceLevel').value = 'A1'; // Reset to default
-  $('#resourceType').value = 'video'; // Reset to default
-  editingResourceId = null;
-  $('#cancelResourceBtn').style.display = 'none';
-}
-
-function updateResourcesTable() {
-  const resources = JSON.parse(localStorage.getItem('fr_resources') || '[]');
-  const tbody = $('#resourcesBody');
-
-  if (resources.length === 0) {
-    tbody.innerHTML = '<tr><td colspan="5" class="empty-state">Aucune ressource</td></tr>';
-    return;
-  }
-
-  tbody.innerHTML = resources.map(res => {
-    const typeIcons = {
-      video: '🎥',
-      article: '📄',
-      exercice: '✏️',
-      audio: '🎧',
-      autre: '🔗'
-    };
-    const icon = typeIcons[res.type] || '🔗';
-    const levelClass = 'badge-' + res.level.toLowerCase();
+    const avgScore = attemptCount > 0 ? Math.round(totalScore / attemptCount) : 0;
 
     return `
       <tr>
-        <td>${res.title}</td>
-        <td>${icon} ${res.type}</td>
-        <td><span class="badge ${levelClass}">${res.level}</span></td>
-        <td><a href="${res.url}" target="_blank" style="color:var(--brand);text-decoration:none">${res.url.substring(0, 40)}...</a></td>
+        <td>${user.name}</td>
+        <td>${user.email}</td>
+        <td>${user.role === 'admin' ? 'Admin' : 'Étudiant'}</td>
+        <td>${lessonCount}</td>
+        <td>${avgScore}%</td>
         <td>
           <div class="action-btns">
-            <button class="btn-secondary" onclick="editResource('${res.id}')">Éditer</button>
-            <button class="btn-danger" onclick="deleteResource('${res.id}')">Supprimer</button>
+            <button class="btn-secondary" onclick="viewUserStats('${user.id}')">Statistiques</button>
+            <button class="btn-danger" onclick="deleteUser('${user.id}')">Supprimer</button>
           </div>
         </td>
       </tr>
@@ -2134,305 +1204,420 @@ function updateResourcesTable() {
   }).join('');
 }
 
-function editResource(id) {
-  const resources = JSON.parse(localStorage.getItem('fr_resources') || '[]');
-  const resource = resources.find(r => r.id === id);
+function deleteUser(userId) {
+  if (!confirm('Êtes-vous sûr de vouloir supprimer cet utilisateur ?')) return;
+  let users = JSON.parse(localStorage.getItem(USERS_KEY) || '[]');
+  users = users.filter(u => u.id !== userId);
+  localStorage.setItem(USERS_KEY, JSON.stringify(users));
+  // Also remove stats for this user
+  let stats = JSON.parse(localStorage.getItem('fr_stats_db') || '{}');
+  delete stats[userId];
+  localStorage.setItem('fr_stats_db', JSON.stringify(stats));
+  updateUsersTable();
+  alert('Utilisateur supprimé.');
+}
+
+function viewUserStats(userId) {
+  const users = JSON.parse(localStorage.getItem(USERS_KEY) || '[]');
+  const user = users.find(u => u.id === userId);
+  const userStats = JSON.parse(localStorage.getItem('fr_stats_db') || '{}')[userId] || {};
+
+  if (!user) {
+    alert('Utilisateur non trouvé.');
+    return;
+  }
+
+  let totalAttempts = 0;
+  let totalScore = 0;
+  let attemptCount = 0;
+  let completedLessons = 0;
+  const attemptsListHtml = [];
+
+  Object.entries(userStats).forEach(([lessonId, lessonData]) => {
+    if (lessonData.completed) {
+      completedLessons++;
+    }
+    if (lessonData.attempts) {
+      lessonData.attempts.forEach(a => {
+        totalAttempts++;
+        totalScore += a.percentage;
+        attemptCount++;
+        const exerciseTitle = bank[lessonData.type]?.find(ex => ex.id === lessonData.exerciseId)?.titre || 'Exercice inconnu';
+        attemptsListHtml.push(`
+          <div class="attempt-item">
+            <div>
+              <strong>${exerciseTitle}</strong> (${lessonData.type} - ${lessonData.level})<br>
+              <span class="attempt-date">${new Date(a.timestamp).toLocaleString()}</span>
+            </div>
+            <span class="attempt-score">${a.percentage}%</span>
+          </div>
+        `);
+      });
+    }
+  });
   
-  if (!resource) {
-    alert('Ressource introuvable');
+  const avgScore = attemptCount > 0 ? Math.round(totalScore / attemptCount) : 0;
+
+  $('#modalUserInfo').innerHTML = `
+    <p><strong>Nom:</strong> ${user.name}</p>
+    <p><strong>Email:</strong> ${user.email}</p>
+  `;
+  $('#modalCompletedLessons').textContent = completedLessons;
+  $('#modalAvgScore').textContent = `${avgScore}%`;
+  $('#modalTotalAttempts').textContent = totalAttempts;
+  $('#modalTotalPoints').textContent = 'N/A'; // Placeholder, requires summing points from attempts
+  $('#modalAttemptsList').innerHTML = attemptsListHtml.length > 0 ? attemptsListHtml.join('') : '<div class="empty-state">Aucune tentative enregistrée</div>';
+
+  $('#userStatsModal').classList.add('active');
+}
+
+function closeUserStatsModal() {
+  $('#userStatsModal').classList.remove('active');
+}
+
+// Add, Edit, Delete Resources
+let resources = []; // Store resources locally for easier management
+
+function addResource() {
+  const title = $('#resourceTitle').value.trim();
+  const url = $('#resourceUrl').value.trim();
+  const description = $('#resourceDescription').value.trim();
+  const level = $('#resourceLevel').value;
+  const type = $('#resourceType').value;
+
+  if (!title || !url) {
+    alert('Le titre et l\'URL sont obligatoires.');
+    return;
+  }
+
+  const resource = { id: editingResourceId || `res_${Date.now()}`, title, url, description, level, type };
+  
+  if (editingResourceId) {
+    // Update existing resource
+    const index = resources.findIndex(r => r.id === editingResourceId);
+    if (index !== -1) {
+      resources[index] = resource;
+    }
+  } else {
+    // Add new resource
+    resources.push(resource);
+  }
+  
+  saveResources();
+  updateResourcesTable();
+  resetResourceForm();
+  alert(editingResourceId ? 'Ressource mise à jour.' : 'Ressource ajoutée.');
+}
+
+function saveResources() {
+  localStorage.setItem('fr_external_resources', JSON.stringify(resources));
+}
+
+function loadResources() {
+  resources = JSON.parse(localStorage.getItem('fr_external_resources') || '[]');
+}
+
+function updateResourcesTable() {
+  loadResources(); // Ensure resources are loaded
+  const tbody = $('#resourcesBody');
+  
+  if (resources.length === 0) {
+    tbody.innerHTML = '<tr><td colspan="5" class="empty-state">Aucune ressource</td></tr>';
     return;
   }
   
+  tbody.innerHTML = resources.map(r => `
+    <tr>
+      <td>${r.title}</td>
+      <td>${r.type}</td>
+      <td>${r.level}</td>
+      <td><a href="${r.url}" target="_blank" rel="noopener noreferrer">${r.url}</a></td>
+      <td>
+        <div class="action-btns">
+          <button class="btn-secondary" onclick="editResource('${r.id}')">Éditer</button>
+          <button class="btn-danger" onclick="deleteResource('${r.id}')">Supprimer</button>
+        </div>
+      </td>
+    </tr>
+  `).join('');
+}
+
+function editResource(id) {
+  const resource = resources.find(r => r.id === id);
+  if (!resource) return;
+
   editingResourceId = id;
   $('#resourceTitle').value = resource.title;
-  $('#resourceLevel').value = resource.level;
   $('#resourceUrl').value = resource.url;
   $('#resourceDescription').value = resource.description;
+  $('#resourceLevel').value = resource.level;
   $('#resourceType').value = resource.type;
-  $('#cancelResourceBtn').style.display = 'inline-block';
-  
-  document.querySelector('#resources .card:first-child').scrollIntoView({ behavior: 'smooth' });
+  $('#cancelResourceBtn').style.display = 'block';
 }
 
 function cancelResourceEdit() {
+  if (confirm('Annuler la modification ?')) {
+    resetResourceForm();
+  }
+}
+
+function deleteResource(id) {
+  if (!confirm('Supprimer cette ressource ?')) return;
+  resources = resources.filter(r => r.id !== id);
+  saveResources();
+  updateResourcesTable();
+}
+
+function resetResourceForm() {
   editingResourceId = null;
   $('#resourceTitle').value = '';
   $('#resourceUrl').value = '';
   $('#resourceDescription').value = '';
-  $('#resourceLevel').value = 'A1'; // Reset to default
-  $('#resourceType').value = 'video'; // Reset to default
+  $('#resourceLevel').value = 'A1';
+  $('#resourceType').value = 'video';
   $('#cancelResourceBtn').style.display = 'none';
 }
 
-function deleteResource(id) {
-  if (!confirm('Êtes-vous sûr de vouloir supprimer cette ressource ?')) return;
-  
-  const resources = JSON.parse(localStorage.getItem('fr_resources') || '[]');
-  const filtered = resources.filter(r => r.id !== id);
-  localStorage.setItem('fr_resources', JSON.stringify(filtered));
-  updateResourcesTable();
-}
+// Chat Management
+let chatUsers = []; // Store users with messages
 
 function loadChatUsers() {
-  const users = JSON.parse(localStorage.getItem(USERS_KEY) || '[]').filter(u => u.role === 'student');
-  const messages = JSON.parse(localStorage.getItem('fr_messages') || '{}');
+  // In a real app, this would fetch from a server/backend
+  // For now, simulate by looking at local storage for any messages or user activity
+  const allUsers = JSON.parse(localStorage.getItem(USERS_KEY) || '[]');
+  const messagesDb = JSON.parse(localStorage.getItem('fr_chat_messages') || '{}');
   
-  if (users.length === 0) {
-    $('#chatUsersList').innerHTML = '<div class="empty-state">Aucun étudiant</div>';
+  const usersWithMessages = Object.keys(messagesDb).map(userId => {
+    const user = allUsers.find(u => u.id === userId);
+    if (user) {
+      return { ...user, hasUnread: messagesDb[userId].some(msg => !msg.read && msg.sender !== 'admin') };
+    }
+    return null; // Should not happen if DB is consistent
+  }).filter(Boolean); // Remove any nulls
+
+  const chatUsersList = $('#chatUsersList');
+  chatUsersList.innerHTML = '';
+
+  if (usersWithMessages.length === 0) {
+    chatUsersList.innerHTML = '<div class="empty-state">Aucun message</div>';
     return;
   }
-
-  const html = users.map(user => {
-    const userMessages = messages[user.id] || [];
-    const unreadCount = userMessages.filter(m => !m.read && m.from === user.id).length;
-    const lastMessage = userMessages.length > 0 ? userMessages[userMessages.length - 1] : null;
-    
-    return `
-      <div onclick="selectChatUser('${user.id}')" style="padding:12px;border-radius:8px;cursor:pointer;margin-bottom:8px;background:${selectedChatUserId === user.id ? '#e8f5e9' : '#fff'};border:1px solid ${selectedChatUserId === user.id ? 'var(--brand)' : '#e0e0e0'}">
-        <div style="display:flex;justify-content:space-between;align-items:center">
-          <strong>${user.name}</strong>
-          ${unreadCount > 0 ? `<span style="background:var(--error);color:#fff;padding:2px 6px;border-radius:10px;font-size:.75rem">${unreadCount}</span>` : ''}
-        </div>
-        ${lastMessage ? `<div style="font-size:.85rem;color:#666;margin-top:4px">${lastMessage.text.substring(0, 30)}...</div>` : ''}
+  
+  chatUsers = usersWithMessages; // Update local cache
+  
+  chatUsers.forEach(user => {
+    const div = document.createElement('div');
+    div.classList.add('user-item'); // Add a class for styling
+    div.style.cssText = 'padding:12px;border-bottom:1px solid #e0e0e0;cursor:pointer;transition:all .2s';
+    div.innerHTML = `
+      <div style="display:flex;justify-content:space-between;align-items:center">
+        <span style="font-weight:600">${user.name}</span>
+        ${user.hasUnread ? '<span style="background:var(--error);color:#fff;padding:2px 6px;border-radius:4px;font-size:.8rem">Nouveau</span>' : ''}
       </div>
+      <small style="color:#666">${user.email}</small>
     `;
-  }).join('');
-
-  $('#chatUsersList').innerHTML = html;
+    div.onclick = () => selectChatUser(user.id);
+    chatUsersList.appendChild(div);
+  });
 }
 
-window.selectChatUser = function(userId) {
+function selectChatUser(userId) {
   selectedChatUserId = userId;
-  loadChatMessages(userId);
-  loadChatUsers(); // Refresh to update selection visually
+  $('#chatMessagesArea').innerHTML = ''; // Clear previous messages
   $('#adminMessageInput').disabled = false;
   $('#sendMessageBtn').disabled = false;
   $('#deleteChatBtn').disabled = false;
-};
+  
+  // Highlight selected user
+  $$('#chatUsersList .user-item').forEach(item => item.style.background = '');
+  event.target.closest('.user-item').style.background = '#f0f0f0';
+  
+  loadChatMessages(userId);
+}
 
 function loadChatMessages(userId) {
-  const users = JSON.parse(localStorage.getItem(USERS_KEY) || '[]');
-  const user = users.find(u => u.id === userId);
-  const messages = JSON.parse(localStorage.getItem('fr_messages') || '{}');
-  const userMessages = messages[userId] || [];
-
-  // Mark messages as read
-  userMessages.forEach(m => {
-    if (m.from === userId) m.read = true;
-  });
-  messages[userId] = userMessages;
-  localStorage.setItem('fr_messages', JSON.stringify(messages));
-
-  if (userMessages.length === 0) {
-    $('#chatMessagesArea').innerHTML = `<div class="empty-state">Aucun message avec ${user.name}</div>`;
+  const messagesDb = JSON.parse(localStorage.getItem('fr_chat_messages') || '{}');
+  const messages = messagesDb[userId] || [];
+  
+  const chatMessagesArea = $('#chatMessagesArea');
+  chatMessagesArea.innerHTML = ''; // Clear previous messages
+  
+  if (messages.length === 0) {
+    chatMessagesArea.innerHTML = '<div class="empty-state">Aucun message</div>';
     return;
   }
-
-  const html = userMessages.map(msg => {
-    const isAdmin = msg.from === 'admin';
-    const time = new Date(msg.timestamp).toLocaleString('fr-FR');
-    
-    return `
-      <div style="margin-bottom:16px;display:flex;justify-content:${isAdmin ? 'flex-end' : 'flex-start'}">
-        <div style="max-width:70%;padding:12px;border-radius:12px;background:${isAdmin ? 'var(--brand)' : '#fff'};color:${isAdmin ? '#fff' : '#333'};box-shadow:0 2px 4px rgba(0,0,0,.1)">
-          <div style="font-weight:600;margin-bottom:4px;font-size:.85rem;opacity:.9">${isAdmin ? 'Admin' : user.name}</div>
-          <div>${msg.text}</div>
-          <div style="font-size:.75rem;margin-top:4px;opacity:.7">${time}</div>
-        </div>
-      </div>
+  
+  messages.forEach(msg => {
+    const isAdmin = msg.sender === 'admin';
+    const msgDiv = document.createElement('div');
+    msgDiv.style.cssText = `
+      margin-bottom:12px;padding:10px 14px;border-radius:8px;max-width:70%;
+      align-self:${isAdmin ? 'flex-end;background:var(--brand);color:#fff' : 'flex-start;background:#fff;border:1px solid #e0e0e0'};
+      word-wrap: break-word;
     `;
-  }).join('');
+    msgDiv.innerHTML = `
+      <div style="font-size:.8rem;opacity:.8;margin-bottom:4px">${new Date(msg.timestamp).toLocaleTimeString()}</div>
+      <div>${msg.text}</div>
+    `;
+    chatMessagesArea.appendChild(msgDiv);
+    
+    // Mark as read if it's a student message
+    if (!isAdmin && !msg.read) {
+      msg.read = true;
+    }
+  });
 
-  $('#chatMessagesArea').innerHTML = html;
-  $('#chatMessagesArea').scrollTop = $('#chatMessagesArea').scrollHeight;
+  // Update messagesDb with read status
+  if (messages.some(msg => !msg.read)) {
+    messagesDb[userId] = messages;
+    localStorage.setItem('fr_chat_messages', JSON.stringify(messagesDb));
+    // Refresh user list to update unread indicators
+    loadChatUsers(); 
+  }
+  
+  // Scroll to bottom
+  chatMessagesArea.scrollTop = chatMessagesArea.scrollHeight;
 }
 
 function sendAdminMessage() {
   if (!selectedChatUserId) return;
   
-  const text = $('#adminMessageInput').value.trim();
-  if (!text) return;
-
-  const messages = JSON.parse(localStorage.getItem('fr_messages') || '{}');
-  if (!messages[selectedChatUserId]) messages[selectedChatUserId] = [];
+  const messageInput = $('#adminMessageInput');
+  const text = messageInput.value.trim();
   
-  messages[selectedChatUserId].push({
-    from: 'admin',
-    to: selectedChatUserId,
-    text,
+  if (!text) return;
+  
+  const messagesDb = JSON.parse(localStorage.getItem('fr_chat_messages') || '{}');
+  if (!messagesDb[selectedChatUserId]) messagesDb[selectedChatUserId] = [];
+  
+  const newMessage = {
+    sender: 'admin',
+    text: text,
     timestamp: Date.now(),
-    read: false
-  });
-
-  localStorage.setItem('fr_messages', JSON.stringify(messages));
-  $('#adminMessageInput').value = '';
+    read: true // Admin messages are implicitly read
+  };
+  
+  messagesDb[selectedChatUserId].push(newMessage);
+  localStorage.setItem('fr_chat_messages', JSON.stringify(messagesDb));
+  
+  messageInput.value = '';
   loadChatMessages(selectedChatUserId);
 }
 
 function deleteAdminChatHistory() {
   if (!selectedChatUserId) return;
+  if (!confirm('Supprimer tout l\'historique de conversation avec cet étudiant ? Cette action est irréversible.')) return;
   
-  const users = JSON.parse(localStorage.getItem(USERS_KEY) || '[]');
-  const user = users.find(u => u.id === selectedChatUserId);
+  const messagesDb = JSON.parse(localStorage.getItem('fr_chat_messages') || '{}');
+  delete messagesDb[selectedChatUserId];
+  localStorage.setItem('fr_chat_messages', JSON.stringify(messagesDb));
   
-  if (!user) return;
-  
-  if (!confirm(`Êtes-vous sûr de vouloir supprimer tout l'historique de conversation avec ${user.name}?\n\nCette action est irréversible.`)) {
-    return;
-  }
-  
-  const messages = JSON.parse(localStorage.getItem('fr_messages') || '{}');
-  delete messages[selectedChatUserId];
-  localStorage.setItem('fr_messages', JSON.stringify(messages));
-  
-  // Reset UI
   $('#chatMessagesArea').innerHTML = '<div class="empty-state">Historique supprimé</div>';
-  selectedChatUserId = null;
   $('#adminMessageInput').disabled = true;
   $('#sendMessageBtn').disabled = true;
   $('#deleteChatBtn').disabled = true;
   
-  loadChatUsers(); // Refresh user list to reflect no active chat
-  alert('Historique de conversation supprimé avec succès');
+  // Refresh user list
+  loadChatUsers();
 }
 
-document.addEventListener('click', (e) => {
-  // Close modal if click is outside modal content
-  if (e.target.id === 'userStatsModal' && $('#userStatsModal').classList.contains('active')) {
-    closeUserStatsModal();
-  }
-});
-
-$('#logoutBtn').addEventListener('click', () => {
-  if (confirm('Voulez-vous vraiment vous déconnecter ?')) {
-    localStorage.removeItem(AUTH_KEY);
-    localStorage.removeItem('fr_current_user');
-    window.location.href = 'login.html';
-  }
-});
-
-function updateUsersTable() {
-  const users = JSON.parse(localStorage.getItem(USERS_KEY) || '[]');
-  const tbody = $('#usersBody');
-
-  if (users.length === 0) {
-    tbody.innerHTML = '<tr><td colspan="6" class="empty-state">Aucun utilisateur</td></tr>';
-    return;
-  }
-
-  tbody.innerHTML = users.map(user => {
-    const isAdmin = user.role === 'admin';
-    const isCurrentUser = user.id === currentUser.id;
-    
-    if (isAdmin) {
-      // Admin row
-      return `
-        <tr style="background:#f0f8ff">
-          <td><strong>${user.name}</strong> ${isCurrentUser ? '(Vous)' : ''}</td>
-          <td>${user.email}</td>
-          <td><span class="badge" style="background:#2196f3;color:#fff">Admin</span></td>
-          <td colspan="2" style="text-align:center;color:#666">—</td>
-          <td>
-            <div class="action-btns">
-              ${!isCurrentUser ? `
-                <button class="btn-secondary" onclick="resetUserPassword('${user.id}')">Changer code PIN</button>
-                <button class="btn-danger" onclick="deleteAdmin('${user.id}')">Supprimer</button>
-              ` : '<span style="color:#666;font-size:.85rem">Vous ne pouvez pas vous gérer</span>'}
-            </div>
-          </td>
-        </tr>
-      `;
-    } else {
-      // Student row
-      const progress = getUserProgress(user.id);
-      return `
-        <tr>
-          <td>${user.name}</td>
-          <td>${user.email}</td>
-          <td><span class="badge" style="background:#4caf50;color:#fff">Étudiant</span></td>
-          <td>${progress.completedLessons}</td>
-          <td>${progress.avgScore}%</td>
-          <td>
-            <div class="action-btns">
-              <button class="btn-secondary" onclick="viewUserStats('${user.id}')">Voir stats</button>
-              <button class="btn-secondary" onclick="resetUserPassword('${user.id}')">Réinitialiser code</button>
-              <button class="btn-danger" onclick="deleteUser('${user.id}')">Supprimer</button>
-            </div>
-          </td>
-        </tr>
-      `;
+// Helper for parsing bulk QCM lines
+function parseBulkQCM(lines) {
+  const questions = [];
+  lines.split('\n').forEach(line => {
+    const parts = line.split(';').map(p => p.trim());
+    if (parts.length >= 5) { // Question; A; B; C; response; [points]; [explanation]
+      const question = parts[0];
+      const options = {};
+      let answer = '';
+      let points = 1;
+      let explanation = '';
+      
+      // Extract options and answer (assuming A, B, C are standard)
+      if (parts.length > 1) options['a'] = parts[1];
+      if (parts.length > 2) options['b'] = parts[2];
+      if (parts.length > 3) options['c'] = parts[3];
+      if (parts.length > 4) answer = parts[4].toLowerCase();
+      if (parts.length > 5) points = parseInt(parts[5]) || 1;
+      if (parts.length > 6) explanation = parts[6];
+      
+      const q = { question, ...options, answer, points };
+      if (explanation) q.explanation = explanation;
+      questions.push(q);
     }
-  }).join('');
+  });
+  return questions;
 }
 
-function deleteAdmin(adminId) {
-  const users = JSON.parse(localStorage.getItem(USERS_KEY) || '[]');
-  const admin = users.find(u => u.id === adminId);
-  
-  if (!admin) {
-    alert('Administrateur introuvable');
+// Helper for parsing bulk Vrai/Faux lines
+function parseVF(lines) {
+  const questions = [];
+  lines.split('\n').forEach(line => {
+    const parts = line.split(';').map(p => p.trim());
+    if (parts.length >= 3) { // Statement; answer; [keywords]; [points]
+      const statement = parts[0];
+      const answer = parts[1].toLowerCase();
+      const keywords = parts.length > 2 && parts[2] ? parts[2].split('|').map(k => k.trim()).filter(Boolean) : [];
+      const points = parts.length > 3 ? parseInt(parts[3]) || 1 : 1;
+      questions.push({ statement, answer, keywords, points });
+    }
+  });
+  return questions;
+}
+
+// Audio file handling for 'ecoute' type
+function handleAudioFile(file, inputElement, fileNameDisplay, hiddenAudioInput) {
+  if (!file) return;
+  if (!file.type.startsWith('audio/')) {
+    alert('Veuillez sélectionner un fichier audio.');
+    inputElement.value = ''; // Clear invalid selection
     return;
   }
-  
-  // Check if this is the last admin
-  const adminCount = users.filter(u => u.role === 'admin').length;
-  if (adminCount <= 1) {
-    alert('Impossible de supprimer le dernier administrateur. Il doit toujours y avoir au moins un administrateur.');
-    return;
-  }
-  
-  const confirmMessage = `Êtes-vous sûr de vouloir supprimer l'administrateur ${admin.name} (${admin.email})?\n\nCette action ne peut pas être annulée.`;
-  
-  if (!confirm(confirmMessage)) {
-    return;
-  }
-  
-  // Remove admin from users list
-  const updatedUsers = users.filter(u => u.id !== adminId);
-  localStorage.setItem(USERS_KEY, JSON.stringify(updatedUsers));
-  
-  alert(`L'administrateur ${admin.name} a été supprimé avec succès`);
-  
-  // Refresh the users table
-  updateUsersTable();
-  updateDashboard(); // Refresh dashboard stats in case total users count changes
+
+  // In a real app, you'd upload this file to a server or CDN.
+  // For this example, we'll just display its name and store a placeholder path.
+  const placeholderPath = `audio/${file.name}`; 
+  fileNameDisplay.textContent = `Fichier sélectionné: ${file.name}`;
+  fileNameDisplay.style.display = 'block';
+  hiddenAudioInput.value = placeholderPath; // Store placeholder path
+  inputElement.value = ''; // Clear input to allow re-uploading the same file
+
+  // Simulate upload and get URL (if using Cloudinary, for example)
+  // For now, just use the placeholderPath
 }
 
-// These functions are placeholders as they are not defined in the provided code
-// but are called in the <updates> section.
-// function updateProgressStats() {}
-// function renderLessons() {}
-// function loadExternalResources() {}
-// function loadStudentChat() {}
-// function drawProgressChart() {}
-// function drawLevelChart() {}
-// function drawTypeChart() {}
+// Remove specific QCM question from form
+window.removeFormQcmQuestion = function(questionId) {
+  const questionDiv = document.querySelector(`[data-form-qcm-id="${questionId}"]`);
+  if (questionDiv) questionDiv.remove();
+  
+  // Re-render the QCM question numbers and update dropdowns
+  $$('#formQcmQuestions [data-form-qcm-id]').forEach((qDiv, index) => {
+    const newId = index + 1;
+    qDiv.dataset.formQcmId = newId;
+    qDiv.querySelector('span').textContent = `Question ${newId}`;
+    qDiv.querySelector('.btn-danger').setAttribute('onclick', `removeFormQcmQuestion(${newId})`);
+    qDiv.querySelector('.btn-secondary').setAttribute('onclick', `addFormQcmOption(${newId})`);
+    updateFormQcmAnswerDropdown(newId); // Update dropdown for each question
+  });
+  formQcmCounter = $$('#formQcmQuestions [data-form-qcm-id]').length; // Reset counter to max ID
+};
 
-// --- Initialization ---
-document.addEventListener('DOMContentLoaded', () => {
-  checkAuth();
-  loadBank(); // loadBank will call updateExercisesTable internally
-  updateUsersTable();
-  updateDashboard();
-  // Initial chart drawing - slightly delayed to ensure canvas is ready
-  setTimeout(() => {
-    drawAdminActivityChart();
-    drawAdminLevelChart();
-  }, 100);
-});
+// Remove specific Vrai/Faux question from form
+window.removeFormVfQuestion = function(questionId) {
+  const questionDiv = document.querySelector(`[data-form-vf-id="${questionId}"]`);
+  if (questionDiv) questionDiv.remove();
 
-// Helper functions for file imports/exports (not fully implemented here, assumed to exist elsewhere or be basic placeholders)
-function importJSONFile() {
-    document.getElementById('importBank').click();
-}
+  // Re-render V/F question numbers
+  $$('#formVfQuestions [data-form-vf-id]').forEach((qDiv, index) => {
+    const newId = index + 1;
+    qDiv.dataset.formVfId = newId;
+    qDiv.querySelector('span').textContent = `Question ${newId}`;
+    qDiv.querySelector('.btn-danger').setAttribute('onclick', `removeFormVfQuestion(${newId})`);
+  });
+  formVfCounter = $$('#formVfQuestions [data-form-vf-id]').length;
+};
 
-function exportJSONFile() {
-    exportBank(); // Use the existing export function
-}
-
-function loadExampleFile() {
-    loadDefaultBank(); // Use the existing load default function
-}
 </script>
 </body>
 </html>

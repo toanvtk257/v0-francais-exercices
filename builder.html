@@ -508,7 +508,7 @@ const $ = s=>document.querySelector(s);
 const $$ = s=>[...document.querySelectorAll(s)];
 const CLOUDINARY_CLOUD_NAME = 'dvbsn45rk';
 const CLOUDINARY_UPLOAD_PRESET = 'francais_exercices';
-const CLOUDINARY_JSON_FOLDER = 'french-json'; // Folder for JSON files
+const CLOUDINARY_JSON_FOLDER = 'entrainement-francais';
 const BANK_KEY = 'fr_bank_data';
 const FILES_INDEX_KEY = 'fr_json_files_index'; // Track all uploaded JSON files
 let BANK = {lecture:[], ecoute:[], grammaire:[], lexique:[]};
@@ -624,7 +624,7 @@ async function linkToFile() {
       BANK = {lecture:[], ecoute:[], grammaire:[], lexique:[]};
       $('#linkedFileStatus').textContent = '✓ Fichier vide lié - Sauvegarde automatique activée';
     } else {
-      BANK = JSON.parse(text);
+      BANK = JSON.JSON.parse(text);
       // Validate structure and add missing keys if needed
       if (!BANK.lecture) BANK.lecture = [];
       if (!BANK.ecoute) BANK.ecoute = [];
