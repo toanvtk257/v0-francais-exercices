@@ -655,6 +655,11 @@ function getDraft(userId, lessonId) {
 
 checkAuth();
 loadBank();
+
+// Wait for bank to load, then load the lesson
+setTimeout(() => {
+  loadLesson();
+}, 100);
 </script>
 </body>
 </html>
