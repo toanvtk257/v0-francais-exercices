@@ -3,7 +3,6 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<!-- Removed CSP meta tag that was blocking Cloudinary connections -->
 <title>fr_exercices_pack_v2 — Générateur JSON (hors‑ligne)</title>
 <style>
 :root{--brand:#2b5;--ink:#222;--muted:#666;--bg:#f7f7f7;--card:#fff}
@@ -172,10 +171,10 @@ hr{border:none;border-top:1px solid #e8e8e8;margin:16px 0}
     </button>
     <!-- Added explicit button to save to Cloudinary with custom filename -->
     <button id="saveToCloudinary" style="background: #3b82f6; padding: 0.75rem 1.5rem; color: white; border: none; border-radius: 0.5rem; cursor: pointer; font-size: 1rem; font-weight: 500;">
-      📤 Sauvegarder sur Vercel Blob
+      📤 Sauvegarder sur Cloudinary
     </button>
     <button id="loadFromCloudinary" style="background: #8b5cf6; padding: 0.75rem 1.5rem; color: white; border: none; border-radius: 0.5rem; cursor: pointer; font-size: 1rem; font-weight: 500;">
-      📥 Charger depuis Vercel Blob
+      📥 Charger depuis Cloudinary
     </button>
     <button id="newBank" style="background: #f87171; padding: 0.75rem 1.5rem; color: white; border: none; border-radius: 0.5rem; cursor: pointer; font-size: 1rem; font-weight: 500;">
       🚫 Nouvelle banque vide
@@ -274,10 +273,10 @@ hr{border:none;border-top:1px solid #e8e8e8;margin:16px 0}
       </div>
 
       <div class="form-group ecoute-only">
-        <label for="audio" style="font-weight: 600; display: block; margin-bottom: 0.5rem;">Fichier audio (optionnel - uniquement pour CO)</label>
-        <p style="font-size: 0.9rem; color: #64748b; margin: 0 0 1rem 0;">Uniquement pour CO. Laissez vide si vous ne souhaitez pas ajouter de fichier audio.</p>
+        <label for="audio">Fichier audio (optionnel - uniquement pour CO)</label>
+        <p style="color: #64748b; font-size: 0.9rem; margin-bottom: 0.5rem;">Uniquement pour CO. Laissez vide si vous ne souhaitez pas ajouter de fichier audio.</p>
         
-        <!-- Updated audio upload to use Vercel Blob instead of Cloudinary -->
+        <!-- Updated audio upload instructions for Cloudinary -->
         <div 
           id="audioDrop" 
           style="border: 2px dashed #3b82f6; border-radius: 0.5rem; padding: 2rem; text-align: center; cursor: pointer; background: #eff6ff; transition: all 0.2s;"
@@ -287,7 +286,7 @@ hr{border:none;border-top:1px solid #e8e8e8;margin:16px 0}
           onclick="$('#audioInput').click()"
         >
           <p style="margin: 0; color: #3b82f6; font-weight: 500;">🎵 Glissez-déposez un fichier audio ici ou cliquez pour sélectionner</p>
-          <p style="margin: 0.5rem 0 0 0; font-size: 0.85rem; color: #64748b;">Le fichier sera automatiquement uploadé vers Vercel Blob</p>
+          <p style="margin: 0.5rem 0 0 0; font-size: 0.85rem; color: #64748b;">Le fichier sera automatiquement uploadé vers Cloudinary</p>
         </div>
         <input type="file" id="audioInput" accept="audio/*" onchange="handleAudioSelect(event)" style="display: none;">
         <input type="hidden" id="audio" name="audio">
@@ -350,7 +349,7 @@ hr{border:none;border-top:1px solid #e8e8e8;margin:16px 0}
               onclick="$('#passageImageInput').click()"
             >
               <p style="margin: 0; color: #8b5cf6; font-weight: 500;">🖼️ Glissez-déposez une image ici ou cliquez pour sélectionner</p>
-              <p style="margin: 0.5rem 0 0 0; font-size: 0.85rem; color: #64748b;">L'image sera automatiquement uploadée vers Vercel Blob</p>
+              <p style="margin: 0.5rem 0 0 0; font-size: 0.85rem; color: #64748b;">L'image sera automatiquement uploadée vers Cloudinary</p>
             </div>
             <input type="file" id="passageImageInput" accept="image/*" onchange="handlePassageImageSelect(event)" style="display: none;">
             
@@ -507,38 +506,82 @@ Les concerts sont payants. ; faux ; gratuits|ouvert à tous ; 3"></textarea>
 <script>
 const $ = s=>document.querySelector(s);
 const $$ = s=>[...document.querySelectorAll(s)];
-const CLOUDINARY_CLOUD_NAME = 'dvbsn45rk'; // Keep for context, but not used for audio/image uploads
-const CLOUDINARY_UPLOAD_PRESET = 'francais_exercices'; // Keep for context, but not used for audio/image uploads
+const CLOUDINARY_CLOUD_NAME = 'dvbsn45rk';
+const CLOUDINARY_UPLOAD_PRESET = 'francais_exercices';
+const CLOUDINARY_JSON_FOLDER = 'entrainement-francais';
 const BANK_KEY = 'fr_bank_data';
-const FILES_INDEX_KEY = 'vercelBlobFilesIndex'; // Use a dedicated key for Vercel Blob index
+const FILES_INDEX_KEY = 'fr_json_files_index'; // Track all uploaded JSON files
 let BANK = {lecture:[], ecoute:[], grammaire:[], lexique:[]};
 let fileHandle = null; // for local file linking
 let currentFileName = 'questions.json'; // Track current file name
 
-async function uploadJsonToVercelBlob(jsonData, fileName) {
+async function uploadToCloudinary(file, resourceType = 'auto') {
+  const formData = new FormData();
+  formData.append('file', file);
+  formData.append('upload_preset', CLOUDINARY_UPLOAD_PRESET);
+  formData.append('folder', 'french-audio'); // Specific folder for audio
+  formData.append('resource_type', resourceType);
+
+  const url = `https://api.cloudinary.com/v1_1/${CLOUDINARY_CLOUD_NAME}/${resourceType}/upload`;
+
   try {
-    console.log('[v0] Uploading JSON to Vercel Blob:', fileName);
-    
-    const response = await fetch('/api/upload-json', {
+    const response = await fetch(url, {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        filename: fileName,
-        content: jsonData
-      })
+      body: formData
     });
+
+    if (!response.ok) {
+      const errorData = await response.json();
+      console.error('Cloudinary error response:', errorData);
+      throw new Error(errorData.error?.message || `HTTP Error ${response.status}: ${response.statusText}`);
+    }
+
+    const data = await response.json();
+    return data.secure_url;
+  } catch (error) {
+    console.error('Cloudinary upload error:', error);
+    throw error;
+  }
+}
+
+async function uploadJsonToCloudinary(jsonData, fileName) {
+  try {
+    console.log('[v0] uploadJsonToCloudinary called with fileName:', fileName);
     
+    const jsonString = JSON.stringify(jsonData, null, 2);
+    const blob = new Blob([jsonString], { type: 'application/json' });
+    
+    const file = new File([blob], fileName, { type: 'application/json' });
+    
+    const formData = new FormData();
+    formData.append('file', file); // Upload File instead of Blob so Cloudinary gets the filename
+    formData.append('upload_preset', CLOUDINARY_UPLOAD_PRESET);
+    formData.append('folder', CLOUDINARY_JSON_FOLDER);
+    // Use public_id to ensure it's the correct file name, replacing extension
+    formData.append('public_id', fileName.replace('.json', '')); 
+    formData.append('resource_type', 'raw'); // Use 'raw' for non-image/video assets
+    
+    console.log('[v0] FormData public_id:', fileName.replace('.json', ''));
+    console.log('[v0] FormData folder:', CLOUDINARY_JSON_FOLDER);
+
+    const response = await fetch(
+      `https://api.cloudinary.com/v1_1/${CLOUDINARY_CLOUD_NAME}/raw/upload`,
+      {
+        method: 'POST',
+        body: formData
+      }
+    );
+
     if (!response.ok) {
       const error = await response.json();
-      throw new Error(error.error || 'Upload failed');
+      console.error('[v0] Upload error:', error);
+      throw new Error(error.error?.message || 'Upload failed');
     }
-    
+
     const result = await response.json();
-    const blobUrl = result.url;
-    
-    console.log('[v0] Vercel Blob upload success:', blobUrl);
+    console.log('[v0] Cloudinary upload result:', result);
+    console.log('[v0] Result public_id:', result.public_id);
+    console.log('[v0] Result format:', result.format);
     
     // Store file info in index
     const filesIndex = JSON.parse(localStorage.getItem(FILES_INDEX_KEY) || '[]');
@@ -546,7 +589,8 @@ async function uploadJsonToVercelBlob(jsonData, fileName) {
     
     const fileInfo = {
       fileName: fileName,
-      blobUrl: blobUrl,
+      cloudinaryUrl: result.secure_url,
+      publicId: result.public_id,
       uploadedAt: new Date().toISOString()
     };
     
@@ -558,9 +602,9 @@ async function uploadJsonToVercelBlob(jsonData, fileName) {
     
     localStorage.setItem(FILES_INDEX_KEY, JSON.stringify(filesIndex));
     
-    return blobUrl;
+    return result.secure_url;
   } catch (error) {
-    console.error('[v0] Vercel Blob upload error:', error);
+    console.error('[v0] Cloudinary JSON upload error:', error);
     throw error;
   }
 }
@@ -605,7 +649,7 @@ async function linkToFile() {
     $('#autoSaveStatus').textContent = '✓ Sauvegarde automatique activée';
     $('#autoSaveStatus').style.display = 'block';
     
-    saveBankToStorage(); // This will also trigger Vercel Blob upload
+    saveBankToStorage(); // This will also trigger Cloudinary upload
     updateCounts(); // Use updateCounts for updating counts
     
   } catch (err) {
@@ -654,15 +698,15 @@ function loadBankFromStorage() {
     $('#autoSaveStatus').style.display = 'block';
   }
   
-  // Update status based on current Vercel Blob config
+  // Update status based on current Cloudinary config
   const filesIndex = JSON.parse(localStorage.getItem(FILES_INDEX_KEY) || '[]');
   if (filesIndex.length > 0) {
-    const latestFile = filesIndex.sort((a, b) => new Date(b.uploadedAt) - new Date(a.uploadedAt))[0];
+    const latestFile = filesIndex[filesIndex.length - 1]; // Assuming the last one is the current
     currentFileName = latestFile.fileName; // Set current file name
-    $('#cloudinaryStatus').textContent = `✓ Sauvegardé sur Vercel Blob: ${currentFileName}`;
+    $('#cloudinaryStatus').textContent = `✓ Sauvegardé sur Cloudinary: ${currentFileName}`;
     $('#cloudinaryStatus').style.background = '#10b981';
   } else {
-    $('#cloudinaryStatus').textContent = '✓ Cloudinary configuré - Upload automatique activé'; // Keep this as a fallback if Vercel Blob API is not working
+    $('#cloudinaryStatus').textContent = '✓ Cloudinary configuré - Upload automatique activé';
     $('#cloudinaryStatus').style.background = '#10b981';
   }
 }
@@ -671,14 +715,13 @@ function saveBankToStorage() {
   localStorage.setItem(BANK_KEY, JSON.stringify(BANK));
   autoSaveToFile();
   
-  // Using Vercel Blob upload function for JSON files
-  uploadJsonToVercelBlob(BANK, currentFileName)
+  uploadJsonToCloudinary(BANK, currentFileName)
     .then(url => {
-      $('#cloudinaryStatus').textContent = `✓ Sauvegardé sur Vercel Blob: ${currentFileName}`;
+      $('#cloudinaryStatus').textContent = `✓ Sauvegardé sur Cloudinary: ${currentFileName}`;
       $('#cloudinaryStatus').style.background = '#10b981';
     })
     .catch(err => {
-      $('#cloudinaryStatus').textContent = `⚠️ Erreur Vercel Blob: ${err.message}`;
+      $('#cloudinaryStatus').textContent = `⚠️ Erreur Cloudinary: ${err.message}`;
       $('#cloudinaryStatus').style.background = '#dc2626';
     });
 }
@@ -1001,8 +1044,8 @@ async function addItem(){
   const clozeText = $('#clozeText').value.trim();
   const transText = $('#transText').value.trim();
 
-  const audioCloudinaryUrl = $('#audio').value; // Cloudinary URL from hidden input - THIS WILL BE A VERSEL BLOB URL NOW
-  const passageImageCloudinaryUrl = $('#passageImagePreviewImg').dataset.cloudinaryUrl; // Cloudinary URL from data attribute - THIS WILL BE A VERSEL BLOB URL NOW
+  const audioCloudinaryUrl = $('#audio').value; // Cloudinary URL from hidden input
+  const passageImageCloudinaryUrl = $('#passageImagePreviewImg').dataset.cloudinaryUrl; // Cloudinary URL from data attribute
 
   const exercise = {
     id,
@@ -1010,9 +1053,9 @@ async function addItem(){
     theme: theme.toLowerCase(), // Store theme in lowercase for consistency
     // titre: titre, // Title is set below based on exerciseNum
     difficulty: parseInt($('#difficulty').value) || 1,
-    audio: audioCloudinaryUrl || undefined, // Use Vercel Blob URL
+    audio: audioCloudinaryUrl || undefined, // Use Cloudinary URL
     passage_html: '',
-    passageImage: passageImageCloudinaryUrl || undefined, // Store Vercel Blob URL for image
+    passageImage: passageImageCloudinaryUrl || undefined, // Store Cloudinary URL for image
     createdAt: Date.now(), // Add creation timestamp
     updatedAt: Date.now()  // Add update timestamp
   };
@@ -1102,7 +1145,7 @@ async function addItem(){
   // Set a default title if none provided
   exercise.titre = exerciseNum ? `Exercice ${exerciseNum}` : `Nouveau ${kind}`;
   
-  saveBankToStorage(); // This will trigger auto-save and Vercel Blob upload
+  saveBankToStorage(); // This will trigger auto-save and Cloudinary upload
   
   $('#addInfo').textContent='✓ Ajouté à la banque avec succès ! ' + (fileHandle ? '(Sauvegardé automatiquement)' : '(Pensez à télécharger questions.json)');
   $('#addInfo').style.color = 'green';
@@ -1213,7 +1256,7 @@ function addBulkItem(){
     }
     BANK.lecture.push(exercise);
   }else if(kind==='ecoute'){
-    exercise.audio = $('#bulkAudio').value.trim(); // This should be a Vercel Blob URL or relative path if not using Vercel Blob
+    exercise.audio = $('#bulkAudio').value.trim(); // This should be a Cloudinary URL or relative path if not using Cloudinary
     
     if(mode==='qcm'){
       const qs = parseQCM($('#bulkQcmText').value);
@@ -1285,7 +1328,17 @@ function downloadEmptyQuestionsJson() {
 }
 
 function downloadEmptyQuestionsJs() {
-  const jsContent = generateQuestionsJS();
+  const jsContent = `// Banque de questions - Version JavaScript pour fonctionnement sans serveur
+// Ce fichier est automatiquement généré par builder.html
+// Dernière mise à jour: ${new Date().toLocaleString('fr-FR')}
+
+window.questionsData = {
+  "lecture": [],
+  "ecoute": [],
+  "grammaire": [],
+  "lexique": []
+};
+`;
   const blob = new Blob([jsContent], {type:'text/javascript'});
   const a = document.createElement('a');
   a.href = URL.createObjectURL(blob);
@@ -1307,13 +1360,13 @@ function downloadJSON(){
   a.click();
   URL.revokeObjectURL(a.href);
   
-  // Upload to Vercel Blob as well
-  uploadJsonToVercelBlob(BANK, currentFileName)
+  // Upload to Cloudinary as well
+  uploadJsonToCloudinary(BANK, currentFileName)
     .then(url => {
-      alert(`✓ Fichier ${currentFileName} téléchargé et uploadé sur Vercel Blob!\n\nURL: ${url}`);
+      alert(`✓ Fichier ${currentFileName} téléchargé et uploadé sur Cloudinary!\n\nURL: ${url}`);
     })
     .catch(err => {
-      alert(`✓ Fichier téléchargé localement.\n⚠️ Erreur Vercel Blob: ${err.message}\n\nAssurez-vous que votre connection internet est stable et que l'API Vercel Blob est fonctionnelle.`);
+      alert(`✓ Fichier téléchargé localement.\n⚠️ Erreur Cloudinary: ${err.message}\n\nAssurez-vous que votre connection internet est stable et que les credentials Cloudinary sont corrects.`);
     });
 }
 
@@ -1358,7 +1411,7 @@ function handleFileUpload(event) {
       if (!BANK.lexique) BANK.lexique = [];
       
       currentFileName = file.name; // Update current file name
-      saveBankToStorage(); // Save to localStorage and upload to Vercel Blob
+      saveBankToStorage(); // Save to localStorage and upload to Cloudinary
       updateCounts(); // Update counts after loading
       $('#linkedFileStatus').textContent = `✓ Chargé: ${file.name} (${BANK.lecture.length + BANK.ecoute.length + BANK.grammaire.length + BANK.lexique.length} exercices)`;
       $('#linkedFileStatus').style.display = 'block';
@@ -1463,28 +1516,28 @@ function handlePassageImageSelect(event) {
     reader.onload = async e => {
       $('#passageImagePreviewImg').src = e.target.result;
       $('#passageImagePreview').style.display = 'block';
-      $('#imageUploadStatus').textContent = '⏳ Upload vers Vercel Blob en cours...';
+      $('#imageUploadStatus').textContent = '⏳ Upload vers Cloudinary en cours...';
       $('#imageUploadStatus').style.color = '#f59e0b';
       
-      console.log('[v0] Uploading image to Vercel Blob:', newFileName);
+      console.log('[v0] Uploading image to Cloudinary:', newFileName);
       
       try {
         // Create a new file with the custom name
         const renamedFile = new File([file], newFileName, { type: file.type });
-        const blobUrl = await uploadToVercelBlob(renamedFile); // Use Vercel Blob upload
+        const cloudinaryUrl = await uploadToCloudinary(renamedFile, 'image'); // Use 'image' for images
         
-        console.log('[v0] Image uploaded to Vercel Blob:', blobUrl);
+        console.log('[v0] Image uploaded to Cloudinary:', cloudinaryUrl);
         
-        // Store the Vercel Blob URL 
-        $('#passageImagePreviewImg').dataset.cloudinaryUrl = blobUrl; // Re-using dataset for consistency, but now stores Vercel Blob URL
+        // Store the Cloudinary URL (it will be used when generating the exercise)
+        $('#passageImagePreviewImg').dataset.cloudinaryUrl = cloudinaryUrl;
         
-        $('#imageUploadStatus').textContent = `✓ Image uploadée avec succès sur Vercel Blob!`;
+        $('#imageUploadStatus').textContent = `✓ Image uploadée avec succès sur Cloudinary!`;
         $('#imageUploadStatus').style.color = '#10b981';
       } catch (err) {
-        console.error('[v0] Error uploading image to Vercel Blob:', err);
-        $('#imageUploadStatus').textContent = '❌ Erreur lors de l\'upload vers Vercel Blob';
+        console.error('[v0] Error uploading image to Cloudinary:', err);
+        $('#imageUploadStatus').textContent = '❌ Erreur lors de l\'upload vers Cloudinary';
         $('#imageUploadStatus').style.color = '#ef4444';
-        alert(`Erreur Vercel Blob: ${err.message}`);
+        alert(`Erreur Cloudinary: ${err.message}\n\nVérifiez:\n- Votre upload preset "francais_exercices" existe et est "unsigned"\n- Votre cloud name est correct: ${CLOUDINARY_CLOUD_NAME}`);
       }
     };
     reader.readAsDataURL(file);
@@ -1542,33 +1595,32 @@ function processAudioFile(file) {
   reader.onload = async e => {
     $('#audioPlayer').src = e.target.result;
     $('#audioFileName').textContent = newFileName;
-    $('#audioFilePath').textContent = 'Chemin: Upload vers Vercel Blob...';
+    $('#audioFilePath').textContent = 'Chemin: Upload vers Cloudinary...';
     $('#audioPreview').style.display = 'block';
-    $('#audioUploadStatus').textContent = '⏳ Upload vers Vercel Blob en cours...';
+    $('#audioUploadStatus').textContent = '⏳ Upload vers Cloudinary en cours...';
     $('#audioUploadStatus').style.color = '#f59e0b';
     
-    console.log('[v0] Uploading audio to Vercel Blob:', newFileName);
+    console.log('[v0] Uploading audio to Cloudinary:', newFileName);
     
     try {
       // Create a new file with the custom name
       const renamedFile = new File([file], newFileName, { type: file.type });
-      const blobUrl = await uploadToVercelBlob(renamedFile);
+      const cloudinaryUrl = await uploadToCloudinary(renamedFile, 'video'); // Use 'video' for audio files
       
-      console.log('[v0] Audio uploaded to Vercel Blob:', blobUrl);
+      console.log('[v0] Audio uploaded to Cloudinary:', cloudinaryUrl);
       
-      // Store the Blob URL in the hidden input
-      $('#audio').value = blobUrl;
-      $('#audioFilePath').textContent = `URL Vercel Blob: ${blobUrl}`;
-      $('#audioUploadStatus').textContent = `✓ Fichier audio uploadé avec succès sur Vercel Blob!`;
+      // Store the Cloudinary URL in the hidden input
+      $('#audio').value = cloudinaryUrl;
+      $('#audioFilePath').textContent = `URL Cloudinary: ${cloudinaryUrl}`;
+      $('#audioUploadStatus').textContent = `✓ Fichier audio uploadé avec succès sur Cloudinary!`;
       $('#audioUploadStatus').style.color = '#10b981';
     } catch (err) {
-      console.error('[v0] Error uploading audio to Vercel Blob:', err);
-      $('#audioUploadStatus').textContent = '❌ Erreur lors de l\'upload vers Vercel Blob';
+      console.error('[v0] Error uploading audio to Cloudinary:', err);
+      $('#audioUploadStatus').textContent = '❌ Erreur lors de l\'upload vers Cloudinary';
       $('#audioUploadStatus').style.color = '#ef4444';
-      alert(`Erreur Vercel Blob: ${err.message}`);
+      alert(`Erreur Cloudinary: ${err.message}\n\nVérifiez:\n- Votre upload preset "francais_exercices" existe et est "unsigned"\n- Votre cloud name est correct: ${CLOUDINARY_CLOUD_NAME}\n- Le fichier ne dépasse pas les limites de votre plan Cloudinary`);
     }
   };
-  
   reader.readAsDataURL(file);
 }
 
@@ -1579,29 +1631,222 @@ function removeAudio() {
   $('#audioInput').value = '';
 }
 
-// Updated function to list Cloudinary JSON files (based on index stored in localStorage)
-async function listVelBlobJsonFiles() { // Renamed to avoid conflict with previous function
+async function listCloudinaryJsonFiles() {
   try {
     const filesIndex = JSON.parse(localStorage.getItem(FILES_INDEX_KEY) || '[]');
     if (filesIndex.length === 0) {
-      alert('Aucun fichier JSON trouvé sur Vercel Blob (index localStorage vide). Veuillez d\'abord sauvegarder un fichier.');
+      alert('Aucun fichier JSON trouvé sur Cloudinary.\n\nCréez et téléchargez vos exercices pour les uploader automatiquement.');
       return;
     }
     
-    let message = 'Fichiers JSON sur Vercel Blob (via index localStorage):\n\n';
-    // Sort files by uploaded date, newest first
-    filesIndex.sort((a, b) => new Date(b.uploadedAt) - new Date(a.uploadedAt));
-    
+    let message = 'Fichiers JSON sur Cloudinary:\n\n';
     filesIndex.forEach((file, idx) => {
-      message += `${idx + 1}. ${file.fileName}\n   URL: ${file.blobUrl}\n   Uploadé: ${new Date(file.uploadedAt).toLocaleString('fr-FR')}\n\n`;
+      message += `${idx + 1}. ${file.fileName}\n   Uploadé: ${new Date(file.uploadedAt).toLocaleString('fr-FR')}\n\n`;
     });
     
     alert(message);
   } catch (error) {
-    console.error('[v0] Error listing Vercel Blob JSON files:', error);
-    alert('Erreur lors de la récupération de la liste des fichiers JSON sur Vercel Blob.');
+    alert('Erreur lors de la récupération de la liste des fichiers.');
   }
 }
+
+// Add button to show Cloudinary files list
+document.addEventListener('DOMContentLoaded', () => {
+  console.log('[v0] DOM loaded, initializing builder');
+  
+  // Create Exercise button listener
+  const addItemBtn = $('#addItem');
+  if (addItemBtn) {
+    console.log('[v0] Attaching click listener to addItem button');
+    addItemBtn.addEventListener('click', (e) => {
+      console.log('[v0] Create exercise button clicked');
+      e.preventDefault();
+      addItem();
+    });
+  } else {
+    console.error('[v0] addItem button not found!');
+  }
+
+  // QCM button
+  const addQcmBtn = $('#addQcmQuestion');
+  if (addQcmBtn) {
+    addQcmBtn.addEventListener('click', () => {
+      console.log('[v0] QCM button clicked');
+      addQcmQuestionForm();
+    });
+    console.log('[v0] QCM button listener attached');
+  } else {
+    console.log('[v0] ERROR: QCM button not found');
+  }
+  
+  // Vrai/Faux button
+  const addVfBtn = $('#addVfQuestion');
+  if (addVfBtn) {
+    addVfBtn.addEventListener('click', () => {
+      console.log('[v0] VF button clicked');
+      addVfQuestionForm();
+    });
+    console.log('[v0] VF button listener attached');
+  } else {
+    console.log('[v0] ERROR: VF button not found');
+  }
+  
+  // Existing Cloudinary buttons
+  const downloadJsonBtn = $('#downloadJson');
+  if (downloadJsonBtn) {
+    const cloudinaryListBtn = document.createElement('button');
+    cloudinaryListBtn.textContent = 'Voir fichiers Cloudinary';
+    cloudinaryListBtn.className = 'secondary'; // Apply a secondary button style
+    cloudinaryListBtn.style.marginLeft = '10px'; // Add some spacing
+    cloudinaryListBtn.onclick = listCloudinaryJsonFiles;
+    downloadJsonBtn.parentElement.appendChild(cloudinaryListBtn);
+  }
+  
+  $('#saveToCloudinary').addEventListener('click', saveToCloudinaryWithPrompt);
+  $('#loadFromCloudinary').addEventListener('click', loadFromCloudinaryPrompt);
+  
+  console.log('[v0] All button listeners initialized');
+});
+
+// New function to save to Cloudinary with custom filename prompt
+async function saveToCloudinaryWithPrompt() {
+  const disciplineFilter = $('#disciplineFilter').value;
+  
+  let dataToSave;
+  let suggestedFileName;
+  
+  if (disciplineFilter === 'all') {
+    const response = confirm(
+      'Vous avez sélectionné "Toutes les disciplines".\n\n' +
+      'Voulez-vous sauvegarder TOUS les exercices dans un seul fichier?\n\n' +
+      '- Cliquez OK pour sauvegarder tous les exercices\n' +
+      '- Cliquez Annuler pour filtrer par discipline'
+    );
+    
+    if (!response) {
+      alert('Veuillez sélectionner une discipline spécifique dans le filtre avant de sauvegarder.');
+      return;
+    }
+    
+    dataToSave = BANK;
+    suggestedFileName = 'tous_exercices.json';
+  } else {
+    // Save only exercises from selected discipline
+    const exercises = BANK[disciplineFilter];
+    
+    if (!exercises || exercises.length === 0) {
+      alert(`Aucun exercice de type "${disciplineFilter}" à sauvegarder.`);
+      return;
+    }
+    
+    // Create a new bank object with only the selected discipline
+    dataToSave = {
+      lecture: disciplineFilter === 'lecture' ? exercises : [],
+      ecoute: disciplineFilter === 'ecoute' ? exercises : [],
+      grammaire: disciplineFilter === 'grammaire' ? exercises : [],
+      lexique: disciplineFilter === 'lexique' ? exercises : []
+    };
+    
+    // Suggest filename based on exercises
+    const firstExercise = exercises[0];
+    const niveau = firstExercise.niveau.toLowerCase();
+    const disciplineName = disciplineFilter === 'lecture' ? 'lecture' :
+                          disciplineFilter === 'ecoute' ? 'ecoute' :
+                          disciplineFilter === 'grammaire' ? 'grammaire' : 'lexique';
+    
+    suggestedFileName = `${niveau}_${disciplineName}.json`;
+  }
+  
+  const fileName = prompt(
+    `Entrez le nom du fichier à sauvegarder sur Cloudinary:\n\n` +
+    `${disciplineFilter !== 'all' ? `Discipline sélectionnée: ${disciplineFilter.toUpperCase()}\n` : ''}` +
+    `Nombre d'exercices: ${disciplineFilter === 'all' ? 
+      BANK.lecture.length + BANK.ecoute.length + BANK.grammaire.length + BANK.lexique.length :
+      BANK[disciplineFilter].length}\n\n` +
+    `Exemples:\n- a1_lecture.json\n- a2_ecoute.json\n- b1_grammaire.json`,
+    suggestedFileName || currentFileName
+  );
+  
+  if (!fileName) return;
+  
+  const finalFileName = fileName.endsWith('.json') ? fileName : `${fileName}.json`;
+  currentFileName = finalFileName;
+  
+  $('#cloudinaryStatus').textContent = '⏳ Upload vers Cloudinary en cours...';
+  $('#cloudinaryStatus').style.background = '#f59e0b';
+  
+  try {
+    const url = await uploadJsonToCloudinary(dataToSave, finalFileName);
+    $('#cloudinaryStatus').textContent = `✓ Sauvegardé sur Cloudinary: ${finalFileName}`;
+    $('#cloudinaryStatus').style.background = '#10b981';
+    
+    const exerciseCount = disciplineFilter === 'all' ?
+      dataToSave.lecture.length + dataToSave.ecoute.length + dataToSave.grammaire.length + dataToSave.lexique.length :
+      dataToSave[disciplineFilter].length;
+    
+    alert(
+      `✅ Succès!\n\n` +
+      `Fichier sauvegardé: ${finalFileName}\n` +
+      `Exercices sauvegardés: ${exerciseCount}\n` +
+      `Discipline: ${disciplineFilter === 'all' ? 'Toutes' : disciplineFilter.toUpperCase()}\n\n` +
+      `URL: ${url}\n\n` +
+      `Les exercices sont maintenant disponibles sur la plateforme.`
+    );
+  } catch (err) {
+    $('#cloudinaryStatus').textContent = `⚠️ Erreur: ${err.message}`;
+    $('#cloudinaryStatus').style.background = '#dc2626';
+    alert(
+      `❌ Erreur lors de la sauvegarde sur Cloudinary:\n\n${err.message}\n\n` +
+      `Vérifiez:\n` +
+      `- Votre upload preset "francais_exercices" existe et est "unsigned"\n` +
+      `- Le cloud name "dvbsn45rk" est correct`
+    );
+  }
+}
+
+// New function to load from Cloudinary with file selection
+async function loadFromCloudinaryPrompt() {
+  const filesIndex = JSON.parse(localStorage.getItem(FILES_INDEX_KEY) || '[]');
+  
+  if (filesIndex.length === 0) {
+    alert('Aucun fichier trouvé sur Cloudinary.\n\nSauvegardez d\'abord des exercices pour créer un index.');
+    return;
+  }
+  
+  let message = 'Fichiers disponibles sur Cloudinary:\n\n';
+  filesIndex.forEach((file, index) => {
+    message += `${index + 1}. ${file.fileName} (${new Date(file.uploadedAt).toLocaleString()})\n`;
+  });
+  message += '\nEntrez le numéro du fichier à charger:';
+  
+  const choice = prompt(message);
+  if (!choice) return;
+  
+  const index = parseInt(choice) - 1;
+  if (index < 0 || index >= filesIndex.length) {
+    alert('Numéro invalide.');
+    return;
+  }
+  
+  const fileInfo = filesIndex[index];
+  
+  try {
+    const response = await fetch(fileInfo.cloudinaryUrl);
+    if (!response.ok) throw new Error('Erreur de chargement');
+    
+    const data = await response.json();
+    BANK = data;
+    currentFileName = fileInfo.fileName;
+    
+    saveBankToStorage();
+    updateCounts();
+    
+    alert(`✅ Fichier chargé: ${fileInfo.fileName}\n\nVous pouvez maintenant modifier les exercices.`);
+  } catch (err) {
+    alert(`❌ Erreur lors du chargement:\n\n${err.message}`);
+  }
+}
+
 
 // Initial load and setup
 loadBankFromStorage();
@@ -1788,211 +2033,6 @@ function deleteExercise(category, index) {
     BANK[category].splice(index, 1);
     updateCounts();
     saveBankToStorage();
-  }
-}
-
-document.addEventListener('DOMContentLoaded', () => {
-  console.log('[v0] DOM loaded, initializing builder');
-  
-  // Create Exercise button listener
-  const addItemBtn = $('#addItem');
-  if (addItemBtn) {
-    console.log('[v0] Attaching click listener to addItem button');
-    addItemBtn.addEventListener('click', (e) => {
-      console.log('[v0] Create exercise button clicked');
-      e.preventDefault();
-      addItem();
-    });
-  } else {
-    console.error('[v0] addItem button not found!');
-  }
-
-  // QCM button
-  const addQcmBtn = $('#addQcmQuestion');
-  if (addQcmBtn) {
-    addQcmBtn.addEventListener('click', () => {
-      console.log('[v0] QCM button clicked');
-      addQcmQuestionForm();
-    });
-    console.log('[v0] QCM button listener attached');
-  } else {
-    console.log('[v0] ERROR: QCM button not found');
-  }
-  
-  // Vrai/Faux button
-  const addVfBtn = $('#addVfQuestion');
-  if (addVfBtn) {
-    addVfBtn.addEventListener('click', () => {
-      console.log('[v0] VF button clicked');
-      addVfQuestionForm();
-    });
-    console.log('[v0] VF button listener attached');
-  } else {
-    console.log('[v0] ERROR: VF button not found');
-  }
-  
-  // Add button to show Cloudinary files list
-  const downloadJsonBtn = $('#downloadJson');
-  if (downloadJsonBtn) {
-    const blobListBtn = document.createElement('button'); // Renamed from cloudinaryListBtn
-    blobListBtn.textContent = 'Voir fichiers Vercel Blob'; // Updated text
-    blobListBtn.className = 'secondary'; // Apply a secondary button style
-    blobListBtn.style.marginLeft = '10px'; // Add some spacing
-    blobListBtn.onclick = listVelBlobJsonFiles; // Use the renamed function
-    downloadJsonBtn.parentElement.appendChild(blobListBtn);
-  }
-  
-  // Updated call to saveToCloudinaryWithPrompt, passing the current BANK and discipline filter
-  $('#saveToCloudinary').addEventListener('click', () => {
-    const disciplineFilter = $('#disciplineFilter').value; // Get current filter
-    saveToCloudinaryWithPrompt(BANK, disciplineFilter); // Pass BANK and filter
-  });
-  
-  $('#loadFromCloudinary').addEventListener('click', loadFromCloudinaryPrompt);
-  
-  // Added button for creating a new empty bank
-  $('#newBank').addEventListener('click', () => {
-    if (confirm('Êtes-vous sûr de vouloir créer une nouvelle banque vide? Toutes les modifications non sauvegardées seront perdues.')) {
-      BANK = {lecture:[], ecoute:[], grammaire:[], lexique:[]};
-      currentFileName = 'questions.json'; // Reset to default
-      fileHandle = null; // Clear linked file
-      localStorage.removeItem('fileHandleLinked');
-      saveBankToStorage();
-      updateCounts();
-      updateExerciseList();
-      alert('Nouvelle banque vide créée!');
-    }
-  });
-  
-  console.log('[v0] All button listeners initialized');
-});
-
-// Updated to save to Vercel Blob with prompt, accepting data and filter
-async function saveToCloudinaryWithPrompt(dataToSave, disciplineFilter = 'all') {
-  const suggestedFileName = disciplineFilter !== 'all' ? `${disciplineFilter}.json` : 'questions.json';
-  const fileName = prompt(
-    `Entrez le nom du fichier à sauvegarder sur Vercel Blob:\n\n` +
-    `${disciplineFilter !== 'all' ? `Discipline sélectionnée: ${disciplineFilter.toUpperCase()}\n` : ''}` +
-    `Nombre d'exercices: ${disciplineFilter === 'all' ? 
-      BANK.lecture.length + BANK.ecoute.length + BANK.grammaire.length + BANK.lexique.length :
-      BANK[disciplineFilter].length}\n\n` +
-    `Exemples:\n- a1_lecture.json\n- a2_ecoute.json\n- b1_grammaire.json`,
-    suggestedFileName || currentFileName
-  );
-  
-  if (!fileName) return;
-  
-  const finalFileName = fileName.endsWith('.json') ? fileName : `${fileName}.json`;
-  currentFileName = finalFileName;
-  
-  $('#cloudinaryStatus').textContent = '⏳ Upload vers Vercel Blob en cours...';
-  $('#cloudinaryStatus').style.background = '#f59e0b';
-  
-  try {
-    const url = await uploadJsonToVercelBlob(dataToSave, finalFileName);
-    $('#cloudinaryStatus').textContent = `✓ Sauvegardé sur Vercel Blob: ${finalFileName}`;
-    $('#cloudinaryStatus').style.background = '#10b981';
-    alert(`✅ Fichier "${finalFileName}" sauvegardé avec succès sur Vercel Blob!\n\nURL: ${url}`);
-  } catch (error) {
-    $('#cloudinaryStatus').textContent = '❌ Erreur lors de l\'upload';
-    $('#cloudinaryStatus').style.background = '#ef4444';
-    alert('❌ Erreur lors de l\'upload vers Vercel Blob:\n' + error.message);
-  }
-}
-
-async function loadFromCloudinaryPrompt() {
-  await loadFromVercelBlob();
-}
-
-// Updated function to load from Vercel Blob
-async function loadFromVercelBlob() {
-  try {
-    console.log('[v0] Loading list of files from Vercel Blob...');
-    
-    // Fetch list of files from API
-    const listResponse = await fetch('/api/list-json');
-    if (!listResponse.ok) {
-      throw new Error(`Failed to fetch file list (Status: ${listResponse.status})`);
-    }
-    
-    const listData = await listResponse.json();
-    console.log('[v0] Files found:', listData.files.length);
-    
-    if (listData.files.length === 0) {
-      alert('Aucun fichier trouvé sur Vercel Blob. Veuillez d\'abord sauvegarder un fichier.');
-      return;
-    }
-    
-    // Get the most recent file (already sorted by API)
-    const latestFile = listData.files[0];
-    console.log('[v0] Loading most recent file:', latestFile.pathname);
-    
-    // Fetch the file content
-    const response = await fetch(latestFile.url);
-    if (!response.ok) {
-      throw new Error(`Failed to load file content (Status: ${response.status})`);
-    }
-    
-    const data = await response.json();
-    
-    // Ensure all required properties exist
-    if (!data.lecture) data.lecture = [];
-    if (!data.ecoute) data.ecoute = [];
-    if (!data.grammaire) data.grammaire = [];
-    if (!data.lexique) data.lexique = [];
-
-    BANK = data;
-    currentFileName = latestFile.pathname.replace('questions-', '').replace('.json', '') || 'questions.json';
-    saveBankToStorage();
-    updateCounts();
-    updateExerciseList();
-
-    // Update localStorage index for future quick access
-    const filesIndex = listData.files.map(f => ({
-      fileName: f.pathname,
-      blobUrl: f.url,
-      uploadedAt: f.uploadedAt
-    }));
-    localStorage.setItem(FILES_INDEX_KEY, JSON.stringify(filesIndex));
-
-    $('#linkedFileStatus').textContent = `✓ Chargé depuis Vercel Blob: ${currentFileName}`;
-    $('#linkedFileStatus').style.display = 'block';
-    $('#autoSaveStatus').textContent = '✓ Sauvegarde automatique activée';
-    $('#autoSaveStatus').style.display = 'block';
-
-    alert(`Fichier "${currentFileName}" chargé avec succès depuis Vercel Blob!`);
-  } catch (error) {
-    console.error('[v0] Error loading from Vercel Blob:', error);
-    alert('Erreur lors du chargement depuis Vercel Blob: ' + error.message);
-  }
-}
-
-async function uploadToVercelBlob(file) {
-  const formData = new FormData();
-  formData.append('file', file);
-  
-  console.log('[v0] Uploading to Vercel Blob:', file.name);
-  
-  try {
-    const response = await fetch('/api/upload-audio', { // Use the same API endpoint for general file uploads
-      method: 'POST',
-      body: formData,
-    });
-
-    console.log('[v0] Response status:', response.status);
-
-    if (!response.ok) {
-      const errorData = await response.json();
-      console.error('[v0] Vercel Blob upload error:', errorData);
-      throw new Error(errorData.error || `HTTP ${response.status}: ${response.statusText}`);
-    }
-    
-    const result = await response.json();
-    console.log('[v0] Vercel Blob upload success:', result.url);
-    return result.url;
-  } catch (error) {
-    console.error('[v0] Fetch error:', error);
-    throw error;
   }
 }
 
