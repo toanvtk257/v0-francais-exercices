@@ -275,7 +275,8 @@ function handleLogin() {
     localStorage.setItem('fr_auth_user', JSON.stringify(userData));
     localStorage.setItem('fr_current_user', user.id);
     
-    window.location.href = user.role === 'admin' ? 'admin2.html' : 'dashboard.html';
+    const timestamp = Date.now();
+    window.location.href = user.role === 'admin' ? `admin.html?v=${timestamp}` : 'dashboard.html';
   } catch (error) {
     console.error('[v0] Error during login:', error);
     errorDiv.textContent = 'Erreur de connexion: ' + error.message;
@@ -355,7 +356,8 @@ function handleRegister() {
     localStorage.setItem('fr_auth_user', JSON.stringify(userData));
     localStorage.setItem('fr_current_user', userId);
     
-    window.location.href = role === 'admin' ? 'admin2.html' : 'dashboard.html';
+    const timestamp = Date.now();
+    window.location.href = role === 'admin' ? `admin.html?v=${timestamp}` : 'dashboard.html';
   } catch (error) {
     console.error('[v0] Error during registration:', error);
     errorDiv.textContent = 'Erreur lors de l\'inscription: ' + error.message;
