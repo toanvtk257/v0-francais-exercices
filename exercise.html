@@ -654,8 +654,41 @@ function getDraft(userId, lessonId) {
 }
 
 function recordAttempt(userId, lessonId, type, earnedPoints, totalPoints, timeSpent) {
-  // Placeholder function for recording attempt
-  console.log(`User ${userId} completed lesson ${lessonId} (${type}) with score ${earnedPoints}/${totalPoints} in ${timeSpent} seconds.`);
+  const percentage = totalPoints > 0 ? Math.round((earnedPoints / totalPoints) * 100) : 0;
+  
+  // Load existing stats database
+  const allStats = JSON.parse(localStorage.getItem('fr_stats_db') || '{}');
+  
+  // Initialize user stats if not exists
+  if (!allStats[userId]) {
+    allStats[userId] = {};
+  }
+  
+  // Initialize lesson stats if not exists
+  if (!allStats[userId][lessonId]) {
+    allStats[userId][lessonId] = {
+      attempts: [],
+      totalTime: 0
+    };
+  }
+  
+  // Add new attempt
+  allStats[userId][lessonId].attempts.push({
+    timestamp: Date.now(),
+    score: earnedPoints,
+    maxScore: totalPoints,
+    percentage: percentage,
+    timeSpent: timeSpent,
+    type: type
+  });
+  
+  // Update total time
+  allStats[userId][lessonId].totalTime += timeSpent;
+  
+  // Save back to localStorage
+  localStorage.setItem('fr_stats_db', JSON.stringify(allStats));
+  
+  console.log(`[v0] Saved attempt for user ${userId}, lesson ${lessonId}: ${earnedPoints}/${totalPoints} (${percentage}%)`);
 }
 
 checkAuth();
