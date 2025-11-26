@@ -994,6 +994,8 @@ function loadChatMessages(userId) {
     return;
   }
   
+  let hasUnreadMessages = false;
+  
   messages.forEach(msg => {
     const isAdmin = msg.sender === 'admin';
     const msgDiv = document.createElement('div');
@@ -1015,20 +1017,21 @@ function loadChatMessages(userId) {
     // Mark as read if it's a student message that was unread
     if (!isAdmin && msg.sender === userId && !msg.read) {
       msg.read = true;
+      hasUnreadMessages = true;
     }
   });
 
   // Update messagesDb with read status if any messages were marked as read
-  if (messages.some(msg => !isAdmin && msg.sender === userId && msg.read)) {
+  if (hasUnreadMessages) {
     messagesDb[userId] = messages;
     localStorage.setItem('fr_chat_messages', JSON.stringify(messagesDb));
-    // Refresh user list to update unread indicators if necessary
-    loadChatUsers(); 
+    // Don't call loadChatUsers here to avoid potential loops
   }
   
   // Scroll to bottom
   chatMessagesArea.scrollTop = chatMessagesArea.scrollHeight;
 }
+
 
 // Modified sendAdminMessage to support multiple recipients
 function sendAdminMessage() {
@@ -1271,6 +1274,7 @@ function resetExerciseForm() {
   qcmQuestionCount = 0; // Reset QCM counter
   formVfCounter = 0; // Ensure this is reset correctly
   editingExerciseId = null;
+  passageImageData = null; // Clear passage image data on reset
   
   const addBtn = $('#addItem');
   if (addBtn) addBtn.textContent = 'Ajouter à la banque';
@@ -1284,6 +1288,9 @@ function resetExerciseForm() {
   // Reset passage type selection if present
   const passageTypeRadios = document.querySelectorAll('input[name="passageType"]');
   passageTypeRadios.forEach(radio => radio.checked = false);
+  // Re-select text as default if radios were present
+  const defaultTextRadio = document.querySelector('input[name="passageType"][value="text"]');
+  if (defaultTextRadio) defaultTextRadio.checked = true;
 }
 
 // Helper function to initialize creator tab
@@ -1403,6 +1410,7 @@ function removeAudio() {
   $('#audioDrop').style.display = 'block'; // Show drop zone again
   $('#audioPreview').style.display = 'none'; // Hide the preview div
   $('#audioInput').value = ''; // Clear the file input itself
+  $('#audioUploadStatus').textContent = ''; // Clear upload status
 }
 
 // Toggle visibility based on exercise type
@@ -1749,59 +1757,58 @@ function loadBank() {
   } else {
     BANK = {lecture:[], ecoute:[], grammaire:[], lexique:[]};
   }
-  updateExercisesTable();
+  // updateExercisesTable(); // Moved to after syncFromCloudinary or loadDefaultBank
 }
 
-async function syncFromCloudinary() {
+function syncFromCloudinary() {
   console.log('[v0] syncFromCloudinary called');
-  const KNOWN_FILES = [
+  const files = [
     'questions.json',
     'tous_exercices.json',
-    'a1_CO.json',
-    'a1_CE.json',
-    'a2_CO.json',
-    'a2_CE.json',
-    'b1_CO.json',
-    'b1_CE.json'
+    'a1_CO.json', 'a1_CE.json',
+    'a2_CO.json', 'a2_CE.json',
+    'b1_CO.json', 'b1_CE.json'
   ];
-  
-  let loadedCount = 0;
-  const tempBank = {lecture:[], ecoute:[], grammaire:[], lexique:[]};
-  
-  for (const fileName of KNOWN_FILES) {
-    try {
-      const url = `https://res.cloudinary.com/${CLOUDINARY_CLOUD_NAME}/raw/upload/${CLOUDINARY_JSON_FOLDER}/${fileName}`;
-      console.log('[v0] Attempting to fetch:', url);
-      
-      const response = await fetch(url);
-      if (!response.ok) {
-        console.log('[v0] File not found:', fileName);
-        continue;
+
+  const promises = files.map(file => {
+    const url = `https://res.cloudinary.com/dvbsn45rk/raw/upload/entrainement-francais/${file}`;
+    console.log('[v0] Attempting to fetch:', url);
+    return fetch(url)
+      .then(r => {
+        if (!r.ok) {
+          console.log('[v0] File not found:', file);
+          return null;
+        }
+        return r.json();
+      })
+      .catch(() => null);
+  });
+
+  Promise.all(promises).then(results => {
+    const tempBank = {lecture:[], ecoute:[], grammaire:[], lexique:[]};
+    let loadedCount = 0;
+
+    results.forEach(data => {
+      if (data) {
+        if (data.lecture) tempBank.lecture.push(...data.lecture);
+        if (data.ecoute) tempBank.ecoute.push(...data.ecoute);
+        if (data.grammaire) tempBank.grammaire.push(...data.grammaire);
+        if (data.lexique) tempBank.lexique.push(...data.lexique);
+        loadedCount++;
       }
-      
-      const data = await response.json();
-      
-      // Merge data into tempBank
-      if (data.lecture) tempBank.lecture.push(...data.lecture);
-      if (data.ecoute) tempBank.ecoute.push(...data.ecoute);
-      if (data.grammaire) tempBank.grammaire.push(...data.grammaire);
-      if (data.lexique) tempBank.lexique.push(...data.lexique);
-      
-      loadedCount++;
-    } catch (err) {
-      console.log('[v0] Error loading', fileName, err);
-    }
-  }
-  
-  if (loadedCount > 0) {
-    BANK = tempBank;
+    });
+    
+    BANK = tempBank; // Overwrite the current bank with synced data
     localStorage.setItem(BANK_KEY, JSON.stringify(BANK));
+    // Only update table once after sync is complete
     updateExercisesTable();
     alert(`✅ ${loadedCount} fichier(s) synchronisé(s) depuis Cloudinary!`);
-  } else {
-    alert('❌ Aucun fichier trouvé sur Cloudinary.');
-  }
+  }).catch(err => {
+    console.error('[v0] Error during Cloudinary sync:', err);
+    alert('❌ Erreur lors de la synchronisation depuis Cloudinary. Veuillez réessayer.');
+  });
 }
+
 
 function loadDefaultBank() {
   console.log('[v0] loadDefaultBank called');
@@ -1817,6 +1824,7 @@ function loadDefaultBank() {
     .catch(err => {
       console.log('[v0] No default file, using empty bank');
       BANK = {lecture:[], ecoute:[], grammaire:[], lexique:[]};
+      localStorage.setItem(BANK_KEY, JSON.stringify(BANK)); // Ensure empty bank is saved
       updateExercisesTable();
       alert('Aucun fichier d\'exemple trouvé. Vous pouvez commencer à créer des exercices.');
     });
@@ -1954,10 +1962,10 @@ function updateExercisesTable() {
   tbody.innerHTML = '';
   
   const allExercises = [
-    ...BANK.lecture.map(ex => ({ ...ex, type: 'CE' })),
-    ...BANK.ecoute.map(ex => ({ ...ex, type: 'CO' })),
-    ...BANK.grammaire.map(ex => ({ ...ex, type: 'Grammaire' })),
-    ...BANK.lexique.map(ex => ({ ...ex, type: 'Lexique' }))
+    ...(BANK?.lecture || []).map(ex => ({ ...ex, type: 'CE' })),
+    ...(BANK?.ecoute || []).map(ex => ({ ...ex, type: 'CO' })),
+    ...(BANK?.grammaire || []).map(ex => ({ ...ex, type: 'Grammaire' })),
+    ...(BANK?.lexique || []).map(ex => ({ ...ex, type: 'Lexique' }))
   ];
   
   if (allExercises.length === 0) {
@@ -1974,27 +1982,36 @@ function updateExercisesTable() {
       <td style="padding:0.75rem">${ex.theme || 'N/A'}</td>
       <td style="padding:0.75rem">${(ex.qcm?.length || 0) + (ex.vf?.length || 0) + (ex.questions?.length || 0)}</td>
       <td style="padding:0.75rem">
-        <button onclick="viewExercise('${ex.id}')" style="background:#3b82f6;color:white;border:none;padding:0.375rem 0.75rem;border-radius:0.375rem;cursor:pointer;margin-right:0.5rem">Voir</button>
+        <button onclick="editExercise('${ex.id}')" style="background:#3b82f6;color:white;border:none;padding:0.375rem 0.75rem;border-radius:0.375rem;cursor:pointer;margin-right:0.5rem">Modifier</button>
         <button onclick="deleteExercise('${ex.id}')" style="background:#ef4444;color:white;border:none;padding:0.375rem 0.75rem;border-radius:0.375rem;cursor:pointer">Supprimer</button>
       </td>
     `;
   });
 }
 
-function viewExercise(id) {
-  alert('Fonctionnalité de visualisation à venir');
-}
+// Removed viewExercise function as editExercise now handles opening the form
 
 function deleteExercise(id) {
   if (!confirm('Voulez-vous vraiment supprimer cet exercice?')) return;
   
+  let deleted = false;
   ['lecture', 'ecoute', 'grammaire', 'lexique'].forEach(category => {
-    BANK[category] = BANK[category].filter(ex => ex.id !== id);
+    if (BANK[category]) {
+      const initialLength = BANK[category].length;
+      BANK[category] = BANK[category].filter(ex => ex.id !== id);
+      if (BANK[category].length < initialLength) {
+        deleted = true;
+      }
+    }
   });
   
-  localStorage.setItem(BANK_KEY, JSON.stringify(BANK));
-  updateExercisesTable();
-  alert('Exercice supprimé');
+  if (deleted) {
+    localStorage.setItem(BANK_KEY, JSON.stringify(BANK));
+    updateExercisesTable();
+    alert('Exercice supprimé');
+  } else {
+    alert('Exercice non trouvé.');
+  }
 }
 
 // Users table function
@@ -2007,13 +2024,13 @@ function updateUsersTable() {
   }
   
   const users = JSON.parse(localStorage.getItem(USERS_KEY) || '[]');
-  const students = users.filter(u => u.role === 'student');
+  const students = users.filter(u => u.role === 'student' || u.role === 'etudiant'); // Include 'etudiant' role
   const allStats = JSON.parse(localStorage.getItem('fr_stats_db') || '{}');
   
   tbody.innerHTML = '';
   
   if (students.length === 0) {
-    tbody.innerHTML = '<tr><td colspan="5" style="text-align:center;padding:2rem;color:#64748b">Aucun utilisateur</td></tr>';
+    tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;padding:2rem;color:#64748b">Aucun utilisateur</td></tr>';
     return;
   }
   
@@ -2133,7 +2150,8 @@ function addExerciseFromBuilder() {
   console.log('[v0] addExerciseFromBuilder called');
   
   const idInput = $('#id');
-  const titre = $('#titre').value || `Exercice ${Date.now()}`; // Fallback title
+  const titreInput = $('#titre'); // Get input element
+  const titre = titreInput ? titreInput.value.trim() : `Exercice ${Date.now()}`; // Fallback title
   const kind = $('#kind').value;
   const niveau = $('#niveau').value;
   const theme = $('#theme').value;
@@ -2265,13 +2283,11 @@ function editExercise(id) {
   
   // Find the exercise across all categories
   let foundExercise = null;
-  let foundCategory = null;
   ['lecture', 'ecoute', 'grammaire', 'lexique'].forEach(category => {
     if (BANK[category]) {
       const exercise = BANK[category].find(ex => ex.id === id);
       if (exercise) {
         foundExercise = exercise;
-        foundCategory = category;
       }
     }
   });
@@ -2301,10 +2317,14 @@ function editExercise(id) {
     $('#audio').value = foundExercise.audio;
     $('#audioFileName').textContent = `Fichier audio: ${foundExercise.audio.split('/').pop()}`;
     $('#audioFileName').style.display = 'block';
-    $('#audioPlayer').src = `https://res.cloudinary.com/${CLOUDINARY_CLOUD_NAME}/video/upload/${foundExercise.audio}`; // Assuming audio is in Cloudinary
+    // Assuming audio is in Cloudinary, construct URL. Adjust if necessary.
+    $('#audioPlayer').src = foundExercise.audio.startsWith('http') ? foundExercise.audio : `https://res.cloudinary.com/${CLOUDINARY_CLOUD_NAME}/video/upload/${foundExercise.audio}`; 
     $('#audioPlayer').style.display = 'block';
     $('#audioDrop').style.display = 'none';
     $('#audioPreview').style.display = 'block';
+    $('#audioUploadStatus').textContent = 'Audio loaded from existing data.';
+  } else {
+      removeAudio(); // Ensure it's hidden if no audio
   }
   
   // Passage
@@ -2323,6 +2343,8 @@ function editExercise(id) {
       $('#passageImageUpload').style.display = 'none';
       $('#passageTextContent').style.display = 'block';
     }
+  } else {
+      $('#passageBox').classList.add('hidden'); // Hide passage box if no passage data
   }
   
   // QCM questions
@@ -2336,8 +2358,8 @@ function editExercise(id) {
       qDiv.dataset.formQcmId = qcmQuestionCount;
       
       let optionsHtml = '';
-      let optionIndex = 0;
-      for (const letter in q.options) {
+      let letters = Object.keys(q.options).sort(); // Ensure consistent order
+      letters.forEach((letter, i) => {
         optionsHtml += `
           <div data-option-letter="${letter}" style="display:flex;gap:8px;margin-bottom:8px;align-items:center">
             <label style="margin:0;font-weight:600;min-width:60px">Choix ${letter.toUpperCase()}</label>
@@ -2345,8 +2367,7 @@ function editExercise(id) {
             <button onclick="removeFormQcmOption(${qcmQuestionCount}, '${letter}')" type="button" style="background:#e53e3e;color:#fff;border:none;padding:8px 12px;border-radius:6px;cursor:pointer;font-size:.85rem">✕</button>
           </div>
         `;
-        optionIndex++;
-      }
+      });
       
       qDiv.innerHTML = `
         <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
@@ -2374,7 +2395,8 @@ function editExercise(id) {
       `;
       qcmContainer.appendChild(qDiv);
     });
-    updateFormQcmAnswerDropdown(qcmQuestionCount); // Update dropdowns after adding all questions
+    // Ensure the dropdowns are updated correctly after all questions are added
+    updateFormQcmAnswerDropdown(qcmQuestionCount); 
     // Manually set qcmQuestionCount to the correct value after filling
     qcmQuestionCount = foundExercise.qcm.length > 0 ? foundExercise.qcm.length : 0;
   }
@@ -2445,6 +2467,8 @@ function editExercise(id) {
       `;
       clozeBlankslist.appendChild(div);
     });
+  } else {
+    $('#clozeFormBox').style.display = 'none'; // Hide if no cloze data
   }
   
   // Update button text
