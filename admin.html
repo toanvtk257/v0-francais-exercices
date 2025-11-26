@@ -936,66 +936,6 @@ function selectStudent(userId) {
   loadChatMessages(userId);
 }
 
-function loadChatUsers() {
-  console.log('[v0] loadChatUsers called');
-  // Use the correct key for users ('fr_users_db' instead of 'fr_users')
-  const allUsers = JSON.parse(localStorage.getItem(USERS_KEY) || '[]'); 
-  console.log('[v0] loadChatUsers - all users:', allUsers);
-  
-  // Filter for students, considering both 'student' and 'etudiant' roles
-  const students = allUsers.filter(u => u.role === 'student' || u.role === 'etudiant'); 
-  console.log('[v0] loadChatUsers - filtered students:', students);
-  
-  // Update the recipient select dropdown
-  const recipientSelect = $('#recipientSelect');
-  if (recipientSelect) {
-    // Keep the first option (default placeholder)
-    const firstOption = recipientSelect.querySelector('option[value=""]');
-    recipientSelect.innerHTML = ''; // Clear existing options
-    if (firstOption) recipientSelect.appendChild(firstOption); // Re-add the default option
-    
-    students.forEach(student => {
-      const option = document.createElement('option');
-      option.value = student.id;
-      // Display name if available, otherwise email
-      option.textContent = `${student.name || 'Sans nom'} (${student.email})`; 
-      recipientSelect.appendChild(option);
-    });
-    console.log('[v0] recipientSelect updated with students');
-  }
-  
-  // Update the chat users list in the UI
-  const chatUsersList = $('#chatUsersList');
-  if (!chatUsersList) {
-    console.log('[v0] chatUsersList not found');
-    return;
-  }
-  
-  if (students.length === 0) {
-    chatUsersList.innerHTML = '<div class="empty-state">Aucun étudiant inscrit</div>';
-    return;
-  }
-  
-  // Use the correct key for messages ('fr_chat_messages' instead of 'fr_messages')
-  const messagesDb = JSON.parse(localStorage.getItem('fr_chat_messages') || '{}'); 
-  
-  chatUsersList.innerHTML = students.map(student => {
-    const studentMessages = messagesDb[student.id] || [];
-    // Count unread messages from the student (where sender is the student's ID)
-    const unread = studentMessages.filter(m => m.sender === student.id && !m.read).length; 
-    
-    return `
-      <div class="user-item" onclick="selectChatUser('${student.id}')" style="padding:12px;border-bottom:1px solid #eee;cursor:pointer;display:flex;justify-content:space-between;align-items:center" data-user-id="${student.id}">
-        <div>
-          <div style="font-weight:600">${student.name || 'Sans nom'}</div> 
-          <div style="font-size:0.85rem;color:#666">${student.email}</div>
-        </div>
-        ${unread > 0 ? `<span style="background:#e53935;color:#fff;padding:2px 8px;border-radius:12px;font-size:0.75rem">${unread}</span>` : ''}
-      </div>
-    `;
-  }).join('');
-}
-
 function selectChatUser(userId) {
   console.log(`[v0] selectChatUser called for userId: ${userId}`);
   selectedChatUserId = userId;
@@ -1851,65 +1791,28 @@ async function syncFromCloudinary() {
   btn.disabled = true;
 
   try {
+    // Instead of loading a non-existent bank.json, we'll load from the default bank
+    // and merge with any local changes
     const existingBank = JSON.parse(localStorage.getItem(BANK_KEY) || '{}');
     
-    const localExerciseIds = new Set();
-    Object.values(existingBank).forEach(category => {
-      if (Array.isArray(category)) {
-        category.forEach(ex => localExerciseIds.add(ex.id));
-      }
-    });
+    // For now, we'll just load the default bank if local is empty
+    // In a real implementation, you would list files from the Cloudinary folder
+    // using the Cloudinary Admin API (which requires authentication)
     
-    // Fetch the merged bank from Cloudinary (assuming it's at `bank.json`)
-    const response = await fetch(`https://res.cloudinary.com/${CLOUDINARY_CLOUD_NAME}/raw/upload/bank.json`);
-    
-    if (!response.ok) {
-      throw new Error(`Erreur ${response.status}: ${response.statusText}`);
+    if (Object.keys(existingBank).length === 0 || 
+        Object.values(existingBank).every(cat => !cat || cat.length === 0)) {
+      // No local data, load default bank
+      console.log('[v0] No local data found, loading default bank...');
+      await loadDefaultBank();
+      btn.innerHTML = '✓ Synchronisé (données par défaut chargées)';
+    } else {
+      // Local data exists, keep it
+      console.log('[v0] Local data exists, keeping it');
+      btn.innerHTML = '✓ Données locales conservées';
     }
-    
-    const cloudinaryBank = await response.json();
-    console.log('[v0] Cloudinary bank loaded:', cloudinaryBank);
-    
-    const mergedBank = {};
-    ['lecture', 'ecoute', 'grammaire', 'lexique'].forEach(category => {
-      mergedBank[category] = [];
-      
-      // Add exercises from Cloudinary that aren't locally deleted
-      if (cloudinaryBank[category]) {
-        cloudinaryBank[category].forEach(cloudEx => {
-          // Only add if it doesn't exist locally (meaning it was deleted)
-          // or if it exists locally (meaning it was modified)
-          const localVersion = existingBank[category]?.find(ex => ex.id === cloudEx.id);
-          if (localVersion) {
-            // Keep local version (user may have edited it)
-            mergedBank[category].push(localVersion);
-          } else if (!localExerciseIds.has(cloudEx.id)) {
-            // New exercise from Cloudinary
-            mergedBank[category].push(cloudEx);
-          }
-          // If localExerciseIds.has but no localVersion, it means user deleted it - skip it
-        });
-      }
-      
-      // Add local exercises that aren't in Cloudinary (newly created locally)
-      if (existingBank[category]) {
-        existingBank[category].forEach(localEx => {
-          const inCloudinary = cloudinaryBank[category]?.find(ex => ex.id === localEx.id);
-          // Add if not in Cloudinary and not already added from Cloudinary's version
-          if (!inCloudinary && !mergedBank[category].find(ex => ex.id === localEx.id)) {
-            mergedBank[category].push(localEx);
-          }
-        });
-      }
-    });
-    
-    BANK = mergedBank;
-    localStorage.setItem(BANK_KEY, JSON.stringify(BANK));
-    console.log('[v0] Merged bank saved:', BANK);
     
     updateExercisesTable();
     
-    btn.innerHTML = '✓ Synchronisé';
     setTimeout(() => {
       btn.innerHTML = originalText;
       btn.disabled = false;
