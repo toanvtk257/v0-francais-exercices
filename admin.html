@@ -672,6 +672,7 @@ let activityChartInstance = null;
 let levelChartInstance = null;
 
 function checkAuth() {
+  console.log('[v0] checkAuth called');
   const auth = localStorage.getItem(AUTH_KEY);
   if (!auth) {
     window.location.href = 'login.html';
@@ -696,6 +697,7 @@ function checkAuth() {
 }
 
 function switchTab(tabId) {
+  console.log('[v0] switchTab called with:', tabId);
   // Update tab buttons
   $$('.tab-btn').forEach(btn => {
     btn.classList.remove('active');
@@ -735,6 +737,7 @@ function switchTab(tabId) {
 const availableLetters = 'abcdefghijklmnopqrstuvwxyz';
 
 function addFormQcmQuestion() {
+  console.log('[v0] addFormQcmQuestion called');
   qcmQuestionCount++; // Use the correct counter name
   const qDiv = document.createElement('div');
   qDiv.style.cssText = 'background:#f9f9f9;padding:12px;border-radius:8px;margin:8px 0;border:1px solid #e0e0e0';
@@ -773,9 +776,12 @@ function addFormQcmQuestion() {
 }
 
 window.addFormQcmOption = function(questionId) {
+  console.log(`[v0] addFormQcmOption called for questionId: ${questionId}`);
   const questionDiv = document.querySelector(`[data-form-qcm-id="${questionId}"]`);
-  if (!questionDiv) return;
-  
+  if (!questionDiv) {
+    console.error('[v0] Question div not found for ID:', questionId);
+    return;
+  }
   const container = questionDiv.querySelector('.form-qcm-options-container');
   const existingOptions = container.querySelectorAll(':scope > div[data-option-letter]');
   const optionIndex = existingOptions.length;
@@ -796,8 +802,12 @@ window.addFormQcmOption = function(questionId) {
 };
 
 window.removeFormQcmOption = function(questionId, optionLetter) {
+  console.log(`[v0] removeFormQcmOption called for questionId: ${questionId}, option: ${optionLetter}`);
   const questionDiv = document.querySelector(`[data-form-qcm-id="${questionId}"]`);
-  if (!questionDiv) return;
+  if (!questionDiv) {
+    console.error('[v0] Question div not found for ID:', questionId);
+    return;
+  }
   
   const container = questionDiv.querySelector('.form-qcm-options-container');
   const optionDivs = container.querySelectorAll(':scope > div[data-option-letter]');
@@ -815,8 +825,12 @@ window.removeFormQcmOption = function(questionId, optionLetter) {
 };
 
 function relabelFormQcmOptions(questionId) {
+  console.log(`[v0] relabelFormQcmOptions called for questionId: ${questionId}`);
   const questionDiv = document.querySelector(`[data-form-qcm-id="${questionId}"]`);
-  if (!questionDiv) return;
+  if (!questionDiv) {
+    console.error('[v0] Question div not found for ID:', questionId);
+    return;
+  }
   
   const container = questionDiv.querySelector('.form-qcm-options-container');
   const optionDivs = container.querySelectorAll(':scope > div[data-option-letter]');
@@ -844,8 +858,12 @@ function relabelFormQcmOptions(questionId) {
 }
 
 function updateFormQcmAnswerDropdown(questionId) {
+  console.log(`[v0] updateFormQcmAnswerDropdown called for questionId: ${questionId}`);
   const questionDiv = document.querySelector(`[data-form-qcm-id="${questionId}"]`);
-  if (!questionDiv) return;
+  if (!questionDiv) {
+    console.error('[v0] Question div not found for ID:', questionId);
+    return;
+  }
   
   const container = questionDiv.querySelector('.form-qcm-options-container');
   const options = container.querySelectorAll(':scope > div[data-option-letter]');
@@ -868,6 +886,7 @@ function updateFormQcmAnswerDropdown(questionId) {
 }
 
 window.removeFormQcmQuestion = function(id) {
+  console.log(`[v0] removeFormQcmQuestion called for id: ${id}`);
   const item = document.querySelector(`[data-form-qcm-id="${id}"]`);
   if (item) {
     item.remove();
@@ -875,6 +894,7 @@ window.removeFormQcmQuestion = function(id) {
 };
 
 function selectStudent(userId) {
+  console.log(`[v0] selectStudent called for userId: ${userId}`);
   selectedChatUserId = userId;
   selectedRecipients = []; // Clear group recipients when selecting individual
   updateSelectedRecipientsUI();
@@ -903,6 +923,7 @@ function selectStudent(userId) {
 }
 
 function loadChatUsers() {
+  console.log('[v0] loadChatUsers called');
   // Use the correct key for users ('fr_users_db' instead of 'fr_users')
   const allUsers = JSON.parse(localStorage.getItem(USERS_KEY) || '[]'); 
   console.log('[v0] loadChatUsers - all users:', allUsers);
@@ -962,6 +983,7 @@ function loadChatUsers() {
 }
 
 function selectChatUser(userId) {
+  console.log(`[v0] selectChatUser called for userId: ${userId}`);
   selectedChatUserId = userId;
   selectedRecipients = []; // Clear group recipients when selecting individual
   updateSelectedRecipientsUI();
@@ -985,6 +1007,7 @@ function selectChatUser(userId) {
 }
 
 function loadChatMessages(userId) {
+  console.log(`[v0] loadChatMessages called for userId: ${userId}`);
   // Use the correct key for messages ('fr_chat_messages' instead of 'fr_messages')
   const messagesDb = JSON.parse(localStorage.getItem('fr_chat_messages') || '{}'); 
   const messages = messagesDb[userId] || [];
@@ -1038,6 +1061,7 @@ function loadChatMessages(userId) {
 
 // Modified sendAdminMessage to support multiple recipients
 function sendAdminMessage() {
+  console.log('[v0] sendAdminMessage called');
   const messageInput = $('#adminMessageInput');
   const text = messageInput.value.trim();
   
@@ -1093,6 +1117,7 @@ function sendAdminMessage() {
 }
 
 function deleteAdminChatHistory() {
+  console.log('[v0] deleteAdminChatHistory called');
   if (!selectedChatUserId) {
     alert('Veuillez sélectionner un étudiant dont vous souhaitez supprimer l\'historique.');
     return;
@@ -1116,6 +1141,7 @@ function deleteAdminChatHistory() {
 }
 
 function selectGroupStudents() {
+  console.log('[v0] selectGroupStudents called');
   const students = JSON.parse(localStorage.getItem(USERS_KEY) || '[]')
     .filter(u => u.role === 'student' || u.role === 'etudiant');
   
@@ -1163,16 +1189,19 @@ function selectGroupStudents() {
 }
 
 function closeGroupSelectModal() {
+  console.log('[v0] closeGroupSelectModal called');
   const modal = document.getElementById('groupSelectModal');
   if (modal) modal.remove();
 }
 
 function toggleSelectAllStudents(checkbox) {
+  console.log('[v0] toggleSelectAllStudents called', checkbox.checked);
   const checkboxes = document.querySelectorAll('.student-checkbox');
   checkboxes.forEach(cb => cb.checked = checkbox.checked);
 }
 
 function confirmGroupSelection() {
+  console.log('[v0] confirmGroupSelection called');
   const checkboxes = document.querySelectorAll('.student-checkbox:checked');
   selectedRecipients = Array.from(checkboxes).map(cb => cb.value);
   selectedChatUserId = null; // Clear individual selection
@@ -1194,6 +1223,7 @@ function confirmGroupSelection() {
 }
 
 function selectAllStudents() {
+  console.log('[v0] selectAllStudents called');
   const students = JSON.parse(localStorage.getItem(USERS_KEY) || '[]')
     .filter(u => u.role === 'student' || u.role === 'etudiant');
   selectedRecipients = students.map(s => s.id);
@@ -1216,6 +1246,7 @@ function selectAllStudents() {
 
 // Helper to update the UI showing selected recipients for bulk messaging
 function updateSelectedRecipientsUI() {
+  console.log('[v0] updateSelectedRecipientsUI called');
   const selectedRecipientsDiv = $('#selectedRecipients');
   selectedRecipientsDiv.innerHTML = ''; // Clear previous
   
@@ -1239,12 +1270,14 @@ function updateSelectedRecipientsUI() {
 
 // Helper to remove a recipient from the bulk list
 function removeRecipient(recipientId) {
+  console.log(`[v0] removeRecipient called for recipientId: ${recipientId}`);
   selectedRecipients = selectedRecipients.filter(id => id !== recipientId);
   updateSelectedRecipientsUI();
 }
 
 // Helper function to reset the exercise form
 function resetExerciseForm() {
+  console.log('[v0] resetExerciseForm called');
   const form = $('#exerciseForm');
   if (form) form.reset();
   
@@ -1298,6 +1331,7 @@ function resetExerciseForm() {
 
 // Helper function to initialize creator tab
 function initCreatorTab() {
+  console.log('[v0] initCreatorTab called');
   toggleBoxes(); // Initial display setup
   
   // Reset QCM and VF counters when initializing the tab
@@ -1312,6 +1346,7 @@ function initCreatorTab() {
 
 // Helper function to detect and configure cloze blanks
 function detectBuilderClozeBlanks() {
+  console.log('[v0] detectBuilderClozeBlanks called');
   const clozeText = $('#clozeText').value;
   const blanks = clozeText.match(/\[([^\]]+)\]/g); // Find text within brackets
   
@@ -1344,6 +1379,7 @@ function detectBuilderClozeBlanks() {
 
 // Function to handle audio file drop or selection
 function handleAudioFile(file, dropZoneElement, inputElement, fileNameDisplay, hiddenAudioInput, audioPlayer) {
+  console.log('[v0] handleAudioFile called with file:', file ? file.name : 'null');
   if (!file) return;
   if (!file.type.startsWith('audio/')) {
     alert('Veuillez sélectionner un fichier audio valide.');
@@ -1374,6 +1410,7 @@ function handleAudioFile(file, dropZoneElement, inputElement, fileNameDisplay, h
 
 // Event handler for audio file input change
 function handleAudioSelect(event) {
+  console.log('[v0] handleAudioSelect called');
   const file = event.target.files[0];
   handleAudioFile(
     file,
@@ -1386,6 +1423,7 @@ function handleAudioSelect(event) {
 
 // Event handler for audio file drop
 function handleAudioDrop(event) {
+  console.log('[v0] handleAudioDrop called');
   event.preventDefault(); // Prevent default behavior
   const file = event.dataTransfer.files[0];
   const dropZoneElement = event.currentTarget; // The element the drop event occurred on
@@ -1405,6 +1443,7 @@ function handleAudioDrop(event) {
 
 // Function to remove the selected audio file
 function removeAudio() {
+  console.log('[v0] removeAudio called');
   $('#audio').value = ''; // Clear hidden input
   $('#audioFileName').textContent = '';
   $('#audioFileName').style.display = 'none';
@@ -1418,11 +1457,13 @@ function removeAudio() {
 
 // Toggle visibility based on exercise type
 function toggleBoxes() {
+  console.log('[v0] toggleBoxes called');
   updateAddForm();
 }
 
 // Handle image drop for passage
 function handleImageDrop(event) {
+  console.log('[v0] handleImageDrop called');
   event.preventDefault();
   const file = event.dataTransfer.files[0];
   const dropZoneElement = event.currentTarget;
@@ -1432,12 +1473,14 @@ function handleImageDrop(event) {
 
 // Handle image selection for passage
 function handleImageSelect(event) {
+  console.log('[v0] handleImageSelect called');
   const file = event.target.files[0];
   handleImageFile(file, event.target, $('#passageImagePreviewImg'), $('#passageImagePreview'), $('#passageImageUploadStatus'));
 }
 
 // Generic handler for image file processing
 function handleImageFile(file, inputElement, previewElement, previewContainer, statusElement) {
+  console.log('[v0] handleImageFile called with file:', file ? file.name : 'null');
   if (!file) return;
   if (!file.type.startsWith('image/')) {
     alert('Veuillez sélectionner un fichier image valide.');
@@ -1457,6 +1500,7 @@ function handleImageFile(file, inputElement, previewElement, previewContainer, s
 
 // Function to remove the selected passage image
 function removePassageImage() {
+  console.log('[v0] removePassageImage called');
   $('#passageImagePreviewImg').src = '#';
   $('#passageImagePreview').style.display = 'none';
   $('#passageImageUploadStatus').textContent = '';
@@ -1466,6 +1510,7 @@ function removePassageImage() {
 
 // Toggle visibility based on exercise type
 function togglePassageType() {
+  console.log('[v0] togglePassageType called');
   const passageType = $('input[name="passageType"]:checked').value;
   if (passageType === 'image') {
     $('#passageImageUpload').style.display = 'block';
@@ -1478,6 +1523,7 @@ function togglePassageType() {
 
 // Helper to update the form based on exercise type selection
 function updateAddForm() {
+  console.log('[v0] updateAddForm called');
   const kind = $('#kind').value;
   const passageBox = $('#passageBox');
   const qcmFormBox = $('#qcmFormBox');
@@ -1508,7 +1554,7 @@ function updateAddForm() {
 
 // INITIALIZATION
 document.addEventListener('DOMContentLoaded', async function() {
-  console.log('[v0] Admin page loaded');
+  console.log('[v0] DOMContentLoaded - Admin page loaded');
   
   // Check authentication
   checkAuth();
@@ -1532,6 +1578,7 @@ document.addEventListener('DOMContentLoaded', async function() {
   const logoutBtn = $('#logoutBtn');
   if (logoutBtn) {
     logoutBtn.addEventListener('click', function() {
+      console.log('[v0] Logout button clicked');
       localStorage.removeItem(AUTH_KEY);
       window.location.href = 'login.html';
     });
@@ -1574,6 +1621,7 @@ document.addEventListener('DOMContentLoaded', async function() {
 
 // Helper function to add a Vrai/Faux question to the form
 function addVfQuestion() {
+  console.log('[v0] addVfQuestion called');
   formVfCounter++;
   const div = document.createElement('div');
   div.style.cssText = 'background:#f9f9f9;padding:12px;border-radius:8px;margin:8px 0;border:1px solid #e0e0e0';
@@ -1614,6 +1662,7 @@ function addVfQuestion() {
 
 // Function to remove a Vrai/Faux question
 window.removeFormVfQuestion = function(id) {
+  console.log(`[v0] removeFormVfQuestion called for id: ${id}`);
   const item = document.querySelector(`[data-form-vf-id="${id}"]`);
   if (item) {
     item.remove();
@@ -1622,10 +1671,12 @@ window.removeFormVfQuestion = function(id) {
 
 
 function openChangePinModal() {
+  console.log('[v0] openChangePinModal called');
   $('#changePinModal').style.display = 'block';
 }
 
 function closeChangePinModal() {
+  console.log('[v0] closeChangePinModal called');
   $('#changePinModal').style.display = 'none';
   $('#currentPin').value = '';
   $('#newPin').value = '';
@@ -1634,6 +1685,7 @@ function closeChangePinModal() {
 }
 
 function saveNewPin() {
+  console.log('[v0] saveNewPin called');
   const currentPin = $('#currentPin').value;
   const newPin = $('#newPin').value;
   const confirmPin = $('#confirmNewPin').value;
@@ -1681,6 +1733,7 @@ function saveNewPin() {
 }
 
 function openResetStudentPinModal(userId) {
+  console.log(`[v0] openResetStudentPinModal called for userId: ${userId}`);
   const usersDb = JSON.parse(localStorage.getItem(USERS_KEY) || '[]');
   const user = usersDb.find(u => u.id === userId);
   
@@ -1695,6 +1748,7 @@ function openResetStudentPinModal(userId) {
 }
 
 function closeResetStudentPinModal() {
+  console.log('[v0] closeResetStudentPinModal called');
   $('#resetStudentPinModal').style.display = 'none';
   $('#resetNewPin').value = '';
   $('#resetConfirmPin').value = '';
@@ -1703,6 +1757,7 @@ function closeResetStudentPinModal() {
 }
 
 function saveResetPin() {
+  console.log('[v0] saveResetPin called');
   const newPin = $('#resetNewPin').value;
   const confirmPin = $('#resetConfirmPin').value;
   const errorEl = $('#resetPinError');
@@ -1752,13 +1807,14 @@ function loadBank() {
   if (stored) {
     try {
       BANK = JSON.parse(stored);
-      console.log('[v0] Bank loaded:', BANK);
+      console.log('[v0] Bank loaded from localStorage');
     } catch (err) {
       console.error('[v0] Error loading bank:', err);
       BANK = {lecture:[], ecoute:[], grammaire:[], lexique:[]};
     }
   } else {
     BANK = {lecture:[], ecoute:[], grammaire:[], lexique:[]};
+    console.log('[v0] No bank found in localStorage, initialized empty bank.');
   }
   // updateExercisesTable(); // Moved to after syncFromCloudinary or loadDefaultBank
 }
@@ -1779,20 +1835,24 @@ function syncFromCloudinary() {
     return fetch(url)
       .then(r => {
         if (!r.ok) {
-          console.log('[v0] File not found:', file);
+          console.warn('[v0] File not found or network error:', file, r.status);
           return null;
         }
         return r.json();
       })
-      .catch(() => null);
+      .catch(err => {
+        console.error('[v0] Error fetching file', file, err);
+        return null;
+      });
   });
 
   Promise.all(promises).then(results => {
     const tempBank = {lecture:[], ecoute:[], grammaire:[], lexique:[]};
     let loadedCount = 0;
 
-    results.forEach(data => {
+    results.forEach((data, index) => {
       if (data) {
+        console.log(`[v0] Data loaded from ${files[index]}:`, Object.keys(data));
         if (data.lecture) tempBank.lecture.push(...data.lecture);
         if (data.ecoute) tempBank.ecoute.push(...data.ecoute);
         if (data.grammaire) tempBank.grammaire.push(...data.grammaire);
@@ -1807,7 +1867,7 @@ function syncFromCloudinary() {
     updateExercisesTable();
     alert(`✅ ${loadedCount} fichier(s) synchronisé(s) depuis Cloudinary!`);
   }).catch(err => {
-    console.error('[v0] Error during Cloudinary sync:', err);
+    console.error('[v0] Error during Cloudinary sync Promise.all:', err);
     alert('❌ Erreur lors de la synchronisation depuis Cloudinary. Veuillez réessayer.');
   });
 }
@@ -1817,7 +1877,10 @@ function loadDefaultBank() {
   console.log('[v0] loadDefaultBank called');
   // Load from data/questions.json or use empty bank
   fetch('data/questions.json')
-    .then(res => res.json())
+    .then(res => {
+      if (!res.ok) throw new Error('File not found');
+      return res.json();
+    })
     .then(data => {
       BANK = data;
       localStorage.setItem(BANK_KEY, JSON.stringify(BANK));
@@ -1825,7 +1888,7 @@ function loadDefaultBank() {
       alert('✅ Exemples chargés!');
     })
     .catch(err => {
-      console.log('[v0] No default file, using empty bank');
+      console.log('[v0] No default file found or error loading:', err, 'Using empty bank.');
       BANK = {lecture:[], ecoute:[], grammaire:[], lexique:[]};
       localStorage.setItem(BANK_KEY, JSON.stringify(BANK)); // Ensure empty bank is saved
       updateExercisesTable();
@@ -1846,10 +1909,15 @@ function exportBank() {
 
 // Dashboard stats functions
 function loadDashboardStats() {
-  console.log('[v0] loadDashboardStats called');
+  console.log('[v0] ========== loadDashboardStats START ==========');
   const users = JSON.parse(localStorage.getItem(USERS_KEY) || '[]');
   const students = users.filter(u => u.role === 'student');
   const allStats = JSON.parse(localStorage.getItem('fr_stats_db') || '{}');
+  
+  console.log('[v0] Total users in DB:', users.length);
+  console.log('[v0] Students found:', students.length, students.map(s => s.name));
+  console.log('[v0] All stats keys (userIds):', Object.keys(allStats));
+  console.log('[v0] Full stats structure:', allStats);
   
   // Count totals
   let totalAttempts = 0;
@@ -1858,12 +1926,19 @@ function loadDashboardStats() {
   
   Object.keys(allStats).forEach(userId => {
     const userStats = allStats[userId];
+    console.log(`[v0] Processing user ${userId}, lessons:`, Object.keys(userStats));
+    
     Object.keys(userStats).forEach(lessonId => {
       const lessonData = userStats[lessonId];
+      console.log(`[v0]   Lesson ${lessonId}:`, lessonData);
+      
       const attempts = lessonData.attempts || [];
+      console.log(`[v0]   Attempts count: ${attempts.length}`);
+      
       attempts.forEach(att => {
         totalAttempts++;
-        const score = att.score || att.percentage || 0;
+        const score = att.percentage || att.score || 0;
+        console.log(`[v0]     Attempt score: ${score}`);
         totalScore += score;
         attemptCount++;
       });
@@ -1871,6 +1946,13 @@ function loadDashboardStats() {
   });
   
   const avgScore = attemptCount > 0 ? Math.round(totalScore / attemptCount) : 0;
+  
+  console.log('[v0] Final stats:', {
+    students: students.length,
+    totalAttempts,
+    avgScore,
+    attemptCount
+  });
   
   // Update UI
   document.getElementById('totalUsers').textContent = students.length;
@@ -1880,20 +1962,28 @@ function loadDashboardStats() {
   document.getElementById('totalAttempts').textContent = totalAttempts;
   document.getElementById('avgScore').textContent = avgScore + '%';
   
+  console.log('[v0] UI updated with values');
+  
   // Render charts
   renderActivityChart(allStats, students);
   renderLevelChart(allStats);
+  
+  console.log('[v0] ========== loadDashboardStats END ==========');
 }
 
 function renderActivityChart(allStats, students) {
+  console.log('[v0] renderActivityChart called');
   const canvas = document.getElementById('adminActivityChart');
-  if (!canvas) return;
+  if (!canvas) {
+    console.warn('[v0] adminActivityChart canvas not found.');
+    return;
+  }
   
   if (activityChartInstance) {
     activityChartInstance.destroy();
   }
   
-  // Create simple activity data for last 30 days
+  // Create simple activity data for last 30 days (placeholder)
   const labels = [];
   const data = [];
   for (let i = 29; i >= 0; i--) {
@@ -1920,11 +2010,16 @@ function renderActivityChart(allStats, students) {
       maintainAspectRatio: false
     }
   });
+  console.log('[v0] Activity chart rendered.');
 }
 
 function renderLevelChart(allStats) {
+  console.log('[v0] renderLevelChart called');
   const canvas = document.getElementById('adminLevelChart');
-  if (!canvas) return;
+  if (!canvas) {
+    console.warn('[v0] adminLevelChart canvas not found.');
+    return;
+  }
   
   if (levelChartInstance) {
     levelChartInstance.destroy();
@@ -1945,21 +2040,25 @@ function renderLevelChart(allStats) {
     });
   });
   
+  const chartData = {
+    labels: Object.keys(levels),
+    datasets: [{
+      label: 'Tentatives par niveau',
+      data: Object.values(levels),
+      backgroundColor: '#3b82f6'
+    }]
+  };
+  console.log('[v0] Level chart data:', chartData);
+
   levelChartInstance = new Chart(canvas, {
     type: 'bar',
-    data: {
-      labels: Object.keys(levels),
-      datasets: [{
-        label: 'Tentatives par niveau',
-        data: Object.values(levels),
-        backgroundColor: '#3b82f6'
-      }]
-    },
+    data: chartData,
     options: {
       responsive: true,
       maintainAspectRatio: false
     }
   });
+  console.log('[v0] Level chart rendered.');
 }
 
 // Exercises table function
@@ -1967,7 +2066,7 @@ function updateExercisesTable() {
   console.log('[v0] updateExercisesTable called');
   const tbody = document.querySelector('#exercisesTable tbody');
   if (!tbody) {
-    console.log('[v0] Exercises table not found');
+    console.log('[v0] Exercises table body not found');
     return;
   }
   
@@ -1982,6 +2081,7 @@ function updateExercisesTable() {
   
   if (allExercises.length === 0) {
     tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;padding:2rem;color:#64748b">Aucun exercice</td></tr>';
+    console.log('[v0] No exercises to display');
     return;
   }
   
@@ -1999,11 +2099,13 @@ function updateExercisesTable() {
       </td>
     `;
   });
+  console.log(`[v0] ${allExercises.length} exercises rendered.`);
 }
 
 // Removed viewExercise function as editExercise now handles opening the form
 
 function deleteExercise(id) {
+  console.log(`[v0] deleteExercise called for id: ${id}`);
   if (!confirm('Voulez-vous vraiment supprimer cet exercice?')) return;
   
   let deleted = false;
@@ -2028,63 +2130,76 @@ function deleteExercise(id) {
 
 // Users table function
 function updateUsersTable() {
-  console.log('[v0] updateUsersTable called');
-  const tbody = document.querySelector('#usersTable tbody');
-  if (!tbody) {
-    console.log('[v0] Users table not found');
-    return;
-  }
-  
+  console.log('[v0] ========== updateUsersTable START ==========');
   const users = JSON.parse(localStorage.getItem(USERS_KEY) || '[]');
-  const students = users.filter(u => u.role === 'student' || u.role === 'etudiant');
+  const students = users.filter(u => u.role === 'student');
   const allStats = JSON.parse(localStorage.getItem('fr_stats_db') || '{}');
   
-  console.log('[v0] Students found:', students.length);
-  console.log('[v0] All stats:', allStats);
+  console.log('[v0] Users table - students found:', students.length);
+  console.log('[v0] Users table - stats keys:', Object.keys(allStats));
+  
+  const tbody = document.querySelector('#usersTable tbody'); // Corrected selector
+  if (!tbody) {
+    console.log('[v0] ERROR: tbody for #usersTable not found');
+    return;
+  }
   
   tbody.innerHTML = '';
   
   if (students.length === 0) {
-    tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;padding:2rem;color:#64748b">Aucun utilisateur</td></tr>';
+    tbody.innerHTML = '<tr><td colspan="6" style="text-align: center;">Aucun utilisateur</td></tr>';
+    console.log('[v0] No students to display');
     return;
   }
   
-  students.forEach(user => {
-    const userStats = allStats[user.id] || {};
-    const lessonIds = Object.keys(userStats);
-    let totalAttempts = 0;
-    let totalScore = 0;
+  students.forEach(student => {
+    console.log(`[v0] Creating row for student:`, student.name, student.id);
+    const userStats = allStats[student.id] || {};
+    console.log(`[v0]   Student stats:`, userStats);
     
-    lessonIds.forEach(lessonId => {
+    let completedLessons = 0;
+    let totalScore = 0;
+    let totalAttempts = 0;
+    
+    Object.keys(userStats).forEach(lessonId => {
       const lessonData = userStats[lessonId];
       const attempts = lessonData.attempts || [];
-      totalAttempts += attempts.length;
-      attempts.forEach(att => {
-        totalScore += att.score || att.percentage || 0;
-      });
+      
+      if (attempts.length > 0) {
+        completedLessons++;
+        totalAttempts += attempts.length;
+        attempts.forEach(att => {
+          totalScore += att.percentage || att.score || 0;
+        });
+      }
     });
     
     const avgScore = totalAttempts > 0 ? Math.round(totalScore / totalAttempts) : 0;
     
-    console.log('[v0] User:', user.name, 'Lessons:', lessonIds.length, 'Attempts:', totalAttempts, 'Avg:', avgScore);
+    console.log(`[v0]   Calculated: ${completedLessons} lessons, ${avgScore}% avg`);
     
     const row = tbody.insertRow();
     row.innerHTML = `
-      <td style="padding:0.75rem">${user.name || 'N/A'}</td>
-      <td style="padding:0.75rem">${user.email}</td>
-      <td style="padding:0.75rem">${user.role}</td>
-      <td style="padding:0.75rem">${lessonIds.length}</td>
+      <td style="padding:0.75rem">${student.name || 'N/A'}</td>
+      <td style="padding:0.75rem">${student.email}</td>
+      <td style="padding:0.75rem">${student.role}</td>
+      <td style="padding:0.75rem">${completedLessons}</td>
       <td style="padding:0.75rem">${avgScore}%</td>
       <td style="padding:0.75rem">
-        <button onclick="viewStudentDetails('${user.id}')" style="background:#3b82f6;color:white;border:none;padding:0.375rem 0.75rem;border-radius:0.375rem;cursor:pointer;margin-right:0.5rem">Voir</button>
-        <button onclick="openResetStudentPinModal('${user.id}')" style="background:#f59e0b;color:white;border:none;padding:0.375rem 0.75rem;border-radius:0.375rem;cursor:pointer">Réinit. PIN</button>
+        <button onclick="viewStudentDetails('${student.id}')" style="background:#3b82f6;color:white;border:none;padding:0.375rem 0.75rem;border-radius:0.375rem;cursor:pointer;margin-right:0.5rem">Voir</button>
+        <button onclick="openResetStudentPinModal('${student.id}')" style="background:#f59e0b;color:white;border:none;padding:0.375rem 0.75rem;border-radius:0.375rem;cursor:pointer">Réinit. PIN</button>
       </td>
     `;
   });
+  console.log('[v0] ========== updateUsersTable END ==========');
 }
 
 function viewStudentDetails(userId) {
-  alert('Détails de l\'étudiant à venir');
+  console.log(`[v0] viewStudentDetails called for userId: ${userId}`);
+  // alert('Détails de l\'étudiant à venir');
+  // For now, just log the ID. In a real implementation, this would open a modal.
+  console.log('Opening modal for student ID:', userId);
+  // Example: openUserStatsModal(userId); // Assuming such a function exists
 }
 
 // Resources function
@@ -2495,6 +2610,7 @@ function editExercise(id) {
 
 // Helper to load image data for preview during editing
 function handleImageFileFromData(dataUrl, previewElement, previewContainer, statusElement) {
+  console.log('[v0] handleImageFileFromData called');
   previewElement.src = dataUrl;
   previewContainer.style.display = 'block';
   statusElement.textContent = 'Image chargée';
@@ -2503,6 +2619,7 @@ function handleImageFileFromData(dataUrl, previewElement, previewContainer, stat
 
 // Initialize the creator tab
 function initCreatorTab() {
+  console.log('[v0] initCreatorTab called');
   toggleBoxes(); // Set initial visibility based on selected kind
   
   // Reset form and counters if not editing
@@ -2514,6 +2631,7 @@ function initCreatorTab() {
 
 // Helper function to upload a file to Cloudinary
 async function uploadFileToCloudinary(file) {
+  console.log('[v0] uploadFileToCloudinary called for file:', file ? file.name : 'null');
   const formData = new FormData();
   formData.append('file', file);
   formData.append('upload_preset', CLOUDINARY_UPLOAD_PRESET);
@@ -2527,11 +2645,12 @@ async function uploadFileToCloudinary(file) {
     
     if (!response.ok) {
       const errorData = await response.json();
+      console.error('[v0] Cloudinary API error response:', errorData);
       throw new Error(`Cloudinary upload failed: ${errorData.error.message}`);
     }
     
     const data = await response.json();
-    console.log('Cloudinary upload successful:', data);
+    console.log('Cloudinary upload successful:', data.secure_url);
     return data.secure_url; // Return the URL of the uploaded file
   } catch (error) {
     console.error('Error uploading file to Cloudinary:', error);
@@ -2541,6 +2660,7 @@ async function uploadFileToCloudinary(file) {
 
 // New function to handle actual file uploads and update form
 async function handleActualAudioUpload(file) {
+  console.log('[v0] handleActualAudioUpload called for file:', file ? file.name : 'null');
   const audioUploadStatus = $('#audioUploadStatus');
   audioUploadStatus.textContent = 'Uploading audio...';
   audioUploadStatus.style.color = '#f59e0b';
@@ -2566,6 +2686,7 @@ async function handleActualAudioUpload(file) {
 
 // Modified handleAudioFile to trigger actual upload
 function handleAudioFile(file, dropZoneElement, inputElement, fileNameDisplay, hiddenAudioInput, audioPlayer) {
+  console.log('[v0] handleAudioFile (modified) called with file:', file ? file.name : 'null');
   if (!file) return;
   if (!file.type.startsWith('audio/')) {
     alert('Veuillez sélectionner un fichier audio valide.');
@@ -2595,6 +2716,7 @@ function handleAudioFile(file, dropZoneElement, inputElement, fileNameDisplay, h
 
 // Modified handleImageFile to use uploadFileToCloudinary
 async function handleImageFile(file, inputElement, previewElement, previewContainer, statusElement) {
+  console.log('[v0] handleImageFile (modified) called for file:', file ? file.name : 'null');
   if (!file) return;
   if (!file.type.startsWith('image/')) {
     alert('Veuillez sélectionner un fichier image valide.');
