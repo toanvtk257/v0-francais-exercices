@@ -8,8 +8,11 @@
 <meta http-equiv="Pragma" content="no-cache">
 <meta http-equiv="Expires" content="0">
 <!-- Updated CSP with connect-src explicitly at the beginning to ensure it's parsed -->
-<meta http-equiv="Content-Security-Policy" content="connect-src 'self' https://res.cloudinary.com https://api.cloudinary.com ws: wss:; default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data: https:; font-src 'self' data:;">
+<!-- Updated CSP to allow Chart.js from CDN -->
+<meta http-equiv="Content-Security-Policy" content="connect-src 'self' https://res.cloudinary.com https://api.cloudinary.com https://cdn.jsdelivr.net ws: wss:; default-src 'self'; script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net; style-src 'self' 'unsafe-inline'; img-src 'self' data: https:; font-src 'self' data:;">
 <title>Panneau d'administration</title>
+<!-- Added Chart.js library -->
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <style>
 :root{--brand:#2b5;--ink:#222;--muted:#666;--bg:#f7f7f7;--card:#fff;--success:#4caf50;--warning:#ff9800;--error:#d32f2f}
 html,body{margin:0;padding:0;background:var(--bg);color:var(--ink);font-family:system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif}
@@ -623,7 +626,7 @@ let bank = null;
 let editingExerciseId = null;
 
 // Added counters and reset for form questions
-let formQcmCounter = 0;
+let formQcmCounter = 0; // Renamed from qcmQuestionCount for clarity
 let formVfCounter = 0;
 
 // Added variables for resource and chat management
@@ -694,7 +697,7 @@ window.addFormQcmOption = function(questionId) {
   
   optionDiv.innerHTML = `
     <label style="margin:0;font-weight:600;min-width:60px">Choix ${optionLetter.toUpperCase()}</label>
-    <input class="form-qcm-option" data-option-letter="${optionLetter}" placeholder="Réponse ${optionLetter.toUpperCase()}" style="flex:1;padding:10px;border:1px solid #ddd;border-radius:8px;font-size:.95rem">
+    <input class="form-qcm-option" data-option-letter="${optionLetter}" placeholder="Réponse ${letter.toUpperCase()}" style="flex:1;padding:10px;border:1px solid #ddd;border-radius:8px;font-size:.95rem">
     <button onclick="removeFormQcmOption(${questionId}, '${optionLetter}')" type="button" style="background:#e53e3e;color:#fff;border:none;padding:8px 12px;border-radius:6px;cursor:pointer;font-size:.85rem">✕</button>
   `;
   container.appendChild(optionDiv);
@@ -794,8 +797,8 @@ function loadChatUsers() {
   // Update the recipient select dropdown
   const recipientSelect = $('#recipientSelect');
   if (recipientSelect) {
-    // Keep the first option
-    const firstOption = recipientSelect.querySelector('option');
+    // Keep the first option (default placeholder)
+    const firstOption = recipientSelect.querySelector('option[value=""]');
     recipientSelect.innerHTML = ''; // Clear existing options
     if (firstOption) recipientSelect.appendChild(firstOption); // Re-add the default option
     
@@ -809,7 +812,7 @@ function loadChatUsers() {
     console.log('[v0] recipientSelect updated with students');
   }
   
-  // Update the chat users list
+  // Update the chat users list in the UI
   const chatUsersList = $('#chatUsersList');
   if (!chatUsersList) {
     console.log('[v0] chatUsersList not found');
@@ -826,7 +829,7 @@ function loadChatUsers() {
   
   chatUsersList.innerHTML = students.map(student => {
     const studentMessages = messagesDb[student.id] || [];
-    // Count unread messages from the student
+    // Count unread messages from the student (where sender is the student's ID)
     const unread = studentMessages.filter(m => m.sender === student.id && !m.read).length; 
     
     return `
@@ -2158,8 +2161,8 @@ function resetExerciseForm() {
   const transText = $('#transText');
   if (transText) transText.value = '';
   
-  const clozeBlanks = $('#builderClozeBlanksConfig');
-  if (clozeBlanks) clozeBlanks.style.display = 'none';
+  const clozeBlanksConfig = $('#builderClozeBlanksConfig');
+  if (clozeBlanksConfig) clozeBlanksConfig.style.display = 'none';
   
   const audioPreview = $('#audioPreview');
   if (audioPreview) audioPreview.style.display = 'none';
@@ -2167,7 +2170,7 @@ function resetExerciseForm() {
   const audioInput = $('#audioInput'); // Also clear the file input
   if (audioInput) audioInput.value = '';
 
-  qcmQuestionCount = 0;
+  qcmQuestionCount = 0; // Use the correct counter name for QCM
   formVfCounter = 0; // Ensure this is reset correctly
   editingExerciseId = null;
   
@@ -2655,7 +2658,7 @@ function resetExerciseForm() {
   if (audioInput) audioInput.value = '';
   
   // Reset counters and editing state
-  qcmQuestionCount = 0;
+  qcmQuestionCount = 0; // Use the correct counter name for QCM
   formVfCounter = 0; 
   editingExerciseId = null;
   

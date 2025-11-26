@@ -755,7 +755,7 @@ function loadExternalResources() {
 }
 
 function loadStudentChat() {
-  const messages = JSON.parse(localStorage.getItem('fr_messages') || '{}');
+  const messages = JSON.parse(localStorage.getItem('fr_chat_messages') || '{}');
   const userMessages = messages[currentUser.id] || [];
 
   if (userMessages.length === 0) {
@@ -765,13 +765,13 @@ function loadStudentChat() {
 
   // Mark admin messages as read
   userMessages.forEach(m => {
-    if (m.from === 'admin') m.read = true;
+    if (m.sender === 'admin') m.read = true;
   });
   messages[currentUser.id] = userMessages;
-  localStorage.setItem('fr_messages', JSON.stringify(messages));
+  localStorage.setItem('fr_chat_messages', JSON.stringify(messages));
 
   const html = userMessages.map(msg => {
-    const isStudent = msg.from === currentUser.id;
+    const isStudent = msg.sender === currentUser.id;
     const time = new Date(msg.timestamp).toLocaleString('fr-FR');
     
     return `
@@ -795,18 +795,18 @@ function sendStudentMessage() {
 
   const recipientId = $('#adminRecipientSelect').value || 'admin';
 
-  const messages = JSON.parse(localStorage.getItem('fr_messages') || '{}');
+  const messages = JSON.parse(localStorage.getItem('fr_chat_messages') || '{}');
   if (!messages[currentUser.id]) messages[currentUser.id] = [];
   
   messages[currentUser.id].push({
-    from: currentUser.id,
+    sender: currentUser.id,
     to: recipientId,
     text,
     timestamp: Date.now(),
     read: false
   });
 
-  localStorage.setItem('fr_messages', JSON.stringify(messages));
+  localStorage.setItem('fr_chat_messages', JSON.stringify(messages));
   $('#studentMessageInput').value = '';
   loadStudentChat();
 }
@@ -816,9 +816,9 @@ function deleteStudentChatHistory() {
     return;
   }
   
-  const messages = JSON.parse(localStorage.getItem('fr_messages') || '{}');
+  const messages = JSON.parse(localStorage.getItem('fr_chat_messages') || '{}');
   delete messages[currentUser.id];
-  localStorage.setItem('fr_messages', JSON.stringify(messages));
+  localStorage.setItem('fr_chat_messages', JSON.stringify(messages));
   
   $('#chatMessagesArea').innerHTML = '<div class="empty-state">Historique supprimé. Envoyez un message à l\'administrateur!</div>';
   $('#studentMessageInput').value = '';
@@ -888,7 +888,7 @@ function saveNewPin() {
 
 // CHANGE: Load admin recipients for student messaging
 function loadAdminRecipients() {
-  const allUsers = JSON.parse(localStorage.getItem('fr_users') || '[]');
+  const allUsers = JSON.parse(localStorage.getItem(USERS_KEY) || '[]');
   console.log('[v0] All users for admin list:', allUsers);
   
   const admins = allUsers.filter(u => u.role === 'admin');
