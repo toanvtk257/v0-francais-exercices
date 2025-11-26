@@ -667,6 +667,30 @@ let optionCounter = {}; // Used for tracking option count per QCM question
 // Variable to store user ID for PIN reset
 let resetPinUserId = null;
 
+function checkAuth() {
+  const auth = localStorage.getItem(AUTH_KEY);
+  if (!auth) {
+    window.location.href = 'login.html';
+    return;
+  }
+  currentUser = JSON.parse(auth);
+  console.log('[v0] Admin checkAuth - currentUser loaded:', currentUser);
+  
+  // Update admin info in header
+  const adminNameEl = $('#adminUserName');
+  const adminEmailEl = $('#adminUserEmail');
+  if (adminNameEl) adminNameEl.textContent = currentUser.name || 'Admin';
+  if (adminEmailEl) adminEmailEl.textContent = currentUser.email || '';
+  
+  // Verify user is admin
+  if (currentUser.role !== 'admin') {
+    alert('Accès non autorisé');
+    localStorage.removeItem(AUTH_KEY);
+    window.location.href = 'login.html';
+    return;
+  }
+}
+
 function switchTab(tabId) {
   // Update tab buttons
   $$('.tab-btn').forEach(btn => {
@@ -701,8 +725,6 @@ function switchTab(tabId) {
     loadChatUsers();
   }
 }
-
-let selectedRecipients = []; // Stores selected recipients for bulk messaging
 
 const availableLetters = 'abcdefghijklmnopqrstuvwxyz';
 
@@ -895,7 +917,7 @@ function loadChatUsers() {
       const option = document.createElement('option');
       option.value = student.id;
       // Display name if available, otherwise email
-      option.textContent = `${student.name || student.email} (${student.email})`; 
+      option.textContent = `${student.name || 'Sans nom'} (${student.email})`; 
       recipientSelect.appendChild(option);
     });
     console.log('[v0] recipientSelect updated with students');
@@ -1580,10 +1602,6 @@ function addVfQuestion() {
 window.removeFormVfQuestion = function(id) {
   const item = document.querySelector(`[data-form-vf-id="${id}"]`);
   if (item) {
-    item.remove();
-  }
-};
-if (item) {
     item.remove();
   }
 };
