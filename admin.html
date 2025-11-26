@@ -1513,20 +1513,16 @@ document.addEventListener('DOMContentLoaded', async function() {
   // Check authentication
   checkAuth();
   
-  // Load bank and update dashboard
   await loadBank();
   
   // Load users table
   updateUsersTable();
   
-  // Load recipient options for messaging (now part of loadChatUsers)
+  // Load chat users list
   loadChatUsers();
   
   // Load resources table
   loadResources();
-  
-  // Load chat users list
-  loadChatUsers();
   
   // Logout button handler
   const logoutBtn = $('#logoutBtn');
@@ -1768,7 +1764,13 @@ function loadBank() {
   if (stored) {
     try {
       BANK = JSON.parse(stored);
-      console.log('[v0] Bank loaded from localStorage');
+      console.log('[v0] Bank loaded from localStorage:', BANK);
+      console.log('[v0] Number of exercises per category:', {
+        lecture: BANK.lecture?.length || 0,
+        ecoute: BANK.ecoute?.length || 0,
+        grammaire: BANK.grammaire?.length || 0,
+        lexique: BANK.lexique?.length || 0
+      });
     } catch (err) {
       console.error('[v0] Error loading bank:', err);
       BANK = {lecture:[], ecoute:[], grammaire:[], lexique:[]};
@@ -1777,7 +1779,8 @@ function loadBank() {
     BANK = {lecture:[], ecoute:[], grammaire:[], lexique:[]};
     console.log('[v0] No bank found in localStorage, initialized empty bank.');
   }
-  // updateExercisesTable(); // Moved to after syncFromCloudinary or loadDefaultBank
+  updateExercisesTable();
+  loadDashboardStats();
 }
 
 async function syncFromCloudinary() {
