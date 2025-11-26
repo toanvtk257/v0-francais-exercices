@@ -1421,7 +1421,7 @@ function handleImageDrop(event) {
   event.preventDefault();
   const file = event.dataTransfer.files[0];
   const dropZoneElement = event.currentTarget;
-  handleImageFile(file, dropZoneElement, $('#passageImageInput'), $('#passageImagePreviewImg'), $('#passageImagePreview'), $('#passageImageUploadStatus'));
+  handleImageFile(file, dropZoneElement, $('#passageImagePreviewImg'), $('#passageImagePreview'), $('#passageImageUploadStatus'));
   dropZoneElement.style.background = '#eff6ff';
 }
 
@@ -2626,6 +2626,7 @@ function editExercise(id) {
   const qcmContainer = $('#qcmQuestions');
   qcmContainer.innerHTML = '';
   if (foundExercise.qcm && foundExercise.qcm.length > 0) {
+    console.log('[v0] editExercise - loading', foundExercise.qcm.length, 'QCM questions');
     foundExercise.qcm.forEach((q, index) => {
       if (!q || !q.question) return;
       
@@ -2674,16 +2675,14 @@ function editExercise(id) {
       `;
       qcmContainer.appendChild(qDiv);
     });
-    // Ensure the dropdowns are updated correctly after all questions are added
-    updateFormQcmAnswerDropdown(qcmQuestionCount); 
-    // Manually set qcmQuestionCount to the correct value after filling
-    qcmQuestionCount = foundExercise.qcm.length > 0 ? foundExercise.qcm.length : 0;
+    console.log('[v0] editExercise - QCM questions loaded');
   }
   
   // V/F questions
   const vfContainer = $('#vfQuestions');
   vfContainer.innerHTML = '';
   if (foundExercise.vf && foundExercise.vf.length > 0) {
+    console.log('[v0] editExercise - loading', foundExercise.vf.length, 'V/F questions');
     foundExercise.vf.forEach((q, index) => {
       formVfCounter++;
       const div = document.createElement('div');
@@ -2721,7 +2720,7 @@ function editExercise(id) {
       `;
       vfContainer.appendChild(div);
     });
-    formVfCounter = foundExercise.vf.length > 0 ? foundExercise.vf.length : 0;
+    console.log('[v0] editExercise - V/F questions loaded');
   }
 
   // Cloze exercise
@@ -2746,16 +2745,24 @@ function editExercise(id) {
       `;
       clozeBlankslist.appendChild(div);
     });
+    console.log('[v0] editExercise - Cloze exercise loaded');
   } else {
     $('#clozeFormBox').style.display = 'none'; // Hide if no cloze data
   }
   
   // Update button text
   $('#addItem').textContent = 'Mettre à jour l\'exercice';
+  console.log('[v0] editExercise - Button text updated');
   
   switchTab('builder');
   
-  document.querySelector('.tab-content').scrollTo(0, 0);
+  setTimeout(() => {
+    const tabContent = document.querySelector('.tab-content');
+    if (tabContent) {
+      tabContent.scrollTo(0, 0);
+    }
+    console.log('[v0] editExercise - Switched to builder tab and scrolled to top');
+  }, 100);
 }
 
 // Helper to load image data for preview during editing
