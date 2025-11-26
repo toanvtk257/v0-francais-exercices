@@ -298,7 +298,7 @@ h1 {
         <button class="btn-primary" onclick="document.getElementById('importBank').click()">Importer JSON</button>
         <button class="btn-secondary" onclick="exportBank()">Exporter JSON</button>
         <button class="btn-secondary" onclick="loadDefaultBank()">Charger exemple</button>
-        <button class="btn-primary" onclick="syncFromCloudinary()">🔄 Synchroniser Cloudinary</button>
+        <button class="btn-primary" id="syncCloudinary" onclick="syncFromCloudinary()">🔄 Synchroniser Cloudinary</button>
       </div>
       
       <div id="importMsg" class="success-msg"></div>
@@ -1785,36 +1785,62 @@ function loadBank() {
 
 async function syncFromCloudinary() {
   console.log('[v0] syncFromCloudinary called');
-  
-  const btn = document.querySelector('button[onclick="syncFromCloudinary()"]');
-  if (!btn) return;
-  
+  const btn = document.getElementById('syncCloudinary');
+  if (!btn) {
+    console.error('[v0] Sync button not found!');
+    return;
+  }
   const originalText = btn.innerHTML;
-  btn.innerHTML = '<span style="animation:spin 1s linear infinite;display:inline-block">↻</span> Synchronisation...';
   btn.disabled = true;
-
+  btn.innerHTML = '⏳ Synchronisation...';
+  
   try {
-    // Instead of loading a non-existent bank.json, we'll load from the default bank
-    // and merge with any local changes
-    const existingBank = JSON.parse(localStorage.getItem(BANK_KEY) || '{}');
+    // Try to load tous-exercices.json from Cloudinary
+    const cloudinaryUrl = `https://res.cloudinary.com/${CLOUDINARY_CLOUD_NAME}/raw/upload/${CLOUDINARY_JSON_FOLDER}/tous-exercices.json`;
+    console.log('[v0] Attempting to fetch from:', cloudinaryUrl);
     
-    // For now, we'll just load the default bank if local is empty
-    // In a real implementation, you would list files from the Cloudinary folder
-    // using the Cloudinary Admin API (which requires authentication)
+    const response = await fetch(cloudinaryUrl);
     
-    if (Object.keys(existingBank).length === 0 || 
-        Object.values(existingBank).every(cat => !cat || cat.length === 0)) {
-      // No local data, load default bank
-      console.log('[v0] No local data found, loading default bank...');
-      await loadDefaultBank();
-      btn.innerHTML = '✓ Synchronisé (données par défaut chargées)';
+    if (response.ok) {
+      const cloudinaryData = await response.json();
+      console.log('[v0] Successfully loaded from Cloudinary:', cloudinaryData);
+      
+      // Get local bank
+      const localBank = JSON.parse(localStorage.getItem(BANK_KEY) || '{"lecture":[],"ecoute":[],"grammaire":[],"lexique":[]}');
+      console.log('[v0] Local bank before merge:', localBank);
+      
+      // Merge: Keep local exercises and add new ones from Cloudinary
+      const mergedBank = { lecture: [], ecoute: [], grammaire: [], lexique: [] };
+      
+      ['lecture', 'ecoute', 'grammaire', 'lexique'].forEach(category => {
+        const cloudExercises = cloudinaryData[category] || [];
+        const localExercises = localBank[category] || [];
+        
+        // Create a map of local exercise IDs for quick lookup
+        const localIds = new Set(localExercises.map(ex => ex.id));
+        
+        // Add all local exercises first
+        mergedBank[category] = [...localExercises];
+        
+        // Add Cloudinary exercises that don't exist locally
+        cloudExercises.forEach(cloudEx => {
+          if (!localIds.has(cloudEx.id)) {
+            mergedBank[category].push(cloudEx);
+            console.log('[v0] Adding new exercise from Cloudinary:', cloudEx.id, cloudEx.titre);
+          }
+        });
+      });
+      
+      BANK = mergedBank;
+      localStorage.setItem(BANK_KEY, JSON.stringify(BANK));
+      console.log('[v0] Merged bank saved:', BANK);
+      
+      btn.innerHTML = '✓ Synchronisé avec Cloudinary';
+      updateExercisesTable();
+      
     } else {
-      // Local data exists, keep it
-      console.log('[v0] Local data exists, keeping it');
-      btn.innerHTML = '✓ Données locales conservées';
+      throw new Error(`HTTP ${response.status}: ${response.statusText}`);
     }
-    
-    updateExercisesTable();
     
     setTimeout(() => {
       btn.innerHTML = originalText;
@@ -1823,7 +1849,7 @@ async function syncFromCloudinary() {
     
   } catch (error) {
     console.error('[v0] Sync error:', error);
-    alert(`Erreur lors de la synchronisation: ${error.message}`);
+    alert(`Erreur lors de la synchronisation: ${error.message}\n\nVérifiez que le fichier tous-exercices.json existe sur Cloudinary à l'emplacement: entrainement-francais/tous-exercices.json`);
     btn.innerHTML = originalText;
     btn.disabled = false;
   }
@@ -2546,226 +2572,156 @@ function addExerciseFromBuilder() {
 }
 
 // Function to load an exercise for editing
-function editExercise(id) {
-  console.log('[v0] editExercise called with id:', id);
-  editingExerciseId = id;
+function editExercise(exerciseId) {
+  console.log('[v0] ============ editExercise START ============');
+  console.log('[v0] Exercise ID to edit:', exerciseId);
+  console.log('[v0] Current BANK:', BANK);
   
   // Find the exercise across all categories
   let foundExercise = null;
-  ['lecture', 'ecoute', 'grammaire', 'lexique'].forEach(category => {
-    if (BANK[category]) {
-      const exercise = BANK[category].find(ex => ex.id === id);
-      if (exercise) {
-        foundExercise = exercise;
-      }
+  let foundCategory = null;
+  
+  ['lecture', 'ecoute', 'grammaire', 'lexique'].forEach(cat => {
+    const exercises = BANK[cat] || [];
+    console.log('[v0] Searching in category:', cat, 'Count:', exercises.length);
+    
+    const ex = exercises.find(e => e.id === exerciseId);
+    if (ex) {
+      foundExercise = ex;
+      foundCategory = cat;
+      console.log('[v0] FOUND exercise in category:', cat);
+      console.log('[v0] Exercise data:', JSON.stringify(ex, null, 2));
     }
   });
   
   if (!foundExercise) {
-    alert('Exercice non trouvé.');
+    console.error('[v0] Exercise not found with ID:', exerciseId);
+    alert('Exercice non trouvé!');
     return;
   }
   
-  // Fill the form
-  const form = $('#exerciseForm');
-  form.reset(); // Reset first
+  console.log('[v0] Found exercise:', foundExercise);
+  console.log('[v0] Exercise category:', foundCategory);
   
-  // Basic fields
-  console.log('[v0] editExercise - foundExercise:', foundExercise);
-  console.log('[v0] editExercise - kind:', foundExercise.kind);
+  // Set editing mode
+  editingExerciseId = exerciseId;
+  console.log('[v0] Set editingExerciseId to:', editingExerciseId);
   
-  $('#id').value = foundExercise.id;
-  $('#id').setAttribute('readonly', true);
+  // Fill basic fields
+  console.log('[v0] Filling field #id with:', foundExercise.id);
+  $('#id').value = foundExercise.id || '';
+  
+  console.log('[v0] Filling field #titre with:', foundExercise.titre);
   $('#titre').value = foundExercise.titre || '';
   
-  const kindSelect = $('#kind');
-  kindSelect.value = foundExercise.kind || '';
-  console.log('[v0] editExercise - kind field set to:', kindSelect.value);
+  console.log('[v0] Filling field #kind with:', foundExercise.kind);
+  $('#kind').value = foundExercise.kind || '';
   
-  toggleBoxes();
+  console.log('[v0] Filling field #niveau with:', foundExercise.niveau);
+  $('#niveau').value = foundExercise.niveau || '';
   
-  $('#niveau').value = foundExercise.niveau;
+  console.log('[v0] Filling field #theme with:', foundExercise.theme);
   $('#theme').value = foundExercise.theme || '';
-  $('#exerciseNumber').value = foundExercise.number || '';
+  
+  console.log('[v0] Filling field #num with:', foundExercise.num);
+  $('#num').value = foundExercise.num || '';
+  
+  console.log('[v0] Filling field #difficulty with:', foundExercise.difficulty);
   $('#difficulty').value = foundExercise.difficulty || 1;
-  $('#difficultyValue').textContent = `Niveau ${foundExercise.difficulty || 1}`;
   
-  // Audio
-  if (foundExercise.audio) {
-    $('#audio').value = foundExercise.audio;
-    $('#audioFileName').textContent = `Fichier audio: ${foundExercise.audio.split('/').pop()}`;
-    $('#audioFileName').style.display = 'block';
-    // Assuming audio is in Cloudinary, construct URL. Adjust if necessary.
-    $('#audioPlayer').src = foundExercise.audio.startsWith('http') ? foundExercise.audio : `https://res.cloudinary.com/${CLOUDINARY_CLOUD_NAME}/video/upload/${foundExercise.audio}`; 
-    $('#audioPlayer').style.display = 'block';
-    $('#audioDrop').style.display = 'none';
-    $('#audioPreview').style.display = 'block';
-    $('#audioUploadStatus').textContent = 'Audio loaded from existing data.';
+  // Fill passage section
+  const passage = foundExercise.passage || {};
+  console.log('[v0] Passage data:', passage);
+  
+  if (passage.type === 'image') {
+    console.log('[v0] Setting passage type to IMAGE');
+    $('#imageRadio').checked = true;
+    $('#imagePassage').value = passage.imageUrl || '';
   } else {
-      removeAudio(); // Ensure it's hidden if no audio
+    console.log('[v0] Setting passage type to TEXT');
+    $('#textRadio').checked = true;
+    $('#passageTitle').value = passage.title || '';
+    $('#passageText').value = passage.text || '';
+    $('#source').value = passage.source || '';
   }
   
-  // Passage
-  if (foundExercise.passage) {
-    $('#passageBox').classList.remove('hidden');
-    if (foundExercise.passage.image) {
-      $('input[name="passageType"][value="image"]').checked = true;
-      handleImageFileFromData(foundExercise.passage.image, $('#passageImagePreviewImg'), $('#passageImagePreview'), $('#passageImageUploadStatus'));
-      $('#passageImageUpload').style.display = 'block';
-      $('#passageTextContent').style.display = 'none';
-    } else if (foundExercise.passage.text) {
-      $('input[name="passageType"][value="text"]').checked = true;
-      $('#passageTitle').value = foundExercise.passage.title || '';
-      $('#passageText').value = foundExercise.passage.text;
-      $('#passageSource').value = foundExercise.passage.source || '';
-      $('#passageImageUpload').style.display = 'none';
-      $('#passageTextContent').style.display = 'block';
-    }
-  } else {
-      $('#passageBox').classList.add('hidden'); // Hide passage box if no passage data
+  toggleBoxes(); // Show/hide appropriate sections
+  console.log('[v0] Called toggleBoxes()');
+  
+  // Reset question counters
+  qcmCount = 0;
+  vfCount = 0;
+  
+  // Clear existing questions in UI
+  $('#qcmList').innerHTML = '';
+  $('#vfList').innerHTML = '';
+  
+  // Fill QCM questions
+  const qcmQuestions = (foundExercise.questions || []).filter(q => q.type === 'qcm');
+  console.log('[v0] QCM questions count:', qcmQuestions.length);
+  
+  qcmQuestions.forEach((q, idx) => {
+    console.log('[v0] Adding QCM question', idx + 1, ':', q);
+    qcmCount++;
+    const qDiv = document.createElement('div');
+    qDiv.className = 'question-item';
+    qDiv.innerHTML = `
+      <h4>Question QCM ${qcmCount}</h4>
+      <label>Question</label>
+      <input type="text" class="qcm-question" value="${q.question || ''}" required/>
+      <label>Réponses (séparées par |)</label>
+      <input type="text" class="qcm-options" value="${Object.keys(q.options || {}).join(' | ')}" required/>
+      <label>Bonne réponse (lettre)</label>
+      <input type="text" class="qcm-correct" value="${q.correct || ''}" required/>
+      <button type="button" onclick="this.parentElement.remove()" class="btn-danger">Supprimer</button>
+    `;
+    $('#qcmList').appendChild(qDiv);
+  });
+  
+  // Fill V/F questions
+  const vfQuestions = (foundExercise.questions || []).filter(q => q.type === 'vf');
+  console.log('[v0] V/F questions count:', vfQuestions.length);
+  
+  vfQuestions.forEach((q, idx) => {
+    console.log('[v0] Adding V/F question', idx + 1, ':', q);
+    vfCount++;
+    const qDiv = document.createElement('div');
+    qDiv.className = 'question-item';
+    qDiv.innerHTML = `
+      <h4>Question Vrai/Faux ${vfCount}</h4>
+      <label>Affirmation</label>
+      <input type="text" class="vf-statement" value="${q.statement || ''}" required/>
+      <label>Réponse correcte</label>
+      <select class="vf-correct" required>
+        <option value="vrai" ${q.correct === 'vrai' ? 'selected' : ''}>Vrai</option>
+        <option value="faux" ${q.correct === 'faux' ? 'selected' : ''}>Faux</option>
+      </select>
+      <button type="button" onclick="this.parentElement.remove()" class="btn-danger">Supprimer</button>
+    `;
+    $('#vfList').appendChild(qDiv);
+  });
+  
+  // Fill cloze exercise if exists
+  if (foundExercise.clozeText) {
+    console.log('[v0] Filling cloze text:', foundExercise.clozeText);
+    $('#clozeText').value = foundExercise.clozeText;
   }
   
-  // QCM questions
-  const qcmContainer = $('#qcmQuestions');
-  qcmContainer.innerHTML = '';
-  if (foundExercise.qcm && foundExercise.qcm.length > 0) {
-    console.log('[v0] editExercise - loading', foundExercise.qcm.length, 'QCM questions');
-    foundExercise.qcm.forEach((q, index) => {
-      if (!q || !q.question) return;
-      
-      qcmQuestionCount++;
-      const qDiv = document.createElement('div');
-      qDiv.style.cssText = 'background:#f9f9f9;padding:12px;border-radius:8px;margin:8px 0;border:1px solid #e0e0e0';
-      qDiv.dataset.formQcmId = qcmQuestionCount;
-      
-      let optionsHtml = '';
-      const options = q.options || {};
-      let letters = Object.keys(options).sort();
-      letters.forEach((letter, i) => {
-        optionsHtml += `
-          <div data-option-letter="${letter}" style="display:flex;gap:8px;margin-bottom:8px;align-items:center">
-            <label style="margin:0;font-weight:600;min-width:60px">Choix ${letter.toUpperCase()}</label>
-            <input class="form-qcm-option" data-option-letter="${letter}" placeholder="Réponse ${letter.toUpperCase()}" value="${options[letter] || ''}" style="flex:1;padding:10px;border:1px solid #ddd;border-radius:8px;font-size:.95rem">
-            <button onclick="removeFormQcmOption(${qcmQuestionCount}, '${letter}')" type="button" style="background:#e53e3e;color:#fff;border:none;padding:8px 12px;border-radius:6px;cursor:pointer;font-size:.85rem">✕</button>
-          </div>
-        `;
-      });
-      
-      qDiv.innerHTML = `
-        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
-          <span style="font-weight:600;color:var(--brand)">Question ${qcmQuestionCount}</span>
-          <button class="btn-danger" onclick="removeFormQcmQuestion(${qcmQuestionCount})" type="button" style="padding:6px 10px;font-size:.85rem">Supprimer</button>
-        </div>
-        <label>Question</label>
-        <input class="form-qcm-question" placeholder="Quelle est la capitale de la France ?" value="${q.question || ''}" style="width:100%;padding:10px;border:1px solid #ddd;border-radius:8px;font-size:.95rem;box-sizing:border-box;margin-bottom:8px">
-        
-        <div class="form-qcm-options-container">${optionsHtml}</div>
-        
-        <button type="button" onclick="addFormQcmOption(${qcmQuestionCount})" style="margin-bottom:8px;padding:6px 10px;font-size:.85rem;background:#e0e0e0;color:#111;border:none;border-radius:6px;cursor:pointer">+ Ajouter une réponse</button>
-        
-        <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:8px">
-          <div>
-            <label>Bonne réponse</label>
-            <select class="form-qcm-answer" style="width:100%;padding:10px;border:1px solid #ddd;border-radius:8px;font-size:.95rem;box-sizing:border-box">
-              ${letters.map(l => `<option value="${l}" ${q.answer === l ? 'selected' : ''}>${l.toUpperCase()}</option>`).join('')}
-            </select>
-          </div>
-          <div>
-            <label>Points</label>
-            <input type="number" class="form-qcm-points" min="1" value="${q.points || 1}" style="width:100%;padding:10px;border:1px solid #ddd;border-radius:8px;font-size:.95rem;box-sizing:border-box">
-          </div>
-        </div>
-      `;
-      qcmContainer.appendChild(qDiv);
-    });
-    console.log('[v0] editExercise - QCM questions loaded');
+  // Change button text to indicate update mode
+  const submitBtn = document.querySelector('#exerciseForm button[type="submit"]');
+  if (submitBtn) {
+    submitBtn.textContent = 'Mettre à jour l\'exercice';
+    console.log('[v0] Changed submit button to "Mettre à jour l\'exercice"');
   }
   
-  // V/F questions
-  const vfContainer = $('#vfQuestions');
-  vfContainer.innerHTML = '';
-  if (foundExercise.vf && foundExercise.vf.length > 0) {
-    console.log('[v0] editExercise - loading', foundExercise.vf.length, 'V/F questions');
-    foundExercise.vf.forEach((q, index) => {
-      formVfCounter++;
-      const div = document.createElement('div');
-      div.style.cssText = 'background:#f9f9f9;padding:12px;border-radius:8px;margin:8px 0;border:1px solid #e0e0e0';
-      div.dataset.formVfId = formVfCounter;
-      
-      const showKeywords = (foundExercise.kind === 'lecture');
-      
-      div.innerHTML = `
-        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
-          <span style="font-weight:600;color:var(--brand)">Question ${formVfCounter}</span>
-          <button class="btn-danger" onclick="removeFormVfQuestion(${formVfCounter})" style="padding:6px 10px;font-size:.85rem">Supprimer</button>
-        </div>
-        <label>Énoncé</label>
-        <input class="form-vf-statement" placeholder="La France est une île." value="${q.statement}" style="width:100%;padding:10px;border:1px solid #ddd;border-radius:8px;font-size:.95rem;box-sizing:border-box;margin-bottom:8px">
-        
-        <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:8px">
-          <div>
-            <label>Réponse</label>
-            <select class="form-vf-answer" style="width:100%;padding:10px;border:1px solid #ddd;border-radius:8px;font-size:.95rem;box-sizing:border-box">
-              <option value="vrai" ${q.answer === 'vrai' ? 'selected' : ''}>Vrai</option>
-              <option value="faux" ${q.answer === 'faux' ? 'selected' : ''}>Faux</option>
-            </select>
-          </div>
-          <div>
-            <label>Points</label>
-            <input type="number" class="form-vf-points" value="${q.points}" min="1" style="width:100%;padding:10px;border:1px solid #ddd;border-radius:8px;font-size:.95rem;box-sizing:border-box">
-          </div>
-        </div>
-        
-        <div style="margin-top:8px;display:${showKeywords ? 'block' : 'none'}">
-          <label>Mots-clés (pour indice ou vérification, séparés par |)</label>
-          <input class="form-vf-keywords" placeholder="ex. France|île" value="${q.keywords?.join(' | ') || ''}" style="width:100%;padding:10px;border:1px solid #ddd;border-radius:8px;font-size:.95rem;box-sizing:border-box">
-        </div>
-      `;
-      vfContainer.appendChild(div);
-    });
-    console.log('[v0] editExercise - V/F questions loaded');
-  }
-
-  // Cloze exercise
-  if (foundExercise.cloze) {
-    $('#clozeFormBox').style.display = 'block';
-    $('#clozeText').value = foundExercise.cloze.text;
-    $('#transText').value = foundExercise.cloze.transcription || '';
-    
-    // Populate cloze blanks configuration
-    const clozeBlankslist = $('#builderClozeBlankslist');
-    const configContainer = $('#builderClozeBlanksConfig');
-    configContainer.style.display = 'block';
-    clozeBlankslist.innerHTML = '';
-    foundExercise.cloze.blanks.forEach((blank, index) => {
-      const div = document.createElement('div');
-      div.style.cssText = 'display:flex;gap:8px;align-items:center;margin-bottom:8px;padding:8px;background:#fff;border-radius:6px';
-      div.innerHTML = `
-        <span style="flex:1;font-weight:500">Trou ${index + 1}: "${blank.text}"</span>
-        <label style="display:flex;align-items:center;gap:4px">
-          Points: <input type="number" class="cloze-blank-points" value="${blank.points}" min="0" step="0.5" style="width:60px;padding:4px;border:1px solid #ddd;border-radius:4px">
-        </label>
-      `;
-      clozeBlankslist.appendChild(div);
-    });
-    console.log('[v0] editExercise - Cloze exercise loaded');
-  } else {
-    $('#clozeFormBox').style.display = 'none'; // Hide if no cloze data
-  }
-  
-  // Update button text
-  $('#addItem').textContent = 'Mettre à jour l\'exercice';
-  console.log('[v0] editExercise - Button text updated');
-  
+  // Switch to builder tab
+  console.log('[v0] Switching to builder tab');
   switchTab('builder');
   
-  setTimeout(() => {
-    const tabContent = document.querySelector('.tab-content');
-    if (tabContent) {
-      tabContent.scrollTo(0, 0);
-    }
-    console.log('[v0] editExercise - Switched to builder tab and scrolled to top');
-  }, 100);
+  // Scroll to top of form
+  window.scrollTo({ top: 0, behavior: 'smooth' });
+  
+  console.log('[v0] ============ editExercise END ============');
 }
 
 // Helper to load image data for preview during editing
