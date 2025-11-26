@@ -668,6 +668,9 @@ let optionCounter = {}; // Used for tracking option count per QCM question
 // Variable to store user ID for PIN reset
 let resetPinUserId = null;
 
+let activityChartInstance = null;
+let levelChartInstance = null;
+
 function checkAuth() {
   const auth = localStorage.getItem(AUTH_KEY);
   if (!auth) {
@@ -1856,7 +1859,8 @@ function loadDashboardStats() {
   Object.keys(allStats).forEach(userId => {
     const userStats = allStats[userId];
     Object.keys(userStats).forEach(lessonId => {
-      const attempts = userStats[lessonId];
+      const lessonData = userStats[lessonId];
+      const attempts = lessonData.attempts || [];
       attempts.forEach(att => {
         totalAttempts++;
         const score = att.score || att.percentage || 0;
@@ -1882,8 +1886,12 @@ function loadDashboardStats() {
 }
 
 function renderActivityChart(allStats, students) {
-  const canvas = document.getElementById('adminActivityChart'); // Changed id to match HTML
+  const canvas = document.getElementById('adminActivityChart');
   if (!canvas) return;
+  
+  if (activityChartInstance) {
+    activityChartInstance.destroy();
+  }
   
   // Create simple activity data for last 30 days
   const labels = [];
@@ -1895,7 +1903,7 @@ function renderActivityChart(allStats, students) {
     data.push(Math.floor(Math.random() * 10)); // Placeholder data
   }
   
-  new Chart(canvas, {
+  activityChartInstance = new Chart(canvas, {
     type: 'line',
     data: {
       labels: labels,
@@ -1915,8 +1923,12 @@ function renderActivityChart(allStats, students) {
 }
 
 function renderLevelChart(allStats) {
-  const canvas = document.getElementById('adminLevelChart'); // Changed id to match HTML
+  const canvas = document.getElementById('adminLevelChart');
   if (!canvas) return;
+  
+  if (levelChartInstance) {
+    levelChartInstance.destroy();
+  }
   
   // Count by level
   const levels = { A1: 0, A2: 0, B1: 0, B2: 0, C1: 0, C2: 0 };
@@ -1933,7 +1945,7 @@ function renderLevelChart(allStats) {
     });
   });
   
-  new Chart(canvas, {
+  levelChartInstance = new Chart(canvas, {
     type: 'bar',
     data: {
       labels: Object.keys(levels),
@@ -2024,8 +2036,11 @@ function updateUsersTable() {
   }
   
   const users = JSON.parse(localStorage.getItem(USERS_KEY) || '[]');
-  const students = users.filter(u => u.role === 'student' || u.role === 'etudiant'); // Include 'etudiant' role
+  const students = users.filter(u => u.role === 'student' || u.role === 'etudiant');
   const allStats = JSON.parse(localStorage.getItem('fr_stats_db') || '{}');
+  
+  console.log('[v0] Students found:', students.length);
+  console.log('[v0] All stats:', allStats);
   
   tbody.innerHTML = '';
   
@@ -2041,7 +2056,8 @@ function updateUsersTable() {
     let totalScore = 0;
     
     lessonIds.forEach(lessonId => {
-      const attempts = userStats[lessonId] || [];
+      const lessonData = userStats[lessonId];
+      const attempts = lessonData.attempts || [];
       totalAttempts += attempts.length;
       attempts.forEach(att => {
         totalScore += att.score || att.percentage || 0;
@@ -2049,6 +2065,8 @@ function updateUsersTable() {
     });
     
     const avgScore = totalAttempts > 0 ? Math.round(totalScore / totalAttempts) : 0;
+    
+    console.log('[v0] User:', user.name, 'Lessons:', lessonIds.length, 'Attempts:', totalAttempts, 'Avg:', avgScore);
     
     const row = tbody.insertRow();
     row.innerHTML = `
