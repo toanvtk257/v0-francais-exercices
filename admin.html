@@ -807,7 +807,7 @@ window.addFormQcmOption = function(questionId) {
   
   optionDiv.innerHTML = `
     <label style="margin:0;font-weight:600;min-width:60px">Choix ${optionLetter.toUpperCase()}</label>
-    <input class="form-qcm-option" data-option-letter="${optionLetter}" placeholder="Réponse ${letter.toUpperCase()}" style="flex:1;padding:10px;border:1px solid #ddd;border-radius:8px;font-size:.95rem">
+    <input class="form-qcm-option" data-option-letter="${optionLetter}" placeholder="Réponse ${optionLetter.toUpperCase()}" style="flex:1;padding:10px;border:1px solid #ddd;border-radius:8px;font-size:.95rem">
     <button onclick="removeFormQcmOption(${questionId}, '${optionLetter}')" type="button" style="background:#e53e3e;color:#fff;border:none;padding:8px 12px;border-radius:6px;cursor:pointer;font-size:.85rem">✕</button>
   `;
   container.appendChild(optionDiv);
@@ -1597,7 +1597,7 @@ document.addEventListener('DOMContentLoaded', async function() {
       window.location.href = 'login.html';
     });
   }
-
+  
   // Add event listener for the "Add to bank" button
   const addItemBtn = $('#addItem');
   if (addItemBtn) {
@@ -2521,7 +2521,7 @@ function addExerciseFromBuilder() {
     newExercise.passage = { image: passageImageData || $('#passageImagePreviewImg').src };
   }
 
-  // QCM Questions
+  // QCM questions
   $$('#qcmQuestions > div[data-form-qcm-id]').forEach(qDiv => {
     const questionId = qDiv.dataset.formQcmId;
     const questionText = qDiv.querySelector('.form-qcm-question').value;
@@ -2685,18 +2685,21 @@ function editExercise(id) {
   qcmContainer.innerHTML = '';
   if (foundExercise.qcm && foundExercise.qcm.length > 0) {
     foundExercise.qcm.forEach((q, index) => {
+      if (!q || !q.question) return;
+      
       qcmQuestionCount++;
       const qDiv = document.createElement('div');
       qDiv.style.cssText = 'background:#f9f9f9;padding:12px;border-radius:8px;margin:8px 0;border:1px solid #e0e0e0';
       qDiv.dataset.formQcmId = qcmQuestionCount;
       
       let optionsHtml = '';
-      let letters = Object.keys(q.options).sort(); // Ensure consistent order
+      const options = q.options || {};
+      let letters = Object.keys(options).sort();
       letters.forEach((letter, i) => {
         optionsHtml += `
           <div data-option-letter="${letter}" style="display:flex;gap:8px;margin-bottom:8px;align-items:center">
             <label style="margin:0;font-weight:600;min-width:60px">Choix ${letter.toUpperCase()}</label>
-            <input class="form-qcm-option" data-option-letter="${letter}" placeholder="Réponse ${letter.toUpperCase()}" value="${q.options[letter]}" style="flex:1;padding:10px;border:1px solid #ddd;border-radius:8px;font-size:.95rem">
+            <input class="form-qcm-option" data-option-letter="${letter}" placeholder="Réponse ${letter.toUpperCase()}" value="${options[letter] || ''}" style="flex:1;padding:10px;border:1px solid #ddd;border-radius:8px;font-size:.95rem">
             <button onclick="removeFormQcmOption(${qcmQuestionCount}, '${letter}')" type="button" style="background:#e53e3e;color:#fff;border:none;padding:8px 12px;border-radius:6px;cursor:pointer;font-size:.85rem">✕</button>
           </div>
         `;
@@ -2708,7 +2711,7 @@ function editExercise(id) {
           <button class="btn-danger" onclick="removeFormQcmQuestion(${qcmQuestionCount})" type="button" style="padding:6px 10px;font-size:.85rem">Supprimer</button>
         </div>
         <label>Question</label>
-        <input class="form-qcm-question" placeholder="Quelle est la capitale de la France ?" value="${q.question}" style="width:100%;padding:10px;border:1px solid #ddd;border-radius:8px;font-size:.95rem;box-sizing:border-box;margin-bottom:8px">
+        <input class="form-qcm-question" placeholder="Quelle est la capitale de la France ?" value="${q.question || ''}" style="width:100%;padding:10px;border:1px solid #ddd;border-radius:8px;font-size:.95rem;box-sizing:border-box;margin-bottom:8px">
         
         <div class="form-qcm-options-container">${optionsHtml}</div>
         
@@ -2718,11 +2721,12 @@ function editExercise(id) {
           <div>
             <label>Bonne réponse</label>
             <select class="form-qcm-answer" style="width:100%;padding:10px;border:1px solid #ddd;border-radius:8px;font-size:.95rem;box-sizing:border-box">
+              ${letters.map(l => `<option value="${l}" ${q.answer === l ? 'selected' : ''}>${l.toUpperCase()}</option>`).join('')}
             </select>
           </div>
           <div>
             <label>Points</label>
-            <input type="number" class="form-qcm-points" value="${q.points}" min="1" style="width:100%;padding:10px;border:1px solid #ddd;border-radius:8px;font-size:.95rem;box-sizing:border-box">
+            <input type="number" class="form-qcm-points" min="1" value="${q.points || 1}" style="width:100%;padding:10px;border:1px solid #ddd;border-radius:8px;font-size:.95rem;box-sizing:border-box">
           </div>
         </div>
       `;
