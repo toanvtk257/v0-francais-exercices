@@ -637,28 +637,27 @@ let optionCounter = {}; // Used for tracking option count per QCM question
 // Variable to store user ID for PIN reset
 let resetPinUserId = null;
 
-let selectedRecipients = [];
+let selectedRecipients = []; // Stores selected recipients for bulk messaging
 
-let qcmQuestionCount = 0;
 const availableLetters = 'abcdefghijklmnopqrstuvwxyz';
 
 function addFormQcmQuestion() {
-  qcmQuestionCount++;
+  formQcmCounter++;
   const qDiv = document.createElement('div');
   qDiv.style.cssText = 'background:#f9f9f9;padding:12px;border-radius:8px;margin:8px 0;border:1px solid #e0e0e0';
-  qDiv.dataset.formQcmId = qcmQuestionCount;
+  qDiv.dataset.formQcmId = formQcmCounter;
   
   qDiv.innerHTML = `
     <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
-      <span style="font-weight:600;color:var(--brand)">Question ${qcmQuestionCount}</span>
-      <button class="btn-danger" onclick="removeFormQcmQuestion(${qcmQuestionCount})" type="button" style="padding:6px 10px;font-size:.85rem">Supprimer</button>
+      <span style="font-weight:600;color:var(--brand)">Question ${formQcmCounter}</span>
+      <button class="btn-danger" onclick="removeFormQcmQuestion(${formQcmCounter})" type="button" style="padding:6px 10px;font-size:.85rem">Supprimer</button>
     </div>
     <label>Question</label>
     <input class="form-qcm-question" placeholder="Quelle est la capitale de la France ?" style="width:100%;padding:10px;border:1px solid #ddd;border-radius:8px;font-size:.95rem;box-sizing:border-box;margin-bottom:8px">
     
     <div class="form-qcm-options-container"></div>
     
-    <button type="button" onclick="addFormQcmOption(${qcmQuestionCount})" style="margin-bottom:8px;padding:6px 10px;font-size:.85rem;background:#e0e0e0;color:#111;border:none;border-radius:6px;cursor:pointer">+ Ajouter une réponse</button>
+    <button type="button" onclick="addFormQcmOption(${formQcmCounter})" style="margin-bottom:8px;padding:6px 10px;font-size:.85rem;background:#e0e0e0;color:#111;border:none;border-radius:6px;cursor:pointer">+ Ajouter une réponse</button>
     
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:8px">
       <div>
@@ -675,9 +674,9 @@ function addFormQcmQuestion() {
   $('#qcmQuestions').appendChild(qDiv);
   
   // Add 3 default options
-  addFormQcmOption(qcmQuestionCount);
-  addFormQcmOption(qcmQuestionCount);
-  addFormQcmOption(qcmQuestionCount);
+  addFormQcmOption(formQcmCounter);
+  addFormQcmOption(formQcmCounter);
+  addFormQcmOption(formQcmCounter);
 }
 
 window.addFormQcmOption = function(questionId) {
@@ -782,33 +781,68 @@ window.removeFormQcmQuestion = function(id) {
   }
 };
 
-function loadRecipientOptions() {
-  console.log('[v0] loadRecipientOptions called');
-  const allUsers = JSON.parse(localStorage.getItem(USERS_KEY) || '[]');
-  console.log('[v0] All users:', allUsers);
-  const students = allUsers.filter(u => u.role === 'student');
-  console.log('[v0] Filtered students:', students);
+// CHANGE: Fixed loadChatUsers to properly load students for messaging
+function loadChatUsers() {
+  // Use the correct key for users ('fr_users_db' instead of 'fr_users')
+  const allUsers = JSON.parse(localStorage.getItem(USERS_KEY) || '[]'); 
+  console.log('[v0] loadChatUsers - all users:', allUsers);
   
+  // Filter for students, considering both 'student' and 'etudiant' roles
+  const students = allUsers.filter(u => u.role === 'student' || u.role === 'etudiant'); 
+  console.log('[v0] loadChatUsers - filtered students:', students);
+  
+  // Update the recipient select dropdown
   const recipientSelect = $('#recipientSelect');
-  if (!recipientSelect) {
-    console.log('[v0] ERROR: recipientSelect not found');
+  if (recipientSelect) {
+    // Keep the first option
+    const firstOption = recipientSelect.querySelector('option');
+    recipientSelect.innerHTML = ''; // Clear existing options
+    if (firstOption) recipientSelect.appendChild(firstOption); // Re-add the default option
+    
+    students.forEach(student => {
+      const option = document.createElement('option');
+      option.value = student.id;
+      // Display name if available, otherwise email
+      option.textContent = `${student.name || student.email} (${student.email})`; 
+      recipientSelect.appendChild(option);
+    });
+    console.log('[v0] recipientSelect updated with students');
+  }
+  
+  // Update the chat users list
+  const chatUsersList = $('#chatUsersList');
+  if (!chatUsersList) {
+    console.log('[v0] chatUsersList not found');
     return;
   }
   
-  recipientSelect.innerHTML = '<option value="">-- Sélectionner un étudiant --</option>';
+  if (students.length === 0) {
+    chatUsersList.innerHTML = '<div class="empty-state">Aucun étudiant inscrit</div>';
+    return;
+  }
   
-  students.forEach(student => {
-    const option = document.createElement('option');
-    option.value = student.id;
-    option.textContent = `${student.name} (${student.email})`;
-    recipientSelect.appendChild(option);
-  });
+  // Use the correct key for messages ('fr_chat_messages' instead of 'fr_messages')
+  const messagesDb = JSON.parse(localStorage.getItem('fr_chat_messages') || '{}'); 
   
-  console.log('[v0] Recipients loaded:', students.length);
+  chatUsersList.innerHTML = students.map(student => {
+    const studentMessages = messagesDb[student.id] || [];
+    // Count unread messages from the student
+    const unread = studentMessages.filter(m => m.sender === student.id && !m.read).length; 
+    
+    return `
+      <div class="user-item" onclick="selectChatUser('${student.id}')" style="padding:12px;border-bottom:1px solid #eee;cursor:pointer;display:flex;justify-content:space-between;align-items:center">
+        <div>
+          <div style="font-weight:600">${student.name || 'Sans nom'}</div> 
+          <div style="font-size:0.85rem;color:#666">${student.email}</div>
+        </div>
+        ${unread > 0 ? `<span style="background:#e53935;color:#fff;padding:2px 8px;border-radius:12px;font-size:0.75rem">${unread}</span>` : ''}
+      </div>
+    `;
+  }).join('');
 }
 
 async function loadBank() {
-  console.log('[v0] === LOADING BANK ===');
+  console.log('[v0] ===LOADING BANK===');
   
   // Load localStorage data
   const stored = localStorage.getItem(BANK_KEY);
@@ -850,9 +884,9 @@ async function loadBank() {
       
       // Merge exercises from this file
       if (data.lecture)cloudinaryExercises.lecture.push(...data.lecture);
-      if (data.ecoute) cloudinaryExercises.ecoute.push(...data.ecoute);
+      if (data.ecoute)cloudinaryExercises.ecoute.push(...data.ecoute);
       if (data.grammaire)cloudinaryExercises.grammaire.push(...data.grammaire);
-      if (data.lexique) cloudinaryExercises.lexique.push(...data.lexique);
+      if (data.lexique)cloudinaryExercises.lexique.push(...data.lexique);
       
     } catch (error) {
       console.log('[v0] Error loading', fileInfo.fileName, ':', error);
@@ -892,6 +926,7 @@ async function loadBank() {
 }
 
 function updateDashboard() {
+  // Use the correct key for users ('fr_users_db' instead of implicitly using 'fr_users')
   const users = JSON.parse(localStorage.getItem(USERS_KEY) || '[]').filter(u => u.role === 'student');
   const allStats = JSON.parse(localStorage.getItem('fr_stats_db') || '{}');
 
@@ -957,6 +992,7 @@ function syncFromCloudinary() {
     
     console.log('[v0] No index found, trying to load known files directly...');
     const cloudName = CLOUDINARY_CLOUD_NAME;
+    // This list of known files might be incomplete. A proper sync would involve querying Cloudinary API.
     const knownFiles = ['questions.json', 'tous_exercices.json', 'a1_CO.json', 'a1_CE.json', 'a2_CO.json', 'a2_CE.json', 'b1_CO.json', 'b1_CE.json', 'b2_CO.json', 'b2_CE.json', 'c1_CO.json', 'c1_CE.json', 'c2_CO.json', 'c2_CE.json'];
     
     let loadedCount = 0;
@@ -964,7 +1000,7 @@ function syncFromCloudinary() {
     
     const fetchPromises = knownFiles.map(async (fileName) => {
       try {
-        const url = `https://res.cloudinary.com/${cloudName}/raw/upload/entrainement-francais/${fileName}`;
+        const url = `https://res.cloudinary.com/${cloudName}/raw/upload/${CLOUDINARY_JSON_FOLDER}/${fileName}`; // Use the defined folder
         console.log('[v0] Trying to fetch:', url);
         
         const response = await fetch(url, {
@@ -1018,19 +1054,36 @@ function syncFromCloudinary() {
         
         // Categorize and merge exercises
         allExercises.forEach(ex => {
-          const category = ex.type === 'lecture' || ex.type === 'CE' ? 'lecture' : 
-                           ex.type === 'ecoute' || ex.type === 'CO' ? 'ecoute' :
-                           ex.type === 'grammaire' || ex.type === 'Grammaire' ? 'grammaire' : 'lexique';
-          
+          // Standardize type to match bank keys
+          let category = 'lexique'; // Default category
+          if (ex.type) {
+            const lowerType = ex.type.toLowerCase();
+            if (lowerType.includes('lecture') || lowerType === 'ce') category = 'lecture';
+            else if (lowerType.includes('ecoute') || lowerType === 'co') category = 'ecoute';
+            else if (lowerType.includes('grammaire')) category = 'grammaire';
+            else if (lowerType.includes('lexique')) category = 'lexique';
+          } else {
+              // If type is missing, try to infer from properties (less reliable)
+              if (ex.cloze || ex.audio) category = 'ecoute';
+              else if (ex.passage_html || ex.passage_image) category = 'lecture';
+              // Further checks could be added
+          }
+
           if (!stored[category]) stored[category] = [];
           
+          // Ensure consistent type labeling within the exercise object
           if (!ex.type) {
               if (category === 'lecture') ex.type = 'CE';
               else if (category === 'ecoute') ex.type = 'CO';
               else if (category === 'grammaire') ex.type = 'Grammaire';
               else ex.type = 'Lexique';
+          } else {
+            // Standardize known types if they differ
+            if (ex.type.toLowerCase() === 'ce') ex.type = 'CE';
+            if (ex.type.toLowerCase() === 'co') ex.type = 'CO';
           }
 
+          // Ensure unique IDs
           if (!ex.id) {
               ex.id = `${category}_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`;
           }
@@ -1068,8 +1121,10 @@ function switchTab(tabName) {
   if (tabName === 'users') updateUsersTable();
   if (tabName === 'resources') updateResourcesTable();
   if (tabName === 'chat') {
-    loadRecipientOptions(); // Ensure recipient options are loaded for chat tab
-    loadChatUsers();
+    loadChatUsers(); // Load chat users for the chat tab
+    // Ensure recipient options are loaded when switching to chat tab
+    // loadRecipientOptions(); // This is now part of loadChatUsers
+    // loadChatMessages(selectedChatUserId); // Will be called after user selection
   }
   if (tabName === 'builder') { // Initialize creator tab components
     initCreatorTab();
@@ -1077,6 +1132,7 @@ function switchTab(tabName) {
 }
 
 function updateDashboard() {
+  // Use the correct key for users ('fr_users_db' instead of implicitly using 'fr_users')
   const users = JSON.parse(localStorage.getItem(USERS_KEY) || '[]').filter(u => u.role === 'student');
   const allStats = JSON.parse(localStorage.getItem('fr_stats_db') || '{}');
 
@@ -1112,11 +1168,12 @@ function updateDashboard() {
 function updateExercisesTable() {
   const tbody = $('#exercisesBody');
   // Ensure bank and its properties exist before accessing
+  // Map types to consistent labels and classes
   const allExercises = [
-    ...(bank?.lecture || []).map(e => ({ ...e, type: 'CE' })), // Use consistent type labels
-    ...(bank?.ecoute || []).map(e => ({ ...e, type: 'CO' })),
-    ...(bank?.grammaire || []).map(e => ({ ...e, type: 'Grammaire' })),
-    ...(bank?.lexique || []).map(e => ({ ...e, type: 'Lexique' }))
+    ...(bank?.lecture || []).map(e => ({ ...e, typeLabel: 'CE', typeClass: 'badge-lecture' })), 
+    ...(bank?.ecoute || []).map(e => ({ ...e, typeLabel: 'CO', typeClass: 'badge-ecoute' })),
+    ...(bank?.grammaire || []).map(e => ({ ...e, typeLabel: 'Grammaire', typeClass: 'badge-a1' })), // Example class mapping
+    ...(bank?.lexique || []).map(e => ({ ...e, typeLabel: 'Lexique', typeClass: 'badge-a2' })) // Example class mapping
   ];
 
   if (allExercises.length === 0) {
@@ -1126,18 +1183,14 @@ function updateExercisesTable() {
 
   tbody.innerHTML = allExercises.map(ex => {
     const qCount = (ex.qcm?.length || 0) + (ex.vf?.length || 0) + (ex.cloze ? 1 : 0);
-    let typeLabel = ex.type; // Use the type property directly
-    let typeClass = 'badge-lecture';
-    if (ex.type === 'CO') { typeClass = 'badge-ecoute'; }
-    else if (ex.type === 'Grammaire') { typeClass = 'badge-a1'; } // Example class mapping
-    else if (ex.type === 'Lexique') { typeClass = 'badge-a2'; } // Example class mapping
-
+    
+    // Map level to class
     const levelClass = 'badge-' + (ex.niveau || 'a1').toLowerCase();
 
     return `
       <tr>
         <td>${ex.titre}</td>
-        <td><span class="badge ${typeClass}">${typeLabel}</td>
+        <td><span class="badge ${ex.typeClass}">${ex.typeLabel}</td>
         <td><span class="badge ${levelClass}">${ex.niveau}</span></td>
         <td>${ex.theme}</td>
         <td>${qCount}</td>
@@ -1154,7 +1207,8 @@ function updateExercisesTable() {
 
 function deleteExercise(id, type) {
   if (!confirm('Êtes-vous sûr de vouloir supprimer cet exercice ?')) return;
-  let arr;
+  
+  let arr = null;
   // Map the type string to the correct bank property
   if (type === 'CE' || type === 'lecture') arr = bank.lecture;
   else if (type === 'CO' || type === 'ecoute') arr = bank.ecoute;
@@ -1176,12 +1230,12 @@ function deleteExercise(id, type) {
 function editExercise(id) {
   // Find the exercise in the bank
   let exercise = null;
-  let exerciseType = null;
-  for (const type in bank) {
-    const found = bank[type].find(e => e.id === id);
+  let exerciseType = null; // To store the category key ('lecture', 'ecoute', etc.)
+  for (const typeKey in bank) {
+    const found = bank[typeKey].find(e => e.id === id);
     if (found) {
       exercise = found;
-      exerciseType = type;
+      exerciseType = typeKey;
       break;
     }
   }
@@ -1193,7 +1247,10 @@ function editExercise(id) {
 
   // Populate the form
   editingExerciseId = id;
-  $('#kind').value = exercise.type === 'CE' ? 'lecture' : exercise.type === 'CO' ? 'ecoute' : exercise.type.toLowerCase();
+  // Ensure the 'kind' select matches the exercise's type
+  $('#kind').value = exercise.type === 'CE' ? 'lecture' : 
+                     exercise.type === 'CO' ? 'ecoute' : 
+                     exercise.type.toLowerCase();
   $('#niveau').value = exercise.niveau;
   $('#theme').value = exercise.theme;
   $('#exerciseNumber').value = exercise.exerciseNumber || '';
@@ -1203,31 +1260,36 @@ function editExercise(id) {
   $('#difficultyValue').textContent = `Niveau ${exercise.difficulty || 1}`;
 
   // Update the form content based on the exercise type
-  updateAddForm(); 
+  updateAddForm(); // Call to show/hide relevant fields
 
-  // Populate specific fields based on exercise type
+  // Populate specific fields based on exercise type and content
   if (exerciseType === 'lecture') {
     if (exercise.passage_image) {
       passageImageData = exercise.passage_image;
-      $('#passageImagePreviewImg').src = passageImageData;
+      $('#passageImagePreviewImg').src = passageImageData; // Assuming an img tag with this ID exists
       $('#passageImagePreview').style.display = 'block';
-      $('#passageImageDropZone').style.display = 'none';
-      $('input[name="passageType"][value="image"]').checked = true;
+      $('#passageImageDropZone').style.display = 'none'; // Assuming a div with this ID
+      $('input[name="passageType"][value="image"]').checked = true; // Assuming radio buttons
     } else if (exercise.passage_html) {
       const tempDiv = document.createElement('div');
       tempDiv.innerHTML = exercise.passage_html;
       $('#passageTitle').value = tempDiv.querySelector('h3')?.textContent || '';
-      $('#passageText').value = tempDiv.querySelector('p:not([style*="italic"])')?.textContent || '';
-      $('#passageSource').value = tempDiv.querySelector('p[style*="italic"]')?.textContent || '';
+      // Try to find the main text content. This might need refinement if HTML structure is complex.
+      const mainTextElement = tempDiv.querySelector('p:not([style*="italic"])') || tempDiv.querySelector('p');
+      $('#passageText').value = mainTextElement?.textContent || '';
+      // Try to find the source, assuming it's italicized and possibly floated
+      const sourceElement = tempDiv.querySelector('p[style*="italic"]');
+      $('#passageSource').value = sourceElement?.textContent || '';
       $('input[name="passageType"][value="text"]').checked = true;
     }
-    togglePassageType();
+    togglePassageType(); // Ensure display is correct
   } else if (exerciseType === 'ecoute') {
     if (exercise.audio) {
       $('#audio').value = exercise.audio; // Set hidden input value
       $('#audioFileName').textContent = `Fichier sélectionné: ${exercise.audio}`;
       $('#audioFileName').style.display = 'block';
-      $('#audioDropText').style.display = 'none';
+      // Hiding the dropzone if audio is present
+      $('#audioDrop').style.display = 'none'; 
       $('#audioPlayer').src = exercise.audio; // Load audio into player
       $('#audioPreview').style.display = 'block';
     }
@@ -1239,7 +1301,7 @@ function editExercise(id) {
       if (exercise.clozePoints && exercise.clozePoints.length > 0) {
         const config = $('#builderClozeBlanksConfig');
         const list = $('#builderClozeBlankslist');
-        list.innerHTML = '';
+        list.innerHTML = ''; // Clear previous
         
         const blanksInText = [];
         const regex = /\[([^\]]+)\]/g;
@@ -1248,13 +1310,16 @@ function editExercise(id) {
           blanksInText.push(match[1]);
         }
 
+        // Ensure clozePoints array length matches blanks found in text
+        const pointsToUse = exercise.clozePoints.slice(0, blanksInText.length);
+
         blanksInText.forEach((blank, i) => {
           const div = document.createElement('div');
           div.style.cssText = 'display:flex;gap:8px;align-items:center;margin-bottom:8px;padding:8px;background:#fff;border-radius:6px';
           div.innerHTML = `
             <span style="flex:1;font-weight:500">Trou ${i + 1}: "${blank}"</span>
             <label style="display:flex;align-items:center;gap:4px">
-              Points: <input type="number" class="cloze-blank-points" value="${exercise.clozePoints[i] || 1}" min="0" step="0.5" style="width:60px;padding:4px;border:1px solid #ddd;border-radius:4px">
+              Points: <input type="number" class="cloze-blank-points" value="${pointsToUse[i] || 1}" min="0" step="0.5" style="width:60px;padding:4px;border:1px solid #ddd;border-radius:4px">
             </label>
           `;
           list.appendChild(div);
@@ -1277,14 +1342,20 @@ function editExercise(id) {
       const isGrammar = $('#kind').value === 'grammaire';
       
       let optionsHtml = '';
-      const optionLetters = Object.keys(q).filter(key => key !== 'question' && key !== 'answer' && key !== 'points' && key !== 'explanation');
-      optionLetters.sort(); // Ensure options are added in alphabetical order
+      // Extract keys that represent options (e.g., 'a', 'b', 'c')
+      const optionKeys = Object.keys(q).filter(key => 
+        key !== 'question' && key !== 'answer' && key !== 'points' && key !== 'explanation' && 
+        // Add checks for known option keys if they are standardized (e.g., 'a', 'b', 'c')
+        // Or assume any remaining keys are options if they hold string values
+        typeof q[key] === 'string' && !['id', 'type', 'niveau', 'theme', 'titre'].includes(key) // Example filter
+      );
+      optionKeys.sort(); // Ensure options are added in alphabetical order (a, b, c...)
       
-      optionLetters.forEach(letter => {
+      optionKeys.forEach(letter => {
         optionsHtml += `
           <div style="display:flex;gap:8px;margin-bottom:8px;align-items:center" data-option-id="${letter}" data-option-letter="${letter}">
             <label style="margin:0;font-weight:600;min-width:60px">Choix ${letter.toUpperCase()}</label>
-            <input class="form-qcm-option" data-option-letter="${letter}" value="${q[letter]}" placeholder="Réponse ${letter.toUpperCase()}" style="flex:1;padding:10px;border:1px solid #ddd;border-radius:8px;font-size:.95rem;box-sizing:border-box">
+            <input class="form-qcm-option" data-option-letter="${letter}" value="${q[letter]}" placeholder="Réponse ${letter.toUpperCase()}" style="flex:1;padding:10px;border:1px solid #ddd;border-radius:8px;font-size:.95rem">
             <button onclick="removeFormQcmOption(${formQcmCounter}, '${letter}')" style="background:#e53e3e;color:#fff;border:none;padding:8px 12px;border-radius:6px;cursor:pointer;font-size:.85rem">✕</button>
           </div>
         `;
@@ -1321,7 +1392,11 @@ function editExercise(id) {
       `;
       $('#qcmQuestions').appendChild(qDiv);
       updateFormQcmAnswerDropdown(formQcmCounter); // Ensure dropdown is populated
-      $(`.form-qcm-answer[value="${q.answer}"]`).selected = true; // Set correct answer
+      // Set the selected answer, ensuring the option exists
+      const answerOption = $(`.form-qcm-answer[value="${q.answer}"]`);
+      if (answerOption) {
+        answerOption.selected = true;
+      }
     });
   }
 
@@ -1336,7 +1411,7 @@ function editExercise(id) {
       div.dataset.formVfId = formVfCounter;
       
       const type = $('#kind').value;
-      const showKeywords = (type === 'lecture');
+      const showKeywords = (type === 'lecture'); // Keywords relevant for reading comprehension
       
       div.innerHTML = `
         <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
@@ -1370,8 +1445,8 @@ function editExercise(id) {
   }
   
   // Show appropriate containers after form is updated
-  $('#qcmFormBox').style.display = 'block'; // Always show QCM box if present or not empty
-  $('#vfFormBox').style.display = 'block'; // Always show V/F box if present or not empty
+  $('#qcmFormBox').style.display = 'block'; // Always show QCM box if it could contain questions
+  $('#vfFormBox').style.display = 'block'; // Always show V/F box if it could contain questions
   $('#clozeFormBox').style.display =($('#kind').value === 'ecoute') ? 'block' : 'none'; // Show Cloze only for 'ecoute'
   
   $('#addItem').textContent = 'Mettre à jour l\'exercice'; // Change button text for editing
@@ -1379,7 +1454,11 @@ function editExercise(id) {
 
 function cancelEdit() {
   if (confirm('Annuler les modifications ?')) {
-    resetFormState();
+    resetExerciseForm();
+    // If editing, we might want to reload the original data or just reset form.
+    // For now, resetting form is sufficient.
+    editingExerciseId = null; // Clear editing state
+    $('#addItem').textContent = 'Ajouter à la banque'; // Reset button text
     updateExercisesTable(); // Refresh table in case some other changes were made
   }
 }
@@ -1392,7 +1471,11 @@ function saveBank() {
 // Placeholder for actual chart drawing logic
 function drawAdminActivityChart() {
   const ctx = document.getElementById('adminActivityChart').getContext('2d');
-  new Chart(ctx, {
+  // Check if chart already exists and destroy it before creating a new one
+  if (window.adminActivityChartInstance) {
+    window.adminActivityChartInstance.destroy();
+  }
+  window.adminActivityChartInstance = new Chart(ctx, {
     type: 'line',
     data: {
       labels: ['Jour 1', 'Jour 2', 'Jour 3', 'Jour 4', 'Jour 5', 'Jour 6', 'Jour 7'], // Example labels
@@ -1416,7 +1499,11 @@ function drawAdminActivityChart() {
 
 function drawAdminLevelChart() {
   const ctx = document.getElementById('adminLevelChart').getContext('2d');
-  new Chart(ctx, {
+  // Check if chart already exists and destroy it before creating a new one
+  if (window.adminLevelChartInstance) {
+    window.adminLevelChartInstance.destroy();
+  }
+  window.adminLevelChartInstance = new Chart(ctx, {
     type: 'bar',
     data: {
       labels: ['A1', 'A2', 'B1', 'B2', 'C1', 'C2'], // Example labels
@@ -1456,7 +1543,8 @@ function drawAdminLevelChart() {
 
 function updateUsersTable() {
   const tbody = $('#usersBody');
-  const users = JSON.parse(localStorage.getItem(USERS_KEY) || '[]');
+  // Use the correct key for users ('fr_users_db' instead of implicitly using 'fr_users')
+  const users = JSON.parse(localStorage.getItem(USERS_KEY) || '[]'); 
   
   if (users.length === 0) {
     tbody.innerHTML = '<tr><td colspan="6" class="empty-state">Aucun utilisateur</td></tr>';
@@ -1500,7 +1588,8 @@ function updateUsersTable() {
 
 function deleteUser(userId) {
   if (!confirm('Êtes-vous sûr de vouloir supprimer cet utilisateur ?')) return;
-  let users = JSON.parse(localStorage.getItem(USERS_KEY) || '[]');
+  // Use the correct key for users ('fr_users_db' instead of implicitly using 'fr_users')
+  let users = JSON.parse(localStorage.getItem(USERS_KEY) || '[]'); 
   users = users.filter(u => u.id !== userId);
   localStorage.setItem(USERS_KEY, JSON.stringify(users));
   // Also remove stats for this user
@@ -1512,7 +1601,8 @@ function deleteUser(userId) {
 }
 
 function viewUserStats(userId) {
-  const users = JSON.parse(localStorage.getItem(USERS_KEY) || '[]');
+  // Use the correct key for users ('fr_users_db' instead of implicitly using 'fr_users')
+  const users = JSON.parse(localStorage.getItem(USERS_KEY) || '[]'); 
   const user = users.find(u => u.id === userId);
   const userStats = JSON.parse(localStorage.getItem('fr_stats_db') || '{}')[userId] || {};
 
@@ -1527,7 +1617,9 @@ function viewUserStats(userId) {
   let completedLessons = 0;
   const attemptsListHtml = [];
 
+  // Iterate through userStats, which are keyed by lesson ID or exercise ID
   Object.entries(userStats).forEach(([lessonId, lessonData]) => {
+    // `lessonData` likely contains attempts for a specific exercise/lesson
     if (lessonData.completed) {
       completedLessons++;
     }
@@ -1536,6 +1628,7 @@ function viewUserStats(userId) {
         totalAttempts++;
         totalScore += a.percentage;
         attemptCount++;
+        // Attempt to find exercise title for better display
         const exerciseTitle = bank[lessonData.type]?.find(ex => ex.id === lessonData.exerciseId)?.titre || 'Exercice inconnu';
         attemptsListHtml.push(`
           <div class="attempt-item">
@@ -1605,7 +1698,8 @@ function saveNewPin() {
   }
 
   // Retrieve user data from localStorage
-  const users = JSON.parse(localStorage.getItem(USERS_KEY) || '[]');
+  // Use the correct key for users ('fr_users_db' instead of implicitly using 'fr_users')
+  const users = JSON.parse(localStorage.getItem(USERS_KEY) || '[]'); 
   const userIndex = users.findIndex(u => u.id === currentUser.id);
 
   if (userIndex === -1) {
@@ -1633,8 +1727,9 @@ function saveNewPin() {
 }
 
 function openResetStudentPinModal(userId) {
-  const users = JSON.parse(localStorage.getItem(USERS_KEY) || '[]');
-  const student = users.find(u => u.id === userId && u.role === 'student');
+  // Use the correct key for users ('fr_users_db' instead of implicitly using 'fr_users')
+  const users = JSON.parse(localStorage.getItem(USERS_KEY) || '[]'); 
+  const student = users.find(u => u.id === userId && (u.role === 'student' || u.role === 'etudiant')); // Consider 'etudiant' role too
 
   if (!student) {
     alert('Étudiant non trouvé.');
@@ -1675,7 +1770,8 @@ function saveResetPin() {
     return;
   }
 
-  const users = JSON.parse(localStorage.getItem(USERS_KEY) || '[]');
+  // Use the correct key for users ('fr_users_db' instead of implicitly using 'fr_users')
+  const users = JSON.parse(localStorage.getItem(USERS_KEY) || '[]'); 
   const userIndex = users.findIndex(u => u.id === userId);
 
   if (userIndex === -1) {
@@ -1795,46 +1891,65 @@ function resetResourceForm() {
 }
 
 // Chat Management
-let chatUsers = []; // Store users with messages
+// let chatUsers = []; // This local array is not strictly necessary if we rely on the DOM and messagesDb
 
 function loadChatUsers() {
-  // In a real app, this would fetch from a server/backend
-  // For now, simulate by looking at local storage for any messages or user activity
-  const allUsers = JSON.parse(localStorage.getItem(USERS_KEY) || '[]');
-  const messagesDb = JSON.parse(localStorage.getItem('fr_chat_messages') || '{}');
+  // Use the correct key for users ('fr_users_db' instead of 'fr_users')
+  const allUsers = JSON.parse(localStorage.getItem(USERS_KEY) || '[]'); 
+  console.log('[v0] loadChatUsers - all users:', allUsers);
   
-  const usersWithMessages = Object.keys(messagesDb).map(userId => {
-    const user = allUsers.find(u => u.id === userId);
-    if (user) {
-      return { ...user, hasUnread: messagesDb[userId].some(msg => !msg.read && msg.sender !== 'admin') };
-    }
-    return null; // Should not happen if DB is consistent
-  }).filter(Boolean); // Remove any nulls
-
+  // Filter for students, considering both 'student' and 'etudiant' roles
+  const students = allUsers.filter(u => u.role === 'student' || u.role === 'etudiant'); 
+  console.log('[v0] loadChatUsers - filtered students:', students);
+  
+  // Update the recipient select dropdown
+  const recipientSelect = $('#recipientSelect');
+  if (recipientSelect) {
+    // Keep the first option (default placeholder)
+    const firstOption = recipientSelect.querySelector('option[value=""]');
+    recipientSelect.innerHTML = ''; // Clear existing options
+    if (firstOption) recipientSelect.appendChild(firstOption); // Re-add the default option
+    
+    students.forEach(student => {
+      const option = document.createElement('option');
+      option.value = student.id;
+      // Display name if available, otherwise email
+      option.textContent = `${student.name || student.email} (${student.email})`; 
+      recipientSelect.appendChild(option);
+    });
+    console.log('[v0] recipientSelect updated with students');
+  }
+  
+  // Update the chat users list in the UI
   const chatUsersList = $('#chatUsersList');
-  chatUsersList.innerHTML = '';
-
-  if (usersWithMessages.length === 0) {
-    chatUsersList.innerHTML = '<div class="empty-state">Aucun message</div>';
+  if (!chatUsersList) {
+    console.log('[v0] chatUsersList not found');
     return;
   }
   
-  chatUsers = usersWithMessages; // Update local cache
+  if (students.length === 0) {
+    chatUsersList.innerHTML = '<div class="empty-state">Aucun étudiant inscrit</div>';
+    return;
+  }
   
-  chatUsers.forEach(user => {
-    const div = document.createElement('div');
-    div.classList.add('user-item'); // Add a class for styling
-    div.style.cssText = 'padding:12px;border-bottom:1px solid #e0e0e0;cursor:pointer;transition:all .2s';
-    div.innerHTML = `
-      <div style="display:flex;justify-content:space-between;align-items:center">
-        <span style="font-weight:600">${user.name}</span>
-        ${user.hasUnread ? '<span style="background:var(--error);color:#fff;padding:2px 6px;border-radius:4px;font-size:.8rem">Nouveau</span>' : ''}
+  // Use the correct key for messages ('fr_chat_messages' instead of 'fr_messages')
+  const messagesDb = JSON.parse(localStorage.getItem('fr_chat_messages') || '{}'); 
+  
+  chatUsersList.innerHTML = students.map(student => {
+    const studentMessages = messagesDb[student.id] || [];
+    // Count unread messages from the student (where sender is the student's ID)
+    const unread = studentMessages.filter(m => m.sender === student.id && !m.read).length; 
+    
+    return `
+      <div class="user-item" onclick="selectChatUser('${student.id}')" style="padding:12px;border-bottom:1px solid #eee;cursor:pointer;display:flex;justify-content:space-between;align-items:center">
+        <div>
+          <div style="font-weight:600">${student.name || 'Sans nom'}</div> 
+          <div style="font-size:0.85rem;color:#666">${student.email}</div>
+        </div>
+        ${unread > 0 ? `<span style="background:#e53935;color:#fff;padding:2px 8px;border-radius:12px;font-size:0.75rem">${unread}</span>` : ''}
       </div>
-      <small style="color:#666">${user.email}</small>
     `;
-    div.onclick = () => selectChatUser(user.id);
-    chatUsersList.appendChild(div);
-  });
+  }).join('');
 }
 
 function selectChatUser(userId) {
@@ -1845,14 +1960,15 @@ function selectChatUser(userId) {
   $('#deleteChatBtn').disabled = false;
   
   // Highlight selected user
-  $$('#chatUsersList .user-item').forEach(item => item.style.background = '');
-  event.target.closest('.user-item').style.background = '#f0f0f0';
+  $$('#chatUsersList .user-item').forEach(item => item.style.background = ''); // Clear previous highlights
+  event.currentTarget.style.background = '#f0f0f0'; // Highlight the clicked item
   
   loadChatMessages(userId);
 }
 
 function loadChatMessages(userId) {
-  const messagesDb = JSON.parse(localStorage.getItem('fr_chat_messages') || '{}');
+  // Use the correct key for messages ('fr_chat_messages' instead of 'fr_messages')
+  const messagesDb = JSON.parse(localStorage.getItem('fr_chat_messages') || '{}'); 
   const messages = messagesDb[userId] || [];
   
   const chatMessagesArea = $('#chatMessagesArea');
@@ -1866,10 +1982,14 @@ function loadChatMessages(userId) {
   messages.forEach(msg => {
     const isAdmin = msg.sender === 'admin';
     const msgDiv = document.createElement('div');
+    // Apply dynamic styling based on sender
     msgDiv.style.cssText = `
       margin-bottom:12px;padding:10px 14px;border-radius:8px;max-width:70%;
-      align-self:${isAdmin ? 'flex-end;background:var(--brand);color:#fff' : 'flex-start;background:#fff;border:1px solid #e0e0e0'};
       word-wrap: break-word;
+      align-self:${isAdmin ? 'flex-end' : 'flex-start'};
+      background:${isAdmin ? 'var(--brand)' : '#fff'};
+      color:${isAdmin ? '#fff' : 'var(--text)'};
+      border:${isAdmin ? 'none' : '1px solid #e0e0e0'};
     `;
     msgDiv.innerHTML = `
       <div style="font-size:.8rem;opacity:.8;margin-bottom:4px">${new Date(msg.timestamp).toLocaleTimeString()}</div>
@@ -1877,17 +1997,17 @@ function loadChatMessages(userId) {
     `;
     chatMessagesArea.appendChild(msgDiv);
     
-    // Mark as read if it's a student message
-    if (!isAdmin && !msg.read) {
+    // Mark as read if it's a student message that was unread
+    if (!isAdmin && msg.sender === userId && !msg.read) {
       msg.read = true;
     }
   });
 
-  // Update messagesDb with read status
-  if (messages.some(msg => !msg.read)) {
+  // Update messagesDb with read status if any messages were marked as read
+  if (messages.some(msg => !isAdmin && msg.sender === userId && msg.read)) {
     messagesDb[userId] = messages;
     localStorage.setItem('fr_chat_messages', JSON.stringify(messagesDb));
-    // Refresh user list to update unread indicators
+    // Refresh user list to update unread indicators if necessary
     loadChatUsers(); 
   }
   
@@ -1897,329 +2017,123 @@ function loadChatMessages(userId) {
 
 // Modified sendAdminMessage to support multiple recipients
 function sendAdminMessage() {
-  // If recipients are selected, send to all of them
-  if (selectedRecipients.length > 0) {
-    const messageInput = $('#adminMessageInput');
-    const text = messageInput.value.trim();
+  const messageInput = $('#adminMessageInput');
+  const text = messageInput.value.trim();
+  
+  if (!text) {
+    alert('Veuillez entrer un message');
+    return;
+  }
+  
+  // Use the correct key for messages ('fr_chat_messages' instead of 'fr_messages')
+  const messagesDb = JSON.parse(localStorage.getItem('fr_chat_messages') || '{}');
+  
+  // Check if sending to a single selected user or a group
+  if (selectedChatUserId) { // Sending to a single user
+    if (!messagesDb[selectedChatUserId]) messagesDb[selectedChatUserId] = [];
     
-    if (!text) {
-      alert('Veuillez entrer un message');
-      return;
-    }
+    const newMessage = {
+      sender: 'admin', // Message is from admin
+      text: text,
+      timestamp: Date.now(),
+      read: true // Admin messages are implicitly read by the recipient
+    };
     
-    const messagesDb = JSON.parse(localStorage.getItem('fr_chat_messages') || '{}');
+    messagesDb[selectedChatUserId].push(newMessage);
     
-    selectedRecipients.forEach(recipient => {
-      if (!messagesDb[recipient.id]) messagesDb[recipient.id] = [];
+    messageInput.value = ''; // Clear input field
+    loadChatMessages(selectedChatUserId); // Refresh the current chat view
+    
+  } else if (selectedRecipients.length > 0) { // Sending to multiple recipients
+    selectedRecipients.forEach(recipientId => {
+      if (!messagesDb[recipientId]) messagesDb[recipientId] = [];
       
       const newMessage = {
         sender: 'admin',
         text: text,
         timestamp: Date.now(),
-        read: true // Admin messages are implicitly read
+        read: true 
       };
-      
-      messagesDb[recipient.id].push(newMessage);
+      messagesDb[recipientId].push(newMessage);
     });
     
-    localStorage.setItem('fr_chat_messages', JSON.stringify(messagesDb));
-    
-    messageInput.value = '';
+    messageInput.value = ''; // Clear input field
+    alert(`Message envoyé à ${selectedRecipients.length} étudiant(s).`);
     selectedRecipients = []; // Clear recipients after sending
-    updateSelectedRecipientsUI(); // Update UI to show no recipients selected
+    updateSelectedRecipientsUI(); // Update the UI to show no recipients selected
     
-    alert(`Message envoyé à ${selectedRecipients.length} étudiant(s)`); // This alert might not be accurate due to reset
-    loadChatUsers(); // Refresh user list to update unread status
-    return;
-  }
-  
-  // If no recipients are selected, use the original function for single chat
-  if (selectedChatUserId) {
-    const messageInput = $('#adminMessageInput');
-    const text = messageInput.value.trim();
-    
-    if (!text) return;
-    
-    const messagesDb = JSON.parse(localStorage.getItem('fr_chat_messages') || '{}');
-    if (!messagesDb[selectedChatUserId]) messagesDb[selectedChatUserId] = [];
-    
-    const newMessage = {
-      sender: 'admin',
-      text: text,
-      timestamp: Date.now(),
-      read: true // Admin messages are implicitly read
-    };
-    
-    messagesDb[selectedChatUserId].push(newMessage);
-    localStorage.setItem('fr_chat_messages', JSON.stringify(messagesDb));
-    
-    messageInput.value = '';
-    loadChatMessages(selectedChatUserId);
   } else {
     alert('Veuillez sélectionner un étudiant ou un groupe de destinataires.');
+    return; // Do not proceed if no recipient is selected
   }
+
+  localStorage.setItem('fr_chat_messages', JSON.stringify(messagesDb));
+  loadChatUsers(); // Refresh user list to update unread status
 }
 
-
 function deleteAdminChatHistory() {
-  if (!selectedChatUserId) return;
+  if (!selectedChatUserId) {
+    alert('Veuillez sélectionner un étudiant dont vous souhaitez supprimer l\'historique.');
+    return;
+  }
   if (!confirm('Supprimer tout l\'historique de conversation avec cet étudiant ? Cette action est irréversible.')) return;
   
-  const messagesDb = JSON.parse(localStorage.getItem('fr_chat_messages') || '{}');
-  delete messagesDb[selectedChatUserId];
+  // Use the correct key for messages ('fr_chat_messages' instead of 'fr_messages')
+  const messagesDb = JSON.parse(localStorage.getItem('fr_chat_messages') || '{}'); 
+  delete messagesDb[selectedChatUserId]; // Remove the entire history for this user
   localStorage.setItem('fr_chat_messages', JSON.stringify(messagesDb));
   
+  // Update UI to reflect deletion
   $('#chatMessagesArea').innerHTML = '<div class="empty-state">Historique supprimé</div>';
   $('#adminMessageInput').disabled = true;
   $('#sendMessageBtn').disabled = true;
   $('#deleteChatBtn').disabled = true;
+  selectedChatUserId = null; // Deselect user
   
   // Refresh user list
   loadChatUsers();
 }
 
-// Helper for parsing bulk QCM lines
-function parseBulkQCM(lines) {
-  const questions = [];
-  lines.split('\n').forEach(line => {
-    const parts = line.split(';').map(p => p.trim());
-    if (parts.length >= 5) { // Question; A; B; C; response; [points]; [explanation]
-      const question = parts[0];
-      const options = {};
-      let answer = '';
-      let points = 1;
-      let explanation = '';
-      
-      // Extract options and answer (assuming A, B, C are standard)
-      if (parts.length > 1) options['a'] = parts[1];
-      if (parts.length > 2) options['b'] = parts[2];
-      if (parts.length > 3) options['c'] = parts[3];
-      if (parts.length > 4) answer = parts[4].toLowerCase();
-      if (parts.length > 5) points = parseInt(parts[5]) || 1;
-      if (parts.length > 6) explanation = parts[6];
-      
-      const q = { question, ...options, answer, points };
-      if (explanation) q.explanation = explanation;
-      questions.push(q);
-    }
-  });
-  return questions;
+// Helper for selecting all students for bulk messaging
+function selectAllStudents() {
+  const students = JSON.parse(localStorage.getItem(USERS_KEY) || '[]').filter(u => u.role === 'student' || u.role === 'etudiant');
+  selectedRecipients = students.map(s => s.id);
+  updateSelectedRecipientsUI();
 }
 
-// Helper for parsing bulk Vrai/Faux lines
-function parseVF(lines) {
-  const questions = [];
-  lines.split('\n').forEach(line => {
-    const parts = line.split(';').map(p => p.trim());
-    if (parts.length >= 3) { // Statement; answer; [keywords]; [points]
-      const statement = parts[0];
-      const answer = parts[1].toLowerCase();
-      const keywords = parts.length > 2 && parts[2] ? parts[2].split('|').map(k => k.trim()).filter(Boolean) : [];
-      const points = parts.length > 3 ? parseInt(parts[3]) || 1 : 1;
-      questions.push({ statement, answer, keywords, points });
-    }
-  });
-  return questions;
+// Helper for selecting a custom group of students (currently just a placeholder)
+function selectGroupStudents() {
+  // In a real app, this would open a modal or another UI to select students.
+  alert('Sélection de groupe personnalisé non implémentée.');
 }
 
-// Audio file handling for 'ecoute' type
-function handleAudioFile(file, inputElement, fileNameDisplay, hiddenAudioInput) {
-  if (!file) return;
-  if (!file.type.startsWith('audio/')) {
-    alert('Veuillez sélectionner un fichier audio.');
-    inputElement.value = ''; // Clear invalid selection
-    return;
+// Helper to update the UI showing selected recipients for bulk messaging
+function updateSelectedRecipientsUI() {
+  const selectedRecipientsDiv = $('#selectedRecipients');
+  selectedRecipientsDiv.innerHTML = ''; // Clear previous
+  
+  if (selectedRecipients.length === 0) {
+    return; // Do nothing if no recipients selected
   }
-
-  // In a real app, you'd upload this file to a server or CDN.
-  // For this example, we'll just display its name and store a placeholder path.
-  const placeholderPath = `audio/${file.name}`; 
-  fileNameDisplay.textContent = `Fichier sélectionné: ${file.name}`;
-  fileNameDisplay.style.display = 'block';
-  hiddenAudioInput.value = placeholderPath; // Store placeholder path
-  inputElement.value = ''; // Clear input to allow re-uploading the same file
-
-  // Simulate upload and get URL (if using Cloudinary, for example)
-  // For now, just use the placeholderPath
+  
+  // Get names for display
+  const allUsers = JSON.parse(localStorage.getItem(USERS_KEY) || '[]');
+  selectedRecipients.forEach(recipientId => {
+    const user = allUsers.find(u => u.id === recipientId);
+    const span = document.createElement('span');
+    span.style.cssText = 'background:#e0e0e0;padding:4px 8px;border-radius:4px;font-size:.85rem;display:flex;align-items:center;gap:4px';
+    span.innerHTML = `
+      ${user ? user.name : 'Utilisateur inconnu'} 
+      <button onclick="removeRecipient('${recipientId}')" style="background:none;border:none;cursor:pointer;font-weight:bold;color:#666;padding:0;">✕</button>
+    `;
+    selectedRecipientsDiv.appendChild(span);
+  });
 }
 
-// CHANGE: Fix initialization to call loadRecipientOptions
-document.addEventListener('DOMContentLoaded', async function() {
-  console.log('[v0] Admin page loaded');
-  
-  // Check authentication
-  checkAuth();
-  
-  // Load bank and update dashboard
-  await loadBank();
-  
-  // Load users table
-  updateUsersTable();
-  
-  // Load recipient options for messaging
-  loadRecipientOptions();
-  
-  // Load resources table
-  updateResourcesTable();
-  
-  // Load chat users
-  loadChatUsers();
-  
-  // Logout button handler
-  const logoutBtn = $('#logoutBtn');
-  if (logoutBtn) {
-    logoutBtn.addEventListener('click', function() {
-      localStorage.removeItem(AUTH_KEY);
-      window.location.href = 'login.html';
-    });
-  }
-
-  // Add event listener for the new "Add to bank" button
-  const addItemBtn = $('#addItem');
-  if (addItemBtn) {
-    addItemBtn.addEventListener('click', addExerciseFromBuilder);
-    console.log('[v0] Add item button listener attached');
-  }
-  
-  // Add QCM button
-  const addQcmBtn = $('#addQcmQuestion');
-  if (addQcmBtn) {
-    addQcmBtn.addEventListener('click', addFormQcmQuestion);
-    console.log('[v0] QCM button listener attached');
-  }
-  
-  // Add V/F button
-  const addVfBtn = $('#addVfQuestion');
-  if (addVfBtn) {
-    addVfBtn.addEventListener('click', addVfQuestion);
-    console.log('[v0] V/F button listener attached');
-  }
-
-  // Update difficulty value display
-  const difficultySlider = $('#difficulty');
-  const difficultyValue = $('#difficultyValue');
-  if (difficultySlider && difficultyValue) {
-    difficultyValue.textContent = `Niveau ${difficultySlider.value}`;
-    difficultySlider.addEventListener('input', function() {
-      difficultyValue.textContent = `Niveau ${this.value}`;
-    });
-  }
-});
-
-// Handler for adding exercise from the builder form
-function addExerciseFromBuilder() {
-  const form = $('#exerciseForm');
-  const kind = $('#kind').value;
-  const niveau = $('#niveau').value;
-  const theme = $('#theme').value.trim();
-  const exerciseNumber = $('#exerciseNumber').value;
-  const customId = $('#id').value.trim();
-  const difficulty = $('#difficulty').value;
-  const audio = $('#audio').value;
-  const passageTitle = $('#passageTitle').value.trim();
-  const passageText = $('#passageText').value.trim();
-  const passageSource = $('#passageSource').value.trim();
-  const clozeText = $('#clozeText').value;
-  const transText = $('#transText').value;
-
-  if (!kind || !niveau || !theme) {
-    alert('Veuillez remplir au moins la Discipline, le Niveau et le Thème.');
-    return;
-  }
-  
-  // Generate a default ID if not provided
-  let exerciseId = customId || `${kind.toLowerCase()}_${niveau.toLowerCase()}_${Date.now().toString().substring(0, 6)}`;
-  
-  // Check for duplicate IDs within the same type
-  if (bank[kind] && bank[kind].some(ex => ex.id === exerciseId && ex.id !== editingExerciseId)) {
-      alert(`L'ID "${exerciseId}" existe déjà pour la discipline "${kind}". Veuillez en choisir un autre.`);
-      return;
-  }
-  
-  const exercise = {
-    id: exerciseId,
-    type: kind,
-    niveau: niveau,
-    theme: theme,
-    exerciseNumber: parseInt(exerciseNumber) || null,
-    difficulty: parseInt(difficulty),
-    titre: `${kind.toUpperCase()} - ${niveau} - Thème: ${theme}` + (exerciseNumber ? ` - N°${exerciseNumber}` : ''),
-  };
-
-  if (audio) exercise.audio = audio;
-  if (passageTitle || passageText || passageSource) {
-    exercise.passage_html = `<h3>${passageTitle}</h3><p>${passageText}</p>` + (passageSource ? `<p style="font-style: italic; float: right;">${passageSource}</p>` : '');
-  }
-  
-  // QCM questions
-  const qcmQuestions = $$('#qcmQuestions .form-qcm-question').map(qInput => {
-    const qDiv = qInput.closest('div[data-form-qcm-id]');
-    const questionText = qInput.value.trim();
-    const optionsHtmlDivs = qDiv.querySelectorAll(':scope > .form-qcm-options-container > div[data-option-letter]');
-    const options = {};
-    let correctAnswer = '';
-    let points = parseInt(qDiv.querySelector('.form-qcm-points').value) || 1;
-    
-    optionsHtmlDivs.forEach((optionDiv, index) => {
-        const letter = optionDiv.dataset.optionLetter;
-        const optionInput = optionDiv.querySelector('.form-qcm-option');
-        options[letter] = optionInput.value.trim();
-    });
-
-    const answerDropdown = qDiv.querySelector('.form-qcm-answer');
-    correctAnswer = answerDropdown.value;
-
-    if (!correctAnswer && Object.keys(options).length > 0) {
-        correctAnswer = Object.keys(options)[0]; // Default to first option if none marked
-    }
-
-    return { question: questionText, ...options, answer: correctAnswer, points };
-  });
-  if (qcmQuestions.length > 0) exercise.qcm = qcmQuestions;
-
-  // Vrai/Faux questions
-  const vfQuestions = $$('#vfQuestions .form-vf-statement').map(vfInput => {
-    const qDiv = vfInput.closest('div[data-form-vf-id]');
-    const statement = vfInput.value.trim();
-    const answer = qDiv.querySelector('.form-vf-answer:checked').value;
-    const points = parseInt(qDiv.querySelector('.form-vf-points').value) || 1;
-    const keywordsInput = qDiv.querySelector('.form-vf-keywords');
-    const keywords = keywordsInput ? keywordsInput.value.split('|').map(k => k.trim()).filter(Boolean) : [];
-    return { statement, answer, keywords, points };
-  });
-  if (vfQuestions.length > 0) exercise.vf = vfQuestions;
-
-  // Cloze exercise
-  if (clozeText) {
-    exercise.cloze = clozeText;
-    exercise.transcription = transText;
-    
-    const blankConfigs = $$('#builderClozeBlankslist .cloze-blank-points').map(input => parseInt(input.value) || 1);
-    if (blankConfigs.length > 0) {
-        exercise.clozePoints = blankConfigs;
-    }
-  }
-
-  // Add or update exercise
-  if (editingExerciseId) {
-    const typeIndex = bank[kind].findIndex(ex => ex.id === editingExerciseId);
-    if (typeIndex !== -1) {
-      // Merge with existing properties to keep things like created_at, etc.
-      bank[kind][typeIndex] = { ...bank[kind][typeIndex], ...exercise };
-    } else {
-      // Should not happen if ID is valid and matches kind, but as fallback:
-      bank[kind].push(exercise);
-    }
-  } else {
-    bank[kind].push(exercise);
-  }
-  
-  saveBank();
-  updateExercisesTable();
-  resetExerciseForm(); // Clear the form after adding
-  $('#addInfo').textContent = editingExerciseId ? 'Exercice mis à jour !' : 'Exercice ajouté à la banque !';
-  $('#addInfo').style.color = 'green';
-  setTimeout(() => $('#addInfo').textContent = '', 3000);
+// Helper to remove a recipient from the bulk list
+function removeRecipient(recipientId) {
+  selectedRecipients = selectedRecipients.filter(id => id !== recipientId);
+  updateSelectedRecipientsUI();
 }
 
 // Helper function to reset the exercise form
@@ -2250,8 +2164,11 @@ function resetExerciseForm() {
   const audioPreview = $('#audioPreview');
   if (audioPreview) audioPreview.style.display = 'none';
   
+  const audioInput = $('#audioInput'); // Also clear the file input
+  if (audioInput) audioInput.value = '';
+
   qcmQuestionCount = 0;
-  vfQuestionCount = 0;
+  formVfCounter = 0; // Ensure this is reset correctly
   editingExerciseId = null;
   
   const addBtn = $('#addItem');
@@ -2266,13 +2183,508 @@ function resetExerciseForm() {
 
 // Helper function to initialize creator tab
 function initCreatorTab() {
-  toggleBoxes();
+  toggleBoxes(); // Initial display setup
   
   // Reset QCM and VF counters when initializing the tab
   qcmQuestionCount = 0;
-  vfQuestionCount = 0;
+  formVfCounter = 0; // Use the correct counter name
   
   // Ensure the form is reset if not editing
+  if (!editingExerciseId) {
+    resetExerciseForm();
+  }
+}
+
+// Helper function to detect and configure cloze blanks
+function detectBuilderClozeBlanks() {
+  const clozeText = $('#clozeText').value;
+  const blanks = clozeText.match(/\[([^\]]+)\]/g); // Find text within brackets
+  
+  const builderClozeBlankslist = $('#builderClozeBlankslist');
+  const configContainer = $('#builderClozeBlanksConfig');
+  
+  if (!blanks || blanks.length === 0) {
+    configContainer.style.display = 'none';
+    builderClozeBlankslist.innerHTML = '';
+    alert('Aucun trou détecté. Assurez-vous d\'utiliser des crochets [] pour délimiter les mots à trous.');
+    return;
+  }
+  
+  builderClozeBlankslist.innerHTML = '';
+  configContainer.style.display = 'block';
+  
+  blanks.forEach((blank, index) => {
+    const blankContent = blank.slice(1, -1); // Remove brackets
+    const div = document.createElement('div');
+    div.style.cssText = 'display:flex;gap:8px;align-items:center;margin-bottom:8px;padding:8px;background:#fff;border-radius:6px';
+    div.innerHTML = `
+      <span style="flex:1;font-weight:500">Trou ${index + 1}: "${blankContent}"</span>
+      <label style="display:flex;align-items:center;gap:4px">
+        Points: <input type="number" class="cloze-blank-points" value="1" min="0" step="0.5" style="width:60px;padding:4px;border:1px solid #ddd;border-radius:4px">
+      </label>
+    `;
+    builderClozeBlankslist.appendChild(div);
+  });
+}
+
+// Function to handle audio file drop or selection
+function handleAudioFile(file, dropZoneElement, inputElement, fileNameDisplay, hiddenAudioInput, audioPlayer) {
+  if (!file) return;
+  if (!file.type.startsWith('audio/')) {
+    alert('Veuillez sélectionner un fichier audio valide.');
+    inputElement.value = ''; // Clear invalid selection
+    dropZoneElement.style.background = '#eff6ff'; // Reset drop zone style
+    return;
+  }
+
+  // In a real app, you'd upload this file to a server or CDN.
+  // For this example, we'll just display its name and store a placeholder path.
+  // Use Cloudinary upload URL for simulation/actual upload if configured
+  // For now, let's just use a placeholder path that would be replaced by the actual URL after upload.
+  const placeholderPath = `audio/${file.name}`; 
+  
+  fileNameDisplay.textContent = `Fichier sélectionné: ${file.name}`;
+  fileNameDisplay.style.display = 'block';
+  hiddenAudioInput.value = placeholderPath; // Store placeholder path
+  inputElement.value = ''; // Clear input to allow re-uploading the same file
+
+  // Display the audio player and load the file
+  audioPlayer.src = URL.createObjectURL(file); // Use a local URL for preview
+  audioPlayer.style.display = 'block'; // Make player visible
+  dropZoneElement.style.display = 'none'; // Hide drop zone
+  // Assuming audioPreview div also needs to be shown
+  const audioPreview = document.getElementById('audioPreview');
+  if (audioPreview) audioPreview.style.display = 'block';
+}
+
+// Event handler for audio file input change
+function handleAudioSelect(event) {
+  const file = event.target.files[0];
+  handleAudioFile(
+    file,
+    event.target, // inputElement
+    $('#audioFileName'), // fileNameDisplay
+    $('#audio'), // hiddenAudioInput
+    $('#audioPlayer') // audioPlayer
+  );
+}
+
+// Event handler for audio file drop
+function handleAudioDrop(event) {
+  event.preventDefault(); // Prevent default behavior
+  const file = event.dataTransfer.files[0];
+  const dropZoneElement = event.currentTarget; // The element the drop event occurred on
+  
+  handleAudioFile(
+    file,
+    dropZoneElement, // dropZoneElement
+    $('#audioInput'), // inputElement
+    $('#audioFileName'), // fileNameDisplay
+    $('#audio'), // hiddenAudioInput
+    $('#audioPlayer') // audioPlayer
+  );
+  
+  // Reset drop zone style after handling
+  dropZoneElement.style.background = '#eff6ff';
+}
+
+// Function to remove the selected audio file
+function removeAudio() {
+  $('#audio').value = ''; // Clear hidden input
+  $('#audioFileName').textContent = '';
+  $('#audioFileName').style.display = 'none';
+  $('#audioPlayer').src = '';
+  $('#audioPlayer').style.display = 'none';
+  $('#audioDrop').style.display = 'block'; // Show drop zone again
+  $('#audioPreview').style.display = 'none'; // Hide the preview div
+  $('#audioInput').value = ''; // Clear the file input itself
+}
+
+// Toggle visibility of passage type elements
+function togglePassageType() {
+  const passageType = $('input[name="passageType"]:checked').value;
+  if (passageType === 'image') {
+    $('#passageImageUpload').style.display = 'block';
+    $('#passageTextContent').style.display = 'none';
+  } else {
+    $('#passageImageUpload').style.display = 'none';
+    $('#passageTextContent').style.display = 'block';
+  }
+}
+
+// Helper to update the form based on exercise type selection
+function updateAddForm() {
+  const kind = $('#kind').value;
+  const passageBox = $('#passageBox');
+  const qcmFormBox = $('#qcmFormBox');
+  const vfFormBox = $('#vfFormBox');
+  const clozeFormBox = $('#clozeFormBox');
+
+  // Hide all optional sections first
+  passageBox.classList.add('hidden');
+  qcmFormBox.style.display = 'none';
+  vfFormBox.style.display = 'none';
+  clozeFormBox.style.display = 'none';
+  $$('.ecoute-only').forEach(el => el.style.display = 'none');
+
+  if (kind === 'lecture') {
+    passageBox.classList.remove('hidden');
+    qcmFormBox.style.display = 'block';
+    vfFormBox.style.display = 'block';
+  } else if (kind === 'ecoute') {
+    $$('.ecoute-only').forEach(el => el.style.display = 'block');
+    clozeFormBox.style.display = 'block';
+    qcmFormBox.style.display = 'block'; // QCM can also be used for audio
+    vfFormBox.style.display = 'block'; // V/F might also be relevant
+  } else if (kind === 'grammaire' || kind === 'lexique') {
+    qcmFormBox.style.display = 'block';
+    vfFormBox.style.display = 'block'; // V/F can be used for grammar/lexicon too
+  }
+}
+
+// Toggle visibility based on exercise type
+function toggleBoxes() {
+  updateAddForm();
+}
+
+// INITIALIZATION
+document.addEventListener('DOMContentLoaded', async function() {
+  console.log('[v0] Admin page loaded');
+  
+  // Check authentication
+  checkAuth();
+  
+  // Load bank and update dashboard
+  await loadBank();
+  
+  // Load users table
+  updateUsersTable();
+  
+  // Load recipient options for messaging (now part of loadChatUsers)
+  loadChatUsers();
+  
+  // Load resources table
+  updateResourcesTable();
+  
+  // Load chat users list
+  loadChatUsers();
+  
+  // Logout button handler
+  const logoutBtn = $('#logoutBtn');
+  if (logoutBtn) {
+    logoutBtn.addEventListener('click', function() {
+      localStorage.removeItem(AUTH_KEY);
+      window.location.href = 'login.html';
+    });
+  }
+
+  // Add event listener for the "Add to bank" button
+  const addItemBtn = $('#addItem');
+  if (addItemBtn) {
+    addItemBtn.addEventListener('click', addExerciseFromBuilder);
+    console.log('[v0] Add item button listener attached');
+  }
+  
+  // Add QCM button listener
+  const addQcmBtn = $('#addQcmQuestion');
+  if (addQcmBtn) {
+    addQcmBtn.addEventListener('click', addFormQcmQuestion);
+    console.log('[v0] QCM button listener attached');
+  }
+  
+  // Add V/F button listener
+  const addVfBtn = $('#addVfQuestion');
+  if (addVfBtn) {
+    addVfBtn.addEventListener('click', addVfQuestion);
+    console.log('[v0] V/F button listener attached');
+  }
+
+  // Update difficulty value display on slider input
+  const difficultySlider = $('#difficulty');
+  const difficultyValue = $('#difficultyValue');
+  if (difficultySlider && difficultyValue) {
+    difficultyValue.textContent = `Niveau ${difficultySlider.value}`;
+    difficultySlider.addEventListener('input', function() {
+      difficultyValue.textContent = `Niveau ${this.value}`;
+    });
+  }
+
+  // Initialize the creator tab elements
+  initCreatorTab();
+});
+
+// Helper function to add a Vrai/Faux question to the form
+function addVfQuestion() {
+  formVfCounter++;
+  const div = document.createElement('div');
+  div.style.cssText = 'background:#f9f9f9;padding:12px;border-radius:8px;margin:8px 0;border:1px solid #e0e0e0';
+  div.dataset.formVfId = formVfCounter;
+  
+  const type = $('#kind').value;
+  const showKeywords = (type === 'lecture'); // Keywords are useful for comprehension
+  
+  div.innerHTML = `
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
+      <span style="font-weight:600;color:var(--brand)">Question ${formVfCounter}</span>
+      <button class="btn-danger" onclick="removeFormVfQuestion(${formVfCounter})" style="padding:6px 10px;font-size:.85rem">Supprimer</button>
+    </div>
+    <label>Énoncé</label>
+    <input class="form-vf-statement" placeholder="La France est une île." style="width:100%;padding:10px;border:1px solid #ddd;border-radius:8px;font-size:.95rem;box-sizing:border-box;margin-bottom:8px">
+    
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:8px">
+      <div>
+        <label>Réponse</label>
+        <select class="form-vf-answer" style="width:100%;padding:10px;border:1px solid #ddd;border-radius:8px;font-size:.95rem;box-sizing:border-box">
+          <option value="vrai">Vrai</option>
+          <option value="faux">Faux</option>
+        </select>
+      </div>
+      <div>
+        <label>Points</label>
+        <input type="number" class="form-vf-points" value="1" min="1" style="width:100%;padding:10px;border:1px solid #ddd;border-radius:8px;font-size:.95rem;box-sizing:border-box">
+      </div>
+    </div>
+    
+    <div style="margin-top:8px;display:${showKeywords ? 'block' : 'none'}">
+      <label>Mots-clés (pour indice ou vérification, séparés par |)</label>
+      <input class="form-vf-keywords" placeholder="ex. France|île" style="width:100%;padding:10px;border:1px solid #ddd;border-radius:8px;font-size:.95rem;box-sizing:border-box">
+    </div>
+  `;
+  $('#vfQuestions').appendChild(div);
+}
+
+// Function to remove a Vrai/Faux question
+window.removeFormVfQuestion = function(id) {
+  const item = document.querySelector(`[data-form-vf-id="${id}"]`);
+  if (item) {
+    item.remove();
+  }
+};
+
+// Handler for adding exercise from the builder form
+function addExerciseFromBuilder() {
+  const form = $('#exerciseForm');
+  const kind = $('#kind').value;
+  const niveau = $('#niveau').value;
+  const theme = $('#theme').value.trim();
+  const exerciseNumber = $('#exerciseNumber').value;
+  const customId = $('#id').value.trim();
+  const difficulty = $('#difficulty').value;
+  const audio = $('#audio').value; // This will hold the Cloudinary URL or placeholder
+  const passageTitle = $('#passageTitle').value.trim();
+  const passageText = $('#passageText').value.trim();
+  const passageSource = $('#passageSource').value.trim();
+  const clozeText = $('#clozeText').value;
+  const transText = $('#transText').value;
+
+  if (!kind || !niveau || !theme) {
+    alert('Veuillez remplir au moins la Discipline, le Niveau et le Thème.');
+    return;
+  }
+  
+  // Generate a default ID if not provided and if not editing
+  let exerciseId = customId;
+  if (!exerciseId && !editingExerciseId) {
+      exerciseId = `${kind.toLowerCase()}_${niveau.toLowerCase()}_${Date.now().toString().substring(0, 6)}`;
+  } else if (!exerciseId && editingExerciseId) {
+      // If editing and ID is empty, retain original ID if possible or generate new one
+      // For safety, let's ensure it always has an ID. If editing and it was empty, try to use original.
+      const originalExercise = bank[kind].find(ex => ex.id === editingExerciseId);
+      if (originalExercise) exerciseId = originalExercise.id;
+      else exerciseId = `${kind.toLowerCase()}_${niveau.toLowerCase()}_${Date.now().toString().substring(0, 6)}`;
+  }
+  
+  // Check for duplicate IDs within the same type if a custom ID was provided or if editing.
+  // Note: When editing, we should allow the same ID if it's the exercise being edited.
+  const isEditing = !!editingExerciseId;
+  const existingExercisesOfKind = bank[kind] || [];
+  const idExists = existingExercisesOfKind.some(ex => ex.id === exerciseId && (isEditing ? ex.id !== editingExerciseId : true));
+
+  if (idExists) {
+      alert(`L'ID "${exerciseId}" existe déjà pour la discipline "${kind}". Veuillez en choisir un autre.`);
+      return;
+  }
+  
+  // Construct the base exercise object
+  const exercise = {
+    id: exerciseId,
+    type: kind === 'lecture' ? 'CE' : kind === 'ecoute' ? 'CO' : kind, // Standardize types
+    niveau: niveau,
+    theme: theme,
+    exerciseNumber: parseInt(exerciseNumber) || null,
+    difficulty: parseInt(difficulty),
+    // Create a default title if not explicitly generated later
+    titre: `${kind.toUpperCase()} - ${niveau} - Thème: ${theme}` + (exerciseNumber ? ` - N°${exerciseNumber}` : ''),
+  };
+
+  // Add audio if present
+  if (audio) exercise.audio = audio;
+  
+  // Add passage content if provided
+  if (passageTitle || passageText || passageSource) {
+    // Construct HTML content
+    let passageHtml = '';
+    if (passageTitle) passageHtml += `<h3>${passageTitle}</h3>`;
+    if (passageText) passageHtml += `<p>${passageText}</p>`;
+    if (passageSource) passageHtml += `<p style="font-style: italic; float: right;">${passageSource}</p>`;
+    exercise.passage_html = passageHtml;
+  }
+  
+  // Collect QCM questions
+  const qcmQuestions = $$('#qcmQuestions .form-qcm-question').map(qInput => {
+    const qDiv = qInput.closest('div[data-form-qcm-id]');
+    const questionText = qInput.value.trim();
+    const optionsHtmlDivs = qDiv.querySelectorAll(':scope > .form-qcm-options-container > div[data-option-letter]');
+    const options = {};
+    let correctAnswer = '';
+    let points = parseInt(qDiv.querySelector('.form-qcm-points').value) || 1;
+    
+    optionsHtmlDivs.forEach((optionDiv) => {
+        const letter = optionDiv.dataset.optionLetter;
+        const optionInput = optionDiv.querySelector('.form-qcm-option');
+        options[letter] = optionInput.value.trim();
+    });
+
+    const answerDropdown = qDiv.querySelector('.form-qcm-answer');
+    correctAnswer = answerDropdown.value;
+
+    // If no answer selected but options exist, default to the first option
+    if (!correctAnswer && Object.keys(options).length > 0) {
+        correctAnswer = Object.keys(options)[0]; 
+    }
+
+    return { question: questionText, ...options, answer: correctAnswer, points };
+  });
+  if (qcmQuestions.length > 0) exercise.qcm = qcmQuestions;
+
+  // Collect Vrai/Faux questions
+  const vfQuestions = $$('#vfQuestions .form-vf-statement').map(vfInput => {
+    const qDiv = vfInput.closest('div[data-form-vf-id]');
+    const statement = vfInput.value.trim();
+    const answerSelect = qDiv.querySelector('.form-vf-answer');
+    const answer = answerSelect ? answerSelect.value : 'vrai'; // Default to 'vrai' if not found
+    const points = parseInt(qDiv.querySelector('.form-vf-points').value) || 1;
+    const keywordsInput = qDiv.querySelector('.form-vf-keywords');
+    const keywords = keywordsInput && keywordsInput.value ? keywordsInput.value.split('|').map(k => k.trim()).filter(Boolean) : [];
+    return { statement, answer, keywords, points };
+  });
+  if (vfQuestions.length > 0) exercise.vf = vfQuestions;
+
+  // Collect Cloze exercise
+  if (clozeText) {
+    exercise.cloze = clozeText;
+    exercise.transcription = transText;
+    
+    const blankConfigs = $$('#builderClozeBlankslist .cloze-blank-points').map(input => parseFloat(input.value) || 1); // Use parseFloat for step="0.5"
+    if (blankConfigs.length > 0) {
+        exercise.clozePoints = blankConfigs;
+    }
+  }
+
+  // Add or update exercise in the bank
+  if (editingExerciseId) {
+    // Find the exercise to update by its ID
+    let updated = false;
+    for (const typeKey in bank) {
+      const index = bank[typeKey].findIndex(ex => ex.id === editingExerciseId);
+      if (index !== -1) {
+        // Merge new properties with existing ones to preserve other data (like creation date if any)
+        bank[typeKey][index] = { ...bank[typeKey][index], ...exercise };
+        updated = true;
+        break;
+      }
+    }
+    if (!updated) {
+        console.error(`Error: Exercise with ID ${editingExerciseId} not found for update.`);
+        alert('Erreur lors de la mise à jour de l\'exercice.');
+        return; // Prevent saving if update failed
+    }
+  } else {
+    // Add new exercise
+    if (!bank[kind]) bank[kind] = []; // Ensure the array exists
+    bank[kind].push(exercise);
+  }
+  
+  saveBank();
+  updateExercisesTable();
+  resetExerciseForm(); // Clear the form after adding/updating
+  $('#addInfo').textContent = editingExerciseId ? 'Exercice mis à jour !' : 'Exercice ajouté à la banque !';
+  $('#addInfo').style.color = 'green';
+  setTimeout(() => $('#addInfo').textContent = '', 3000);
+}
+
+// Helper function to cancel editing and reset form
+function cancelEdit() {
+  if (confirm('Annuler les modifications ?')) {
+    resetExerciseForm();
+    editingExerciseId = null; // Clear editing state
+    $('#addItem').textContent = 'Ajouter à la banque'; // Reset button text
+    updateExercisesTable(); // Refresh table to show original state
+  }
+}
+
+// Helper function to reset the exercise form state completely
+function resetExerciseForm() {
+  const form = $('#exerciseForm');
+  if (form) form.reset();
+  
+  const passageBox = $('#passageBox');
+  if (passageBox) passageBox.classList.add('hidden');
+  
+  $$('.ecoute-only').forEach(el => el.style.display = 'none');
+  
+  const qcmQuestions = $('#qcmQuestions');
+  if (qcmQuestions) qcmQuestions.innerHTML = '';
+  
+  const vfQuestions = $('#vfQuestions');
+  if (vfQuestions) vfQuestions.innerHTML = '';
+  
+  const clozeText = $('#clozeText');
+  if (clozeText) clozeText.value = '';
+  
+  const transText = $('#transText');
+  if (transText) transText.value = '';
+  
+  const clozeBlanksConfig = $('#builderClozeBlanksConfig');
+  if (clozeBlanksConfig) clozeBlanksConfig.style.display = 'none';
+  
+  const audioPreview = $('#audioPreview');
+  if (audioPreview) audioPreview.style.display = 'none';
+  
+  const audioInput = $('#audioInput'); // Clear the file input itself
+  if (audioInput) audioInput.value = '';
+  
+  // Reset counters and editing state
+  qcmQuestionCount = 0;
+  formVfCounter = 0; 
+  editingExerciseId = null;
+  
+  // Reset button text
+  const addBtn = $('#addItem');
+  if (addBtn) addBtn.textContent = 'Ajouter à la banque';
+
+  // Make ID field editable again if it was read-only
+  const idInput = $('#id');
+  if (idInput) idInput.removeAttribute('readonly'); 
+
+  // Clear info message
+  const addInfo = $('#addInfo');
+  if (addInfo) addInfo.textContent = '';
+
+  // Reset passage type selection if present
+  const passageTypeRadios = document.querySelectorAll('input[name="passageType"]');
+  passageTypeRadios.forEach(radio => radio.checked = false);
+}
+
+// Helper function to initialize creator tab elements
+function initCreatorTab() {
+  toggleBoxes(); // Set initial visibility of form sections based on default kind
+  
+  // Reset QCM and VF counters when initializing the tab to ensure fresh numbering
+  qcmQuestionCount = 0;
+  formVfCounter = 0; 
+  
+  // Ensure the form is reset if we are not currently editing an exercise
   if (!editingExerciseId) {
     resetExerciseForm();
   }

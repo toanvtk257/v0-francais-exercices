@@ -237,6 +237,7 @@ function checkAuth() {
     return;
   }
   currentUser = JSON.parse(auth);
+  console.log('[v0] currentUser loaded:', currentUser);
   $('#userName').textContent = currentUser.name;
   $('#userEmail').textContent = currentUser.email;
 }
@@ -681,31 +682,38 @@ function formatTime(seconds) {
 }
 
 function getUserProgress(userId) {
+  console.log('[v0] Getting progress for userId:', userId);
   const allStats = JSON.parse(localStorage.getItem('fr_stats_db') || '{}');
+  console.log('[v0] All stats from localStorage:', allStats);
+  
   const userStats = allStats[userId] || {};
+  console.log('[v0] User stats:', userStats);
   
   let completedLessons = 0;
   let totalAttempts = 0;
   let totalScore = 0;
   let totalTime = 0;
   
-  Object.values(userStats).forEach(lessonData => {
-    if (lessonData.attempts && lessonData.attempts.length > 0) {
+  Object.entries(userStats).forEach(([lessonId, lessonData]) => {
+    console.log('[v0] Processing lesson:', lessonId, lessonData);
+    if (lessonData && lessonData.attempts && lessonData.attempts.length > 0) {
       completedLessons++;
       totalAttempts += lessonData.attempts.length;
       lessonData.attempts.forEach(att => {
-        totalScore += att.percentage;
+        totalScore += att.percentage || 0;
       });
       totalTime += lessonData.totalTime || 0;
     }
   });
   
-  return {
+  const result = {
     completedLessons,
     totalAttempts,
     avgScore: totalAttempts > 0 ? Math.round(totalScore / totalAttempts) : 0,
     totalTime
   };
+  console.log('[v0] Progress result:', result);
+  return result;
 }
 
 function loadExternalResources() {
@@ -881,22 +889,38 @@ function saveNewPin() {
 // CHANGE: Load admin recipients for student messaging
 function loadAdminRecipients() {
   const allUsers = JSON.parse(localStorage.getItem('fr_users') || '[]');
+  console.log('[v0] All users for admin list:', allUsers);
+  
   const admins = allUsers.filter(u => u.role === 'admin');
+  console.log('[v0] Filtered admins:', admins);
   
   const select = $('#adminRecipientSelect');
-  select.innerHTML = '<option value="admin">Tous les administrateurs</option>';
+  if (!select) {
+    console.log('[v0] adminRecipientSelect not found');
+    return;
+  }
+  
+  select.innerHTML = '<option value="all_admins">Tous les administrateurs</option>';
   
   admins.forEach(admin => {
     const option = document.createElement('option');
     option.value = admin.id;
-    option.textContent = `${admin.name} (${admin.email})`;
+    option.textContent = `${admin.name || admin.email} (${admin.email})`;
     select.appendChild(option);
   });
+  
+  console.log('[v0] Admin select options:', select.innerHTML);
 }
 
 window.addEventListener('DOMContentLoaded', () => {
   checkAuth();
+  if (!currentUser) {
+    console.log('[v0] No currentUser, redirecting...');
+    return;
+  }
+  
   loadBank();
+  console.log('[v0] About to call updateProgressStats');
   updateProgressStats();
   renderLessons();
   loadExternalResources();
