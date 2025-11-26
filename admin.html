@@ -659,6 +659,7 @@ let formVfCounter = 0;
 // Added variables for resource and chat management
 let editingResourceId = null;
 let selectedChatUserId = null;
+let selectedRecipients = []; // For bulk messaging
 
 // Added variables for new QCM and passage features
 let passageImageData = null;
@@ -723,6 +724,8 @@ function switchTab(tabId) {
     loadResources();
   } else if (tabId === 'chat') {
     loadChatUsers();
+  } else if (tabId === 'builder') {
+    initCreatorTab(); // Ensure creator tab is initialized
   }
 }
 
@@ -1402,16 +1405,9 @@ function removeAudio() {
   $('#audioInput').value = ''; // Clear the file input itself
 }
 
-// Toggle visibility of passage type elements
-function togglePassageType() {
-  const passageType = $('input[name="passageType"]:checked').value;
-  if (passageType === 'image') {
-    $('#passageImageUpload').style.display = 'block';
-    $('#passageTextContent').style.display = 'none';
-  } else {
-    $('#passageImageUpload').style.display = 'none';
-    $('#passageTextContent').style.display = 'block';
-  }
+// Toggle visibility based on exercise type
+function toggleBoxes() {
+  updateAddForm();
 }
 
 // Handle image drop for passage
@@ -1457,6 +1453,18 @@ function removePassageImage() {
   passageImageData = null; // Clear stored data
 }
 
+// Toggle visibility based on exercise type
+function togglePassageType() {
+  const passageType = $('input[name="passageType"]:checked').value;
+  if (passageType === 'image') {
+    $('#passageImageUpload').style.display = 'block';
+    $('#passageTextContent').style.display = 'none';
+  } else {
+    $('#passageImageUpload').style.display = 'none';
+    $('#passageTextContent').style.display = 'block';
+  }
+}
+
 // Helper to update the form based on exercise type selection
 function updateAddForm() {
   const kind = $('#kind').value;
@@ -1485,11 +1493,6 @@ function updateAddForm() {
     qcmFormBox.style.display = 'block';
     vfFormBox.style.display = 'block'; // V/F can be used for grammar/lexicon too
   }
-}
-
-// Toggle visibility based on exercise type
-function toggleBoxes() {
-  updateAddForm();
 }
 
 // INITIALIZATION
@@ -1605,3 +1608,131 @@ window.removeFormVfQuestion = function(id) {
     item.remove();
   }
 };
+
+
+function openChangePinModal() {
+  $('#changePinModal').style.display = 'block';
+}
+
+function closeChangePinModal() {
+  $('#changePinModal').style.display = 'none';
+  $('#currentPin').value = '';
+  $('#newPin').value = '';
+  $('#confirmNewPin').value = '';
+  $('#changePinError').style.display = 'none';
+}
+
+function saveNewPin() {
+  const currentPin = $('#currentPin').value;
+  const newPin = $('#newPin').value;
+  const confirmPin = $('#confirmNewPin').value;
+  const errorEl = $('#changePinError');
+  
+  // Validate inputs
+  if (!currentPin || !newPin || !confirmPin) {
+    errorEl.textContent = 'Veuillez remplir tous les champs';
+    errorEl.style.display = 'block';
+    return;
+  }
+  
+  if (currentUser.pin !== currentPin) {
+    errorEl.textContent = 'Code PIN actuel incorrect';
+    errorEl.style.display = 'block';
+    return;
+  }
+  
+  if (newPin.length !== 6 || !/^\d+$/.test(newPin)) {
+    errorEl.textContent = 'Le nouveau code PIN doit contenir exactement 6 chiffres';
+    errorEl.style.display = 'block';
+    return;
+  }
+  
+  if (newPin !== confirmPin) {
+    errorEl.textContent = 'Les codes PIN ne correspondent pas';
+    errorEl.style.display = 'block';
+    return;
+  }
+  
+  // Update PIN in localStorage
+  currentUser.pin = newPin;
+  localStorage.setItem(AUTH_KEY, JSON.stringify(currentUser));
+  
+  // Update in users database
+  const usersDb = JSON.parse(localStorage.getItem(USERS_KEY) || '[]');
+  const userIndex = usersDb.findIndex(u => u.id === currentUser.id);
+  if (userIndex !== -1) {
+    usersDb[userIndex].pin = newPin;
+    localStorage.setItem(USERS_KEY, JSON.stringify(usersDb));
+  }
+  
+  alert('Code PIN modifié avec succès');
+  closeChangePinModal();
+}
+
+function openResetStudentPinModal(userId) {
+  const usersDb = JSON.parse(localStorage.getItem(USERS_KEY) || '[]');
+  const user = usersDb.find(u => u.id === userId);
+  
+  if (!user) {
+    alert('Utilisateur non trouvé');
+    return;
+  }
+  
+  resetPinUserId = userId;
+  $('#resetStudentInfo').textContent = `Réinitialiser le code PIN pour: ${user.name} (${user.email})`;
+  $('#resetStudentPinModal').style.display = 'block';
+}
+
+function closeResetStudentPinModal() {
+  $('#resetStudentPinModal').style.display = 'none';
+  $('#resetNewPin').value = '';
+  $('#resetConfirmPin').value = '';
+  $('#resetPinError').style.display = 'none';
+  resetPinUserId = null;
+}
+
+function saveResetPin() {
+  const newPin = $('#resetNewPin').value;
+  const confirmPin = $('#resetConfirmPin').value;
+  const errorEl = $('#resetPinError');
+  
+  // Validate inputs
+  if (!newPin || !confirmPin) {
+    errorEl.textContent = 'Veuillez remplir tous les champs';
+    errorEl.style.display = 'block';
+    return;
+  }
+  
+  if (newPin.length !== 6 || !/^\d+$/.test(newPin)) {
+    errorEl.textContent = 'Le code PIN doit contenir exactement 6 chiffres';
+    errorEl.style.display = 'block';
+    return;
+  }
+  
+  if (newPin !== confirmPin) {
+    errorEl.textContent = 'Les codes PIN ne correspondent pas';
+    errorEl.style.display = 'block';
+    return;
+  }
+  
+  // Update PIN in users database
+  const usersDb = JSON.parse(localStorage.getItem(USERS_KEY) || '[]');
+  const userIndex = usersDb.findIndex(u => u.id === resetPinUserId);
+  
+  if (userIndex === -1) {
+    errorEl.textContent = 'Utilisateur non trouvé';
+    errorEl.style.display = 'block';
+    return;
+  }
+  
+  usersDb[userIndex].pin = newPin;
+  localStorage.setItem(USERS_KEY, JSON.stringify(usersDb));
+  
+  alert(`Code PIN réinitialisé avec succès pour ${usersDb[userIndex].name}`);
+  closeResetStudentPinModal();
+  updateUsersTable(); // Refresh the users table
+}
+
+</script>
+</body>
+</html>
