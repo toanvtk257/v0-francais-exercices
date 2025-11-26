@@ -2801,6 +2801,10 @@ function editExercise(id) {
   
   // Update button text
   $('#addItem').textContent = 'Mettre à jour l\'exercice';
+  
+  switchTab('builder');
+  
+  document.querySelector('.tab-content').scrollTo(0, 0);
 }
 
 // Helper to load image data for preview during editing
