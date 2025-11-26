@@ -176,6 +176,20 @@ Toutes les données sont stockées localement dans le navigateur (localStorage) 
 - `fr_stats_{userId}` : Statistiques par utilisateur
 - `fr_drafts_{userId}_{lessonId}` : Brouillons sauvegardés
 
+### ⚠️ Important : Synchronisation multi-appareils
+
+**Problème :** Les données des étudiants (scores, comptes) peuvent différer entre différents ordinateurs.
+
+**Pourquoi :** Cette application utilise `localStorage` qui stocke les données localement dans chaque navigateur. Les données ne sont PAS synchronisées entre appareils.
+
+**Solutions :**
+
+1. **Pour le développement/test :** Utilisez toujours le même navigateur sur le même ordinateur
+2. **Pour la production :** L'application nécessite une base de données backend (comme Supabase ou Firebase) pour synchroniser les données entre appareils
+3. **Solution temporaire :** Utilisez le bouton "Exporter JSON" pour exporter les données d'un ordinateur et "Importer JSON" sur un autre
+
+**Note :** C'est le comportement normal pour les applications basées sur localStorage. Pour un support multi-appareils, une intégration de base de données est requise.
+
 ## Technologies utilisées
 
 - HTML5 / CSS3
