@@ -188,6 +188,15 @@ h1 {
   <div id="dashboard" class="tab-content active">
     <div class="card">
       <h2>Statistiques globales</h2>
+      
+      <!-- Added student selector -->
+      <div style="margin-bottom: 20px;">
+        <label for="studentSelect" style="display: block; margin-bottom: 8px; font-weight: 600;">Voir les résultats de :</label>
+        <select id="studentSelect" style="padding: 10px; border: 1px solid #d1d5db; border-radius: 6px; font-size: 14px; width: 100%; max-width: 400px;" onchange="loadDashboardStats()">
+          <option value="all">Tous les étudiants</option>
+        </select>
+      </div>
+
       <div class="grid">
         <div class="stat-box">
           <div class="stat-label">Utilisateurs</div>
@@ -206,14 +215,15 @@ h1 {
           <div class="stat-value" id="avgScore">0%</div>
         </div>
       </div>
-      <!-- Added progress charts for admin dashboard -->
-      <div class="chart-container">
-        <div class="chart-title">Activité des étudiants (derniers 30 jours)</div>
-        <canvas id="adminActivityChart" class="chart-canvas"></canvas>
-      </div>
-      <div class="chart-container">
-        <div class="chart-title">Performance par niveau CECRL</div>
-        <canvas id="adminLevelChart" class="chart-canvas"></canvas>
+      
+      <!-- Removed chart containers and canvases -->
+    </div>
+
+    <!-- Added detailed results section -->
+    <div class="card">
+      <h2>Résultats détaillés</h2>
+      <div id="detailedResults">
+        <div class="empty-state">Sélectionnez un étudiant pour voir ses résultats</div>
       </div>
     </div>
 
@@ -668,8 +678,7 @@ let optionCounter = {}; // Used for tracking option count per QCM question
 // Variable to store user ID for PIN reset
 let resetPinUserId = null;
 
-let activityChartInstance = null;
-let levelChartInstance = null;
+// Removed activityChartInstance and levelChartInstance as charts are removed
 
 function checkAuth() {
   console.log('[v0] checkAuth called');
@@ -793,7 +802,7 @@ window.addFormQcmOption = function(questionId) {
   
   optionDiv.innerHTML = `
     <label style="margin:0;font-weight:600;min-width:60px">Choix ${optionLetter.toUpperCase()}</label>
-    <input class="form-qcm-option" data-option-letter="${optionLetter}" placeholder="Réponse ${optionLetter.toUpperCase()}" style="flex:1;padding:10px;border:1px solid #ddd;border-radius:8px;font-size:.95rem">
+    <input class="form-qcm-option" data-option-letter="${optionLetter}" placeholder="Réponse ${letter.toUpperCase()}" style="flex:1;padding:10px;border:1px solid #ddd;border-radius:8px;font-size:.95rem">
     <button onclick="removeFormQcmOption(${questionId}, '${optionLetter}')" type="button" style="background:#e53e3e;color:#fff;border:none;padding:8px 12px;border-radius:6px;cursor:pointer;font-size:.85rem">✕</button>
   `;
   container.appendChild(optionDiv);
@@ -1569,7 +1578,7 @@ document.addEventListener('DOMContentLoaded', async function() {
   loadChatUsers();
   
   // Load resources table
-  updateResourcesTable();
+  loadResources();
   
   // Load chat users list
   loadChatUsers();
@@ -1617,6 +1626,13 @@ document.addEventListener('DOMContentLoaded', async function() {
 
   // Initialize the creator tab elements
   initCreatorTab();
+
+  const studentSelect = document.getElementById('studentSelect');
+  if (studentSelect) {
+    studentSelect.addEventListener('change', () => {
+      loadDashboardStats();
+    });
+  }
 });
 
 // Helper function to add a Vrai/Faux question to the form
@@ -1910,156 +1926,127 @@ function exportBank() {
 // Dashboard stats functions
 function loadDashboardStats() {
   console.log('[v0] ========== loadDashboardStats START ==========');
+  const selectedStudentId = document.getElementById('studentSelect')?.value;
   const users = JSON.parse(localStorage.getItem(USERS_KEY) || '[]');
-  const students = users.filter(u => u.role === 'student');
+  // Filter for students, considering both 'student' and 'etudiant' roles
+  const students = users.filter(u => u.role === 'student' || u.role === 'etudiant'); 
   const allStats = JSON.parse(localStorage.getItem('fr_stats_db') || '{}');
   
-  console.log('[v0] Total users in DB:', users.length);
-  console.log('[v0] Students found:', students.length, students.map(s => s.name));
-  console.log('[v0] All stats keys (userIds):', Object.keys(allStats));
-  console.log('[v0] Full stats structure:', allStats);
+  console.log('[v0] Dashboard - Total users in DB:', users.length);
+  console.log('[v0] Dashboard - Students found:', students.length, students.map(s => s.name));
+  console.log('[v0] Dashboard - Stats keys (userIds):', Object.keys(allStats));
+  
+  // Populate student selector (if not already done)
+  const studentSelect = $('#studentSelect');
+  if (studentSelect && studentSelect.options.length <= 1) { // Only default 'all' option exists
+    students.forEach(student => {
+      const option = document.createElement('option');
+      // Use student.id as value, assuming it's the unique identifier
+      option.value = student.id; 
+      option.textContent = `${student.name || 'Sans nom'} (${student.email})`;
+      studentSelect.appendChild(option);
+    });
+  }
+  
+  // Filter stats based on selection
+  let statsToShow = allStats;
+  if (selectedStudentId && selectedStudentId !== 'all') {
+    statsToShow = { [selectedStudentId]: allStats[selectedStudentId] || {} };
+    console.log('[v0] Dashboard - Filtering stats for user:', selectedStudentId);
+  } else {
+    console.log('[v0] Dashboard - Showing stats for all students.');
+  }
   
   // Count totals
   let totalAttempts = 0;
   let totalScore = 0;
   let attemptCount = 0;
+  let lessonResults = []; // Array to hold detailed results for display
   
-  Object.keys(allStats).forEach(userId => {
-    const userStats = allStats[userId];
-    console.log(`[v0] Processing user ${userId}, lessons:`, Object.keys(userStats));
+  Object.keys(statsToShow).forEach(userId => {
+    const userStats = statsToShow[userId];
+    const user = users.find(u => u.id === userId); // Find user by id
     
     Object.keys(userStats).forEach(lessonId => {
       const lessonData = userStats[lessonId];
-      console.log(`[v0]   Lesson ${lessonId}:`, lessonData);
-      
       const attempts = lessonData.attempts || [];
-      console.log(`[v0]   Attempts count: ${attempts.length}`);
       
       attempts.forEach(att => {
         totalAttempts++;
         const score = att.percentage || att.score || 0;
-        console.log(`[v0]     Attempt score: ${score}`);
         totalScore += score;
         attemptCount++;
+        
+        // Add to lessonResults array for detailed display
+        lessonResults.push({
+          userName: user?.name || 'Inconnu', // Use name from users list
+          lessonId: lessonId, // Exercise ID
+          score: score,
+          date: att.timestamp || new Date().toISOString() // Use timestamp if available
+        });
       });
     });
   });
   
   const avgScore = attemptCount > 0 ? Math.round(totalScore / attemptCount) : 0;
   
-  console.log('[v0] Final stats:', {
-    students: students.length,
-    totalAttempts,
-    avgScore,
-    attemptCount
-  });
-  
   // Update UI
-  document.getElementById('totalUsers').textContent = students.length;
+  document.getElementById('totalUsers').textContent = selectedStudentId === 'all' ? students.length : (students.find(s => s.id === selectedStudentId) ? 1 : 0);
   document.getElementById('totalExercises').textContent = 
     (BANK.lecture?.length || 0) + (BANK.ecoute?.length || 0) + 
     (BANK.grammaire?.length || 0) + (BANK.lexique?.length || 0);
   document.getElementById('totalAttempts').textContent = totalAttempts;
   document.getElementById('avgScore').textContent = avgScore + '%';
   
-  console.log('[v0] UI updated with values');
+  console.log('[v0] Dashboard - UI updated:', {
+    totalUsers: document.getElementById('totalUsers').textContent,
+    totalExercises: document.getElementById('totalExercises').textContent,
+    totalAttempts: document.getElementById('totalAttempts').textContent,
+    avgScore: document.getElementById('avgScore').textContent
+  });
   
-  // Render charts
-  renderActivityChart(allStats, students);
-  renderLevelChart(allStats);
+  // Display detailed results based on the filtered stats
+  displayDetailedResults(lessonResults);
   
   console.log('[v0] ========== loadDashboardStats END ==========');
 }
 
-function renderActivityChart(allStats, students) {
-  console.log('[v0] renderActivityChart called');
-  const canvas = document.getElementById('adminActivityChart');
-  if (!canvas) {
-    console.warn('[v0] adminActivityChart canvas not found.');
+function displayDetailedResults(results) {
+  const container = document.getElementById('detailedResults');
+  if (!container) return;
+  
+  if (results.length === 0) {
+    container.innerHTML = '<div class="empty-state">Aucun résultat disponible</div>';
     return;
   }
   
-  if (activityChartInstance) {
-    activityChartInstance.destroy();
-  }
+  // Sort by date descending
+  results.sort((a, b) => new Date(b.date) - new Date(a.date));
   
-  // Create simple activity data for last 30 days (placeholder)
-  const labels = [];
-  const data = [];
-  for (let i = 29; i >= 0; i--) {
-    const date = new Date();
-    date.setDate(date.getDate() - i);
-    labels.push(date.toLocaleDateString('fr-FR', { month: 'short', day: 'numeric' }));
-    data.push(Math.floor(Math.random() * 10)); // Placeholder data
-  }
+  let html = '<div style="overflow-x: auto;"><table style="width: 100%; border-collapse: collapse;">';
+  html += '<thead><tr>';
+  html += '<th style="text-align: left; padding: 12px; border-bottom: 2px solid #e5e7eb; font-weight: 600;">Étudiant</th>';
+  html += '<th style="text-align: left; padding: 12px; border-bottom: 2px solid #e5e7eb; font-weight: 600;">Exercice</th>';
+  html += '<th style="text-align: center; padding: 12px; border-bottom: 2px solid #e5e7eb; font-weight: 600;">Score</th>';
+  html += '<th style="text-align: left; padding: 12px; border-bottom: 2px solid #e5e7eb; font-weight: 600;">Date</th>';
+  html += '</tr></thead><tbody>';
   
-  activityChartInstance = new Chart(canvas, {
-    type: 'line',
-    data: {
-      labels: labels,
-      datasets: [{
-        label: 'Tentatives',
-        data: data,
-        borderColor: '#10b981',
-        backgroundColor: 'rgba(16, 185, 129, 0.1)',
-        tension: 0.4
-      }]
-    },
-    options: {
-      responsive: true,
-      maintainAspectRatio: false
-    }
+  results.forEach(result => {
+    const scoreColor = result.score >= 70 ? '#10b981' : result.score >= 50 ? '#f59e0b' : '#ef4444';
+    const date = new Date(result.date).toLocaleString('fr-FR');
+    
+    html += '<tr>';
+    html += `<td style="padding: 12px; border-bottom: 1px solid #e5e7eb;">${result.userName}</td>`;
+    html += `<td style="padding: 12px; border-bottom: 1px solid #e5e7eb; font-family: monospace; font-size: 12px;">${result.lessonId}</td>`;
+    html += `<td style="padding: 12px; border-bottom: 1px solid #e5e7eb; text-align: center;"><span style="font-weight: 600; color: ${scoreColor};">${result.score}%</span></td>`;
+    html += `<td style="padding: 12px; border-bottom: 1px solid #e5e7eb; font-size: 13px; color: #6b7280;">${date}</td>`;
+    html += '</tr>';
   });
-  console.log('[v0] Activity chart rendered.');
+  
+  html += '</tbody></table></div>';
+  container.innerHTML = html;
 }
 
-function renderLevelChart(allStats) {
-  console.log('[v0] renderLevelChart called');
-  const canvas = document.getElementById('adminLevelChart');
-  if (!canvas) {
-    console.warn('[v0] adminLevelChart canvas not found.');
-    return;
-  }
-  
-  if (levelChartInstance) {
-    levelChartInstance.destroy();
-  }
-  
-  // Count by level
-  const levels = { A1: 0, A2: 0, B1: 0, B2: 0, C1: 0, C2: 0 };
-  
-  Object.keys(allStats).forEach(userId => {
-    const userStats = allStats[userId];
-    Object.keys(userStats).forEach(lessonId => {
-      // Extract level from lesson ID (e.g., "lec_a1_01")
-      const match = lessonId.match(/_(a[12]|b[12]|c[12])_/i);
-      if (match) {
-        const level = match[1].toUpperCase();
-        if (levels[level] !== undefined) levels[level]++;
-      }
-    });
-  });
-  
-  const chartData = {
-    labels: Object.keys(levels),
-    datasets: [{
-      label: 'Tentatives par niveau',
-      data: Object.values(levels),
-      backgroundColor: '#3b82f6'
-    }]
-  };
-  console.log('[v0] Level chart data:', chartData);
-
-  levelChartInstance = new Chart(canvas, {
-    type: 'bar',
-    data: chartData,
-    options: {
-      responsive: true,
-      maintainAspectRatio: false
-    }
-  });
-  console.log('[v0] Level chart rendered.');
-}
 
 // Exercises table function
 function updateExercisesTable() {
@@ -2132,7 +2119,8 @@ function deleteExercise(id) {
 function updateUsersTable() {
   console.log('[v0] ========== updateUsersTable START ==========');
   const users = JSON.parse(localStorage.getItem(USERS_KEY) || '[]');
-  const students = users.filter(u => u.role === 'student');
+  // Filter for students, considering both 'student' and 'etudiant' roles
+  const students = users.filter(u => u.role === 'student' || u.role === 'etudiant'); 
   const allStats = JSON.parse(localStorage.getItem('fr_stats_db') || '{}');
   
   console.log('[v0] Users table - students found:', students.length);
@@ -2196,20 +2184,227 @@ function updateUsersTable() {
 
 function viewStudentDetails(userId) {
   console.log(`[v0] viewStudentDetails called for userId: ${userId}`);
-  // alert('Détails de l\'étudiant à venir');
-  // For now, just log the ID. In a real implementation, this would open a modal.
-  console.log('Opening modal for student ID:', userId);
-  // Example: openUserStatsModal(userId); // Assuming such a function exists
+  // Fetch and display user stats in a modal or similar
+  const allStats = JSON.parse(localStorage.getItem('fr_stats_db') || '{}');
+  const users = JSON.parse(localStorage.getItem(USERS_KEY) || '[]');
+  const student = users.find(u => u.id === userId);
+  const userStats = allStats[userId] || {};
+  
+  if (!student) {
+    alert('Étudiant non trouvé.');
+    return;
+  }
+
+  const modalUserInfo = $('#modalUserInfo');
+  const modalCompletedLessons = $('#modalCompletedLessons');
+  const modalAvgScore = $('#modalAvgScore');
+  const modalTotalAttempts = $('#modalTotalAttempts');
+  const modalTotalPoints = $('#modalTotalPoints'); // Assuming points are tracked
+  const modalAttemptsList = $('#modalAttemptsList');
+
+  // Clear previous content
+  modalAttemptsList.innerHTML = '';
+
+  // Populate user info
+  modalUserInfo.innerHTML = `
+    <p><strong>Nom:</strong> ${student.name}</p>
+    <p><strong>Email:</strong> ${student.email}</p>
+  `;
+
+  // Calculate and populate summary stats
+  let completedLessons = 0;
+  let totalScore = 0;
+  let totalAttempts = 0;
+  let totalPoints = 0; // Initialize total points
+
+  Object.keys(userStats).forEach(lessonId => {
+    const lessonData = userStats[lessonId];
+    const attempts = lessonData.attempts || [];
+    
+    if (attempts.length > 0) {
+      completedLessons++;
+      totalAttempts += attempts.length;
+      attempts.forEach(att => {
+        totalScore += att.percentage || att.score || 0;
+        // Assuming each attempt might have a 'points' property
+        totalPoints += att.points || 0; 
+      });
+    }
+  });
+
+  const avgScore = totalAttempts > 0 ? Math.round(totalScore / totalAttempts) : 0;
+  
+  modalCompletedLessons.textContent = completedLessons;
+  modalAvgScore.textContent = `${avgScore}%`;
+  modalTotalAttempts.textContent = totalAttempts;
+  modalTotalPoints.textContent = totalPoints; // Display total points
+
+  // Populate attempt history
+  if (totalAttempts === 0) {
+    modalAttemptsList.innerHTML = '<div class="empty-state">Aucune tentative enregistrée</div>';
+  } else {
+    const sortedAttempts = Object.entries(userStats).flatMap(([lessonId, lessonData]) =>
+      (lessonData.attempts || []).map(att => ({ ...att, lessonId }))
+    ).sort((a, b) => b.timestamp - a.timestamp); // Sort by timestamp descending
+    
+    sortedAttempts.forEach(att => {
+      const exercise = findExerciseById(att.exerciseId);
+      const exerciseTitle = exercise ? exercise.titre : 'Inconnu';
+      const exerciseLevel = exercise ? exercise.niveau : 'N/A';
+      const attemptDiv = document.createElement('div');
+      attemptDiv.className = 'attempt-item';
+      attemptDiv.innerHTML = `
+        <div>
+          <div>${exerciseTitle} (${exerciseLevel})</div>
+          <div class="attempt-date">${new Date(att.timestamp).toLocaleString()}</div>
+        </div>
+        <div class="attempt-score">${att.percentage || att.score || 0}%</div>
+      `;
+      modalAttemptsList.appendChild(attemptDiv);
+    });
+  }
+
+  // Open the modal
+  $('#userStatsModal').style.display = 'block';
+}
+
+function closeUserStatsModal() {
+  $('#userStatsModal').style.display = 'none';
 }
 
 // Resources function
 function loadResources() {
   console.log('[v0] loadResources called');
-  // Placeholder - resources are static for now
-  const container = document.getElementById('resourcesList');
-  if (container) {
-    container.innerHTML = '<p style="color:#64748b">Aucune ressource externe disponible</p>';
+  const tbody = document.querySelector('#resourcesBody');
+  if (!tbody) {
+    console.log('[v0] Resources table body not found');
+    return;
   }
+  tbody.innerHTML = ''; // Clear existing
+  
+  // Fetch resources from localStorage (or wherever they are stored)
+  const storedResources = JSON.parse(localStorage.getItem('fr_external_resources') || '[]');
+  
+  if (storedResources.length === 0) {
+    tbody.innerHTML = '<tr><td colspan="5" class="empty-state">Aucune ressource externe</td></tr>';
+    return;
+  }
+  
+  storedResources.forEach(res => {
+    const row = tbody.insertRow();
+    row.innerHTML = `
+      <td>${res.title}</td>
+      <td>${res.type}</td>
+      <td>${res.level}</td>
+      <td><a href="${res.url}" target="_blank" style="color:var(--brand);text-decoration:underline">${res.url}</a></td>
+      <td>
+        <button onclick="editResource('${res.id}')" style="background:#3b82f6;color:white;border:none;padding:6px 10px;border-radius:6px;cursor:pointer;margin-right:0.5rem">Modifier</button>
+        <button onclick="deleteResource('${res.id}')" style="background:#ef4444;color:white;border:none;padding:6px 10px;border-radius:6px;cursor:pointer">Supprimer</button>
+      </td>
+    `;
+  });
+}
+
+// Add/Edit Resource functions
+function addResource() {
+  console.log('[v0] addResource called');
+  const title = $('#resourceTitle').value.trim();
+  const url = $('#resourceUrl').value.trim();
+  const description = $('#resourceDescription').value.trim();
+  const level = $('#resourceLevel').value;
+  const type = $('#resourceType').value;
+  
+  if (!title || !url) {
+    alert('Veuillez entrer un titre et une URL pour la ressource.');
+    return;
+  }
+  
+  const resources = JSON.parse(localStorage.getItem('fr_external_resources') || '[]');
+  
+  if (editingResourceId) { // Editing existing resource
+    const index = resources.findIndex(r => r.id === editingResourceId);
+    if (index !== -1) {
+      resources[index] = {
+        id: editingResourceId,
+        title,
+        url,
+        description,
+        level,
+        type
+      };
+      alert('Ressource mise à jour!');
+    }
+  } else { // Adding new resource
+    const newResource = {
+      id: `res_${Date.now()}`,
+      title,
+      url,
+      description,
+      level,
+      type
+    };
+    resources.push(newResource);
+    alert('Ressource ajoutée!');
+  }
+  
+  localStorage.setItem('fr_external_resources', JSON.stringify(resources));
+  loadResources();
+  resetResourceForm();
+}
+
+function editResource(id) {
+  console.log('[v0] editResource called for id:', id);
+  const resources = JSON.parse(localStorage.getItem('fr_external_resources') || '[]');
+  const resource = resources.find(r => r.id === id);
+  
+  if (!resource) {
+    alert('Ressource non trouvée.');
+    return;
+  }
+  
+  editingResourceId = id;
+  $('#resourceTitle').value = resource.title;
+  $('#resourceUrl').value = resource.url;
+  $('#resourceDescription').value = resource.description || '';
+  $('#resourceLevel').value = resource.level;
+  $('#resourceType').value = resource.type;
+  
+  $('#cancelResourceBtn').style.display = 'inline-block';
+  $('.btn-primary[onclick="addResource()"]').textContent = 'Mettre à jour'; // Change button text
+}
+
+function deleteResource(id) {
+  console.log('[v0] deleteResource called for id:', id);
+  if (!confirm('Voulez-vous vraiment supprimer cette ressource?')) return;
+  
+  let resources = JSON.parse(localStorage.getItem('fr_external_resources') || '[]');
+  const initialLength = resources.length;
+  resources = resources.filter(r => r.id !== id);
+  
+  if (resources.length < initialLength) {
+    localStorage.setItem('fr_external_resources', JSON.stringify(resources));
+    loadResources();
+    alert('Ressource supprimée.');
+    // If the deleted resource was being edited, reset the form
+    if (editingResourceId === id) {
+      resetResourceForm();
+    }
+  } else {
+    alert('Ressource non trouvée.');
+  }
+}
+
+function resetResourceForm() {
+  console.log('[v0] resetResourceForm called');
+  $('#resourceTitle').value = '';
+  $('#resourceUrl').value = '';
+  $('#resourceDescription').value = '';
+  $('#resourceLevel').value = 'A1'; // Reset to default
+  $('#resourceType').value = 'video'; // Reset to default
+  
+  editingResourceId = null;
+  $('#cancelResourceBtn').style.display = 'none';
+  $('.btn-primary[onclick="addResource()"]').textContent = 'Ajouter ressource'; // Reset button text
 }
 
 // Add QCM and VF question functions
@@ -2709,7 +2904,7 @@ function handleAudioFile(file, dropZoneElement, inputElement, fileNameDisplay, h
   // Trigger actual upload
   handleActualAudioUpload(file).then(uploadedUrl => {
     if (uploadedUrl) {
-      hiddenAudioInput.value = uploadedUrl; // Store the actual Cloudinary URL
+      hiddenAudioInput.value = uploadedUrl; // Store the Cloudinary URL
     }
   });
 }
@@ -2741,7 +2936,6 @@ async function handleImageFile(file, inputElement, previewElement, previewContai
     passageImageData = null;
   }
 }
-
 </script>
 </body>
 </html>
