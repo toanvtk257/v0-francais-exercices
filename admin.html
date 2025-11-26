@@ -371,16 +371,43 @@ h1 {
           <h3 style="margin-bottom:1rem">Contenu du passage</h3>
           
           <div class="form-group">
-            <label>Titre du passage (affiché en gras)</label>
-            <input type="text" id="passageTitle" placeholder="ex. La Tour Eiffel">
+            <label>Type de passage</label>
+            <div style="display:flex;gap:16px">
+              <label style="display:flex;align-items:center;gap:8px;cursor:pointer">
+                <input type="radio" name="passageType" value="text" checked onchange="togglePassageType()"> Texte
+              </label>
+              <label style="display:flex;align-items:center;gap:8px;cursor:pointer">
+                <input type="radio" name="passageType" value="image" onchange="togglePassageType()"> Image
+              </label>
+            </div>
           </div>
-          <div class="form-group">
-            <label>Texte principal</label>
-            <textarea id="passageText" placeholder="Entrez le texte à lire..." style="min-height:120px"></textarea>
+
+          <div id="passageTextContent" style="display:block">
+            <div class="form-group">
+              <label>Titre du passage (affiché en gras)</label>
+              <input type="text" id="passageTitle" placeholder="ex. La Tour Eiffel">
+            </div>
+            <div class="form-group">
+              <label>Texte principal</label>
+              <textarea id="passageText" placeholder="Entrez le texte à lire..." style="min-height:120px"></textarea>
+            </div>
+            <div class="form-group">
+              <label>Source (affichée en italique à droite)</label>
+              <input type="text" id="passageSource" placeholder="ex. Source: Le Monde, 2024">
+            </div>
           </div>
-          <div class="form-group">
-            <label>Source (affichée en italique à droite)</label>
-            <input type="text" id="passageSource" placeholder="ex. Source: Le Monde, 2024">
+          
+          <div id="passageImageUpload" style="display:none">
+            <label>Image du passage</label>
+            <div id="passageImageDropZone" style="border:2px dashed #3b82f6;border-radius:0.5rem;padding:2rem;text-align:center;cursor:pointer;background:#eff6ff;transition:all 0.2s" ondrop="handleImageDrop(event)" ondragover="event.preventDefault();this.style.background='#dbeafe'" ondragleave="this.style.background='#eff6ff'" onclick="document.getElementById('passageImageInput').click()">
+              <p style="margin:0;color:#3b82f6;font-weight:500">🖼️ Glissez-déposez une image ici ou cliquez pour sélectionner</p>
+            </div>
+            <input type="file" id="passageImageInput" accept="image/*" onchange="handleImageSelect(event)" style="display:none">
+            <div id="passageImagePreview" style="display:none;margin-top:1rem;text-align:center">
+              <img id="passageImagePreviewImg" src="#" alt="Prévisualisation de l'image" style="max-width:100%;max-height:300px;border-radius:8px;border:1px solid #e0e0e0">
+              <button type="button" onclick="removePassageImage()" style="display:block;margin:12px auto;background:#ef4444;color:white;border:none;padding:8px 16px;border-radius:6px;cursor:pointer">Supprimer l'image</button>
+            </div>
+            <div id="passageImageUploadStatus" style="margin-top:0.5rem;font-weight:500"></div>
           </div>
         </div>
 
@@ -626,7 +653,7 @@ let bank = null;
 let editingExerciseId = null;
 
 // Added counters and reset for form questions
-let formQcmCounter = 0; // Renamed from qcmQuestionCount for clarity
+let qcmQuestionCount = 0; // Renamed from formQcmCounter for clarity
 let formVfCounter = 0;
 
 // Added variables for resource and chat management
@@ -645,22 +672,22 @@ let selectedRecipients = []; // Stores selected recipients for bulk messaging
 const availableLetters = 'abcdefghijklmnopqrstuvwxyz';
 
 function addFormQcmQuestion() {
-  formQcmCounter++;
+  qcmQuestionCount++; // Use the correct counter name
   const qDiv = document.createElement('div');
   qDiv.style.cssText = 'background:#f9f9f9;padding:12px;border-radius:8px;margin:8px 0;border:1px solid #e0e0e0';
-  qDiv.dataset.formQcmId = formQcmCounter;
+  qDiv.dataset.formQcmId = qcmQuestionCount; // Use the correct counter name
   
   qDiv.innerHTML = `
     <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
-      <span style="font-weight:600;color:var(--brand)">Question ${formQcmCounter}</span>
-      <button class="btn-danger" onclick="removeFormQcmQuestion(${formQcmCounter})" type="button" style="padding:6px 10px;font-size:.85rem">Supprimer</button>
+      <span style="font-weight:600;color:var(--brand)">Question ${qcmQuestionCount}</span>
+      <button class="btn-danger" onclick="removeFormQcmQuestion(${qcmQuestionCount})" type="button" style="padding:6px 10px;font-size:.85rem">Supprimer</button>
     </div>
     <label>Question</label>
     <input class="form-qcm-question" placeholder="Quelle est la capitale de la France ?" style="width:100%;padding:10px;border:1px solid #ddd;border-radius:8px;font-size:.95rem;box-sizing:border-box;margin-bottom:8px">
     
     <div class="form-qcm-options-container"></div>
     
-    <button type="button" onclick="addFormQcmOption(${formQcmCounter})" style="margin-bottom:8px;padding:6px 10px;font-size:.85rem;background:#e0e0e0;color:#111;border:none;border-radius:6px;cursor:pointer">+ Ajouter une réponse</button>
+    <button type="button" onclick="addFormQcmOption(${qcmQuestionCount})" style="margin-bottom:8px;padding:6px 10px;font-size:.85rem;background:#e0e0e0;color:#111;border:none;border-radius:6px;cursor:pointer">+ Ajouter une réponse</button>
     
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:8px">
       <div>
@@ -677,9 +704,9 @@ function addFormQcmQuestion() {
   $('#qcmQuestions').appendChild(qDiv);
   
   // Add 3 default options
-  addFormQcmOption(formQcmCounter);
-  addFormQcmOption(formQcmCounter);
-  addFormQcmOption(formQcmCounter);
+  addFormQcmOption(qcmQuestionCount);
+  addFormQcmOption(qcmQuestionCount);
+  addFormQcmOption(qcmQuestionCount);
 }
 
 window.addFormQcmOption = function(questionId) {
@@ -697,7 +724,7 @@ window.addFormQcmOption = function(questionId) {
   
   optionDiv.innerHTML = `
     <label style="margin:0;font-weight:600;min-width:60px">Choix ${optionLetter.toUpperCase()}</label>
-    <input class="form-qcm-option" data-option-letter="${optionLetter}" placeholder="Réponse ${letter.toUpperCase()}" style="flex:1;padding:10px;border:1px solid #ddd;border-radius:8px;font-size:.95rem">
+    <input class="form-qcm-option" data-option-letter="${optionLetter}" placeholder="Réponse ${optionLetter.toUpperCase()}" style="flex:1;padding:10px;border:1px solid #ddd;border-radius:8px;font-size:.95rem">
     <button onclick="removeFormQcmOption(${questionId}, '${optionLetter}')" type="button" style="background:#e53e3e;color:#fff;border:none;padding:8px 12px;border-radius:6px;cursor:pointer;font-size:.85rem">✕</button>
   `;
   container.appendChild(optionDiv);
@@ -710,9 +737,9 @@ window.removeFormQcmOption = function(questionId, optionLetter) {
   if (!questionDiv) return;
   
   const container = questionDiv.querySelector('.form-qcm-options-container');
-  const options = container.querySelectorAll(':scope > div[data-option-letter]');
+  const optionDivs = container.querySelectorAll(':scope > div[data-option-letter]');
   
-  if (options.length <= 2) {
+  if (optionDivs.length <= 2) {
     alert('Vous devez avoir au moins 2 choix de réponse.');
     return;
   }
@@ -784,1117 +811,33 @@ window.removeFormQcmQuestion = function(id) {
   }
 };
 
-// CHANGE: Fixed loadChatUsers to properly load students for messaging
-function loadChatUsers() {
-  // Use the correct key for users ('fr_users_db' instead of 'fr_users')
-  const allUsers = JSON.parse(localStorage.getItem(USERS_KEY) || '[]'); 
-  console.log('[v0] loadChatUsers - all users:', allUsers);
+function selectStudent(userId) {
+  selectedChatUserId = userId;
+  selectedRecipients = []; // Clear group recipients when selecting individual
+  updateSelectedRecipientsUI();
   
-  // Filter for students, considering both 'student' and 'etudiant' roles
-  const students = allUsers.filter(u => u.role === 'student' || u.role === 'etudiant'); 
-  console.log('[v0] loadChatUsers - filtered students:', students);
-  
-  // Update the recipient select dropdown
-  const recipientSelect = $('#recipientSelect');
-  if (recipientSelect) {
-    // Keep the first option (default placeholder)
-    const firstOption = recipientSelect.querySelector('option[value=""]');
-    recipientSelect.innerHTML = ''; // Clear existing options
-    if (firstOption) recipientSelect.appendChild(firstOption); // Re-add the default option
-    
-    students.forEach(student => {
-      const option = document.createElement('option');
-      option.value = student.id;
-      // Display name if available, otherwise email
-      option.textContent = `${student.name || student.email} (${student.email})`; 
-      recipientSelect.appendChild(option);
-    });
-    console.log('[v0] recipientSelect updated with students');
-  }
-  
-  // Update the chat users list in the UI
-  const chatUsersList = $('#chatUsersList');
-  if (!chatUsersList) {
-    console.log('[v0] chatUsersList not found');
-    return;
-  }
-  
-  if (students.length === 0) {
-    chatUsersList.innerHTML = '<div class="empty-state">Aucun étudiant inscrit</div>';
-    return;
-  }
-  
-  // Use the correct key for messages ('fr_chat_messages' instead of 'fr_messages')
-  const messagesDb = JSON.parse(localStorage.getItem('fr_chat_messages') || '{}'); 
-  
-  chatUsersList.innerHTML = students.map(student => {
-    const studentMessages = messagesDb[student.id] || [];
-    // Count unread messages from the student (where sender is the student's ID)
-    const unread = studentMessages.filter(m => m.sender === student.id && !m.read).length; 
-    
-    return `
-      <div class="user-item" onclick="selectChatUser('${student.id}')" style="padding:12px;border-bottom:1px solid #eee;cursor:pointer;display:flex;justify-content:space-between;align-items:center">
-        <div>
-          <div style="font-weight:600">${student.name || 'Sans nom'}</div> 
-          <div style="font-size:0.85rem;color:#666">${student.email}</div>
-        </div>
-        ${unread > 0 ? `<span style="background:#e53935;color:#fff;padding:2px 8px;border-radius:12px;font-size:0.75rem">${unread}</span>` : ''}
-      </div>
-    `;
-  }).join('');
-}
-
-async function loadBank() {
-  console.log('[v0] ===LOADING BANK===');
-  
-  // Load localStorage data
-  const stored = localStorage.getItem(BANK_KEY);
-  let localData = stored ? JSON.parse(stored) : {lecture:[], ecoute:[], grammaire:[], lexique:[]};
-  console.log('[v0] Loaded from localStorage:', localData);
-  
-  // Load Cloudinary files index
-  const filesIndexRaw = localStorage.getItem(FILES_INDEX_KEY);
-  console.log('[v0] Raw FILES_INDEX_KEY from localStorage:', filesIndexRaw);
-  
-  const filesIndex = filesIndexRaw ? JSON.parse(filesIndexRaw) : [];
-  console.log('[v0] Parsed files index:', filesIndex);
-  console.log('[v0] Number of files in index:', filesIndex.length);
-  
-  if (filesIndex.length === 0) {
-    console.log('[v0] No Cloudinary files found in index, displaying localStorage only');
-    bank = localData;
-    updateExercisesTable();
-    updateDashboard();
-    return;
-  }
-  
-  // Fetch all JSON files from Cloudinary
-  console.log('[v0] Loading files from Cloudinary...');
-  const cloudinaryExercises = {lecture:[], ecoute:[], grammaire:[], lexique:[]};
-  
-  for (const fileInfo of filesIndex) {
-    try {
-      console.log('[v0] Fetching:', fileInfo.fileName, 'from', fileInfo.cloudinaryUrl);
-      const response = await fetch(fileInfo.cloudinaryUrl);
-      
-      if (!response.ok) {
-        console.log('[v0] Failed to fetch:', fileInfo.fileName, response.status);
-        continue;
-      }
-      
-      const data = await response.json();
-      console.log('[v0] Loaded data from', fileInfo.fileName, ':', data);
-      
-      // Merge exercises from this file
-      if (data.lecture)cloudinaryExercises.lecture.push(...data.lecture);
-      if (data.ecoute)cloudinaryExercises.ecoute.push(...data.ecoute);
-      if (data.grammaire)cloudinaryExercises.grammaire.push(...data.grammaire);
-      if (data.lexique)cloudinaryExercises.lexique.push(...data.lexique);
-      
-    } catch (error) {
-      console.log('[v0] Error loading', fileInfo.fileName, ':', error);
-    }
-  }
-  
-  console.log('[v0] Total Cloudinary exercises loaded:', cloudinaryExercises);
-  
-  // Merge with localStorage (Cloudinary takes precedence)
-  bank = {
-    lecture: [...cloudinaryExercises.lecture, ...localData.lecture],
-    ecoute: [...cloudinaryExercises.ecoute, ...localData.ecoute],
-    grammaire: [...cloudinaryExercises.grammaire, ...localData.grammaire],
-    lexique: [...cloudinaryExercises.lexique, ...localData.lexique]
-  };
-  
-  // Remove duplicates based on ID
-  for (const type in bank) {
-    const seen = new Set();
-    bank[type] = bank[type].filter(ex => {
-      if (seen.has(ex.id)) return false;
-      seen.add(ex.id);
-      return true;
-    });
-  }
-  
-  console.log('[v0] Final merged bank:', bank);
-  console.log('[v0] Total exercises:', 
-    (bank.lecture?.length || 0) + 
-    (bank.ecoute?.length || 0) + 
-    (bank.grammaire?.length || 0) + 
-    (bank.lexique?.length || 0)
-  );
-  
-  updateExercisesTable();
-  updateDashboard();
-}
-
-function updateDashboard() {
-  // Use the correct key for users ('fr_users_db' instead of implicitly using 'fr_users')
-  const users = JSON.parse(localStorage.getItem(USERS_KEY) || '[]').filter(u => u.role === 'student');
-  const allStats = JSON.parse(localStorage.getItem('fr_stats_db') || '{}');
-
-  let totalAttempts = 0;
-  let totalScore = 0;
-  let attemptCount = 0;
-
-  Object.values(allStats).forEach(userStats => {
-    Object.values(userStats).forEach(lesson => {
-      if (lesson.attempts) {
-        totalAttempts += lesson.attempts.length;
-        lesson.attempts.forEach(a => {
-          totalScore += a.percentage;
-          attemptCount++;
-        });
-      }
-    });
-  });
-
-  $('#totalUsers').textContent = users.length;
-  const totalExercises = (bank?.lecture?.length || 0) + (bank?.ecoute?.length || 0) + (bank?.grammaire?.length || 0) + (bank?.lexique?.length || 0);
-  console.log('[v0] Dashboard - Total exercises:', totalExercises);
-  $('#totalExercises').textContent = totalExercises;
-  $('#totalAttempts').textContent = totalAttempts;
-  $('#avgScore').textContent = attemptCount > 0 ? Math.round(totalScore / attemptCount) + '%' : '0%';
-
-  setTimeout(() => {
-    drawAdminActivityChart();
-    drawAdminLevelChart();
-  }, 100);
-}
-
-function checkAuth() {
-  const auth = localStorage.getItem(AUTH_KEY);
-  if (!auth) {
-    window.location.href = 'login.html';
-    return;
-  }
-  currentUser = JSON.parse(auth);
-  if (currentUser.role !== 'admin') {
-    alert('Accès refusé');
-    window.location.href = 'dashboard.html';
-    return;
-  }
-  $('#adminUserName').textContent = currentUser.name + ' (Admin)';
-  $('#adminUserEmail').textContent = currentUser.email;
-}
-
-function syncFromCloudinary() {
-  try {
-    console.log('[v0] Manual sync from Cloudinary triggered');
-    
-    const filesIndex = JSON.parse(localStorage.getItem(FILES_INDEX_KEY) || '[]');
-    console.log('[v0] Files index from localStorage:', filesIndex);
-    
-    if (filesIndex.length > 0) {
-      // Use the index if available
-      loadBank().then(() => {
-        alert('✅ Synchronisation réussie! ' + filesIndex.length + ' fichier(s) chargé(s) depuis Cloudinary.');
-      });
-      return;
-    }
-    
-    console.log('[v0] No index found, trying to load known files directly...');
-    const cloudName = CLOUDINARY_CLOUD_NAME;
-    // This list of known files might be incomplete. A proper sync would involve querying Cloudinary API.
-    const knownFiles = ['questions.json', 'tous_exercices.json', 'a1_CO.json', 'a1_CE.json', 'a2_CO.json', 'a2_CE.json', 'b1_CO.json', 'b1_CE.json', 'b2_CO.json', 'b2_CE.json', 'c1_CO.json', 'c1_CE.json', 'c2_CO.json', 'c2_CE.json'];
-    
-    let loadedCount = 0;
-    const allExercises = [];
-    
-    const fetchPromises = knownFiles.map(async (fileName) => {
-      try {
-        const url = `https://res.cloudinary.com/${cloudName}/raw/upload/${CLOUDINARY_JSON_FOLDER}/${fileName}`; // Use the defined folder
-        console.log('[v0] Trying to fetch:', url);
-        
-        const response = await fetch(url, {
-          mode: 'cors',
-          headers: {
-            'Accept': 'application/json'
-          }
-        });
-        
-        console.log('[v0] Response status for', fileName, ':', response.status);
-        
-        if (response.ok) {
-          const data = await response.json();
-          console.log('[v0] Successfully loaded:', fileName, data);
-          
-          // Handle different data formats
-          if (Array.isArray(data)) {
-            allExercises.push(...data);
-          } else if (data.exercises && Array.isArray(data.exercises)) {
-            allExercises.push(...data.exercises);
-          } else {
-            // Try to extract exercises from category structure
-            ['lecture', 'ecoute', 'grammaire', 'lexique'].forEach(cat => {
-              if (data[cat] && Array.isArray(data[cat])) {
-                allExercises.push(...data[cat]);
-              }
-            });
-          }
-          
-          loadedCount++;
-          return true; // Indicate success
-        } else {
-          console.log('[v0] File not found or error:', fileName, response.status, response.statusText);
-          return false; // Indicate failure
-        }
-      } catch (err) {
-        console.error('[v0] Error loading', fileName, ':', err.message);
-        return false; // Indicate failure
-      }
-    });
-    
-    Promise.all(fetchPromises).then(results => {
-      const successfulLoads = results.filter(Boolean).length;
-      console.log('[v0] Total files loaded:', successfulLoads, 'Total exercises:', allExercises.length);
-      
-      if (successfulLoads > 0) {
-        console.log('[v0] Total exercises loaded:', allExercises.length);
-        
-        // Merge with existing localStorage data
-        const stored = JSON.parse(localStorage.getItem(BANK_KEY) || '{"lecture":[],"ecoute":[],"grammaire":[],"lexique":[]}');
-        
-        // Categorize and merge exercises
-        allExercises.forEach(ex => {
-          // Standardize type to match bank keys
-          let category = 'lexique'; // Default category
-          if (ex.type) {
-            const lowerType = ex.type.toLowerCase();
-            if (lowerType.includes('lecture') || lowerType === 'ce') category = 'lecture';
-            else if (lowerType.includes('ecoute') || lowerType === 'co') category = 'ecoute';
-            else if (lowerType.includes('grammaire')) category = 'grammaire';
-            else if (lowerType.includes('lexique')) category = 'lexique';
-          } else {
-              // If type is missing, try to infer from properties (less reliable)
-              if (ex.cloze || ex.audio) category = 'ecoute';
-              else if (ex.passage_html || ex.passage_image) category = 'lecture';
-              // Further checks could be added
-          }
-
-          if (!stored[category]) stored[category] = [];
-          
-          // Ensure consistent type labeling within the exercise object
-          if (!ex.type) {
-              if (category === 'lecture') ex.type = 'CE';
-              else if (category === 'ecoute') ex.type = 'CO';
-              else if (category === 'grammaire') ex.type = 'Grammaire';
-              else ex.type = 'Lexique';
-          } else {
-            // Standardize known types if they differ
-            if (ex.type.toLowerCase() === 'ce') ex.type = 'CE';
-            if (ex.type.toLowerCase() === 'co') ex.type = 'CO';
-          }
-
-          // Ensure unique IDs
-          if (!ex.id) {
-              ex.id = `${category}_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`;
-          }
-
-          const exists = stored[category].some(e => e.id === ex.id);
-          if (!exists) {
-            stored[category].push(ex);
-          }
-        });
-        
-        localStorage.setItem(BANK_KEY, JSON.stringify(stored));
-        bank = stored;
-        
-        updateExercisesTable();
-        alert('✅ Synchronisation réussie! ' + successfulLoads + ' fichier(s) trouvé(s), ' + allExercises.length + ' exercice(s) chargé(s).');
-      } else {
-        alert('⚠️ Aucun fichier trouvé sur Cloudinary. Vérifiez que les fichiers sont bien uploadés dans le dossier "entrainement-francais".');
-      }
-    });
-    
-  } catch (error) {
-    console.error('[v0] Sync error:', error);
-    alert('❌ Erreur lors de la synchronisation: ' + error.message);
-  }
-}
-
-function switchTab(tabName) {
-  $$('.tab-content').forEach(t => t.classList.remove('active'));
-  $$('.tab-btn').forEach(b => b.classList.remove('active'));
-  $(`#${tabName}`).classList.add('active');
-  event.target.classList.add('active');
-
-  if (tabName === 'dashboard') updateDashboard();
-  if (tabName === 'exercises') updateExercisesTable();
-  if (tabName === 'users') updateUsersTable();
-  if (tabName === 'resources') updateResourcesTable();
-  if (tabName === 'chat') {
-    loadChatUsers(); // Load chat users for the chat tab
-    // Ensure recipient options are loaded when switching to chat tab
-    // loadRecipientOptions(); // This is now part of loadChatUsers
-    // loadChatMessages(selectedChatUserId); // Will be called after user selection
-  }
-  if (tabName === 'builder') { // Initialize creator tab components
-    initCreatorTab();
-  }
-}
-
-function updateDashboard() {
-  // Use the correct key for users ('fr_users_db' instead of implicitly using 'fr_users')
-  const users = JSON.parse(localStorage.getItem(USERS_KEY) || '[]').filter(u => u.role === 'student');
-  const allStats = JSON.parse(localStorage.getItem('fr_stats_db') || '{}');
-
-  let totalAttempts = 0;
-  let totalScore = 0;
-  let attemptCount = 0;
-
-  Object.values(allStats).forEach(userStats => {
-    Object.values(userStats).forEach(lesson => {
-      if (lesson.attempts) {
-        totalAttempts += lesson.attempts.length;
-        lesson.attempts.forEach(a => {
-          totalScore += a.percentage;
-          attemptCount++;
-        });
-      }
-    });
-  });
-
-  $('#totalUsers').textContent = users.length;
-  const totalExercises = (bank?.lecture?.length || 0) + (bank?.ecoute?.length || 0) + (bank?.grammaire?.length || 0) + (bank?.lexique?.length || 0);
-  console.log('[v0] Dashboard - Total exercises:', totalExercises);
-  $('#totalExercises').textContent = totalExercises;
-  $('#totalAttempts').textContent = totalAttempts;
-  $('#avgScore').textContent = attemptCount > 0 ? Math.round(totalScore / attemptCount) + '%' : '0%';
-
-  setTimeout(() => {
-    drawAdminActivityChart();
-    drawAdminLevelChart();
-  }, 100);
-}
-
-function updateExercisesTable() {
-  const tbody = $('#exercisesBody');
-  // Ensure bank and its properties exist before accessing
-  // Map types to consistent labels and classes
-  const allExercises = [
-    ...(bank?.lecture || []).map(e => ({ ...e, typeLabel: 'CE', typeClass: 'badge-lecture' })), 
-    ...(bank?.ecoute || []).map(e => ({ ...e, typeLabel: 'CO', typeClass: 'badge-ecoute' })),
-    ...(bank?.grammaire || []).map(e => ({ ...e, typeLabel: 'Grammaire', typeClass: 'badge-a1' })), // Example class mapping
-    ...(bank?.lexique || []).map(e => ({ ...e, typeLabel: 'Lexique', typeClass: 'badge-a2' })) // Example class mapping
-  ];
-
-  if (allExercises.length === 0) {
-    tbody.innerHTML = '<tr><td colspan="6" class="empty-state">Aucun exercice</td></tr>';
-    return;
-  }
-
-  tbody.innerHTML = allExercises.map(ex => {
-    const qCount = (ex.qcm?.length || 0) + (ex.vf?.length || 0) + (ex.cloze ? 1 : 0);
-    
-    // Map level to class
-    const levelClass = 'badge-' + (ex.niveau || 'a1').toLowerCase();
-
-    return `
-      <tr>
-        <td>${ex.titre}</td>
-        <td><span class="badge ${ex.typeClass}">${ex.typeLabel}</td>
-        <td><span class="badge ${levelClass}">${ex.niveau}</span></td>
-        <td>${ex.theme}</td>
-        <td>${qCount}</td>
-        <td>
-          <div class="action-btns">
-            <button class="btn-secondary" onclick="editExercise('${ex.id}')">Éditer</button>
-            <button class="btn-danger" onclick="deleteExercise('${ex.id}', '${ex.type}')">Supprimer</button>
-          </div>
-        </td>
-      </tr>
-    `;
-  }).join('');
-}
-
-function deleteExercise(id, type) {
-  if (!confirm('Êtes-vous sûr de vouloir supprimer cet exercice ?')) return;
-  
-  let arr = null;
-  // Map the type string to the correct bank property
-  if (type === 'CE' || type === 'lecture') arr = bank.lecture;
-  else if (type === 'CO' || type === 'ecoute') arr = bank.ecoute;
-  else if (type === 'Grammaire' || type === 'grammaire') arr = bank.grammaire;
-  else if (type === 'Lexique' || type === 'lexique') arr = bank.lexique;
-  else {
-    alert('Erreur: Type d\'exercice inconnu');
-    return;
-  }
-  
-  const idx = arr.findIndex(e => e.id === id);
-  if (idx >= 0) {
-    arr.splice(idx, 1);
-    saveBank();
-    updateExercisesTable();
-  }
-}
-
-function editExercise(id) {
-  // Find the exercise in the bank
-  let exercise = null;
-  let exerciseType = null; // To store the category key ('lecture', 'ecoute', etc.)
-  for (const typeKey in bank) {
-    const found = bank[typeKey].find(e => e.id === id);
-    if (found) {
-      exercise = found;
-      exerciseType = typeKey;
-      break;
-    }
-  }
-
-  if (!exercise) {
-    alert('Exercice non trouvé.');
-    return;
-  }
-
-  // Populate the form
-  editingExerciseId = id;
-  // Ensure the 'kind' select matches the exercise's type
-  $('#kind').value = exercise.type === 'CE' ? 'lecture' : 
-                     exercise.type === 'CO' ? 'ecoute' : 
-                     exercise.type.toLowerCase();
-  $('#niveau').value = exercise.niveau;
-  $('#theme').value = exercise.theme;
-  $('#exerciseNumber').value = exercise.exerciseNumber || '';
-  $('#id').value = exercise.id; // Set the ID
-  $('#id').setAttribute('readonly', 'true'); // Make ID field read-only during edit
-  $('#difficulty').value = exercise.difficulty || 1;
-  $('#difficultyValue').textContent = `Niveau ${exercise.difficulty || 1}`;
-
-  // Update the form content based on the exercise type
-  updateAddForm(); // Call to show/hide relevant fields
-
-  // Populate specific fields based on exercise type and content
-  if (exerciseType === 'lecture') {
-    if (exercise.passage_image) {
-      passageImageData = exercise.passage_image;
-      $('#passageImagePreviewImg').src = passageImageData; // Assuming an img tag with this ID exists
-      $('#passageImagePreview').style.display = 'block';
-      $('#passageImageDropZone').style.display = 'none'; // Assuming a div with this ID
-      $('input[name="passageType"][value="image"]').checked = true; // Assuming radio buttons
-    } else if (exercise.passage_html) {
-      const tempDiv = document.createElement('div');
-      tempDiv.innerHTML = exercise.passage_html;
-      $('#passageTitle').value = tempDiv.querySelector('h3')?.textContent || '';
-      // Try to find the main text content. This might need refinement if HTML structure is complex.
-      const mainTextElement = tempDiv.querySelector('p:not([style*="italic"])') || tempDiv.querySelector('p');
-      $('#passageText').value = mainTextElement?.textContent || '';
-      // Try to find the source, assuming it's italicized and possibly floated
-      const sourceElement = tempDiv.querySelector('p[style*="italic"]');
-      $('#passageSource').value = sourceElement?.textContent || '';
-      $('input[name="passageType"][value="text"]').checked = true;
-    }
-    togglePassageType(); // Ensure display is correct
-  } else if (exerciseType === 'ecoute') {
-    if (exercise.audio) {
-      $('#audio').value = exercise.audio; // Set hidden input value
-      $('#audioFileName').textContent = `Fichier sélectionné: ${exercise.audio}`;
-      $('#audioFileName').style.display = 'block';
-      // Hiding the dropzone if audio is present
-      $('#audioDrop').style.display = 'none'; 
-      $('#audioPlayer').src = exercise.audio; // Load audio into player
-      $('#audioPreview').style.display = 'block';
-    }
-    
-    // Populate Cloze if exists
-    if (exercise.cloze) {
-      $('#clozeText').value = exercise.cloze;
-      $('#transText').value = exercise.transcription || '';
-      if (exercise.clozePoints && exercise.clozePoints.length > 0) {
-        const config = $('#builderClozeBlanksConfig');
-        const list = $('#builderClozeBlankslist');
-        list.innerHTML = ''; // Clear previous
-        
-        const blanksInText = [];
-        const regex = /\[([^\]]+)\]/g;
-        let match;
-        while ((match = regex.exec(exercise.cloze)) !== null) {
-          blanksInText.push(match[1]);
-        }
-
-        // Ensure clozePoints array length matches blanks found in text
-        const pointsToUse = exercise.clozePoints.slice(0, blanksInText.length);
-
-        blanksInText.forEach((blank, i) => {
-          const div = document.createElement('div');
-          div.style.cssText = 'display:flex;gap:8px;align-items:center;margin-bottom:8px;padding:8px;background:#fff;border-radius:6px';
-          div.innerHTML = `
-            <span style="flex:1;font-weight:500">Trou ${i + 1}: "${blank}"</span>
-            <label style="display:flex;align-items:center;gap:4px">
-              Points: <input type="number" class="cloze-blank-points" value="${pointsToUse[i] || 1}" min="0" step="0.5" style="width:60px;padding:4px;border:1px solid #ddd;border-radius:4px">
-            </label>
-          `;
-          list.appendChild(div);
-        });
-        config.style.display = 'block';
-      }
-    }
-  }
-
-  // Populate QCM questions
-  if (exercise.qcm && exercise.qcm.length > 0) {
-    formQcmCounter = 0; // Reset counter for editing
-    $('#qcmQuestions').innerHTML = ''; // Clear existing
-    exercise.qcm.forEach((q, index) => {
-      formQcmCounter++;
-      const qDiv = document.createElement('div');
-      qDiv.style.cssText = 'background:#f9f9f9;padding:12px;border-radius:8px;margin:8px 0;border:1px solid #e0e0e0';
-      qDiv.dataset.formQcmId = formQcmCounter;
-      
-      const isGrammar = $('#kind').value === 'grammaire';
-      
-      let optionsHtml = '';
-      // Extract keys that represent options (e.g., 'a', 'b', 'c')
-      const optionKeys = Object.keys(q).filter(key => 
-        key !== 'question' && key !== 'answer' && key !== 'points' && key !== 'explanation' && 
-        // Add checks for known option keys if they are standardized (e.g., 'a', 'b', 'c')
-        // Or assume any remaining keys are options if they hold string values
-        typeof q[key] === 'string' && !['id', 'type', 'niveau', 'theme', 'titre'].includes(key) // Example filter
-      );
-      optionKeys.sort(); // Ensure options are added in alphabetical order (a, b, c...)
-      
-      optionKeys.forEach(letter => {
-        optionsHtml += `
-          <div style="display:flex;gap:8px;margin-bottom:8px;align-items:center" data-option-id="${letter}" data-option-letter="${letter}">
-            <label style="margin:0;font-weight:600;min-width:60px">Choix ${letter.toUpperCase()}</label>
-            <input class="form-qcm-option" data-option-letter="${letter}" value="${q[letter]}" placeholder="Réponse ${letter.toUpperCase()}" style="flex:1;padding:10px;border:1px solid #ddd;border-radius:8px;font-size:.95rem">
-            <button onclick="removeFormQcmOption(${formQcmCounter}, '${letter}')" style="background:#e53e3e;color:#fff;border:none;padding:8px 12px;border-radius:6px;cursor:pointer;font-size:.85rem">✕</button>
-          </div>
-        `;
-      });
-      
-      qDiv.innerHTML = `
-        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
-          <span style="font-weight:600;color:var(--brand)">Question ${formQcmCounter}</span>
-          <button class="btn-danger" onclick="removeFormQcmQuestion(${formQcmCounter})" style="padding:6px 10px;font-size:.85rem">Supprimer</button>
-        </div>
-        <label>Question</label>
-        <input class="form-qcm-question" value="${q.question}" placeholder="Quelle est la capitale de la France ?" style="width:100%;padding:10px;border:1px solid #ddd;border-radius:8px;font-size:.95rem;box-sizing:border-box;margin-bottom:8px">
-        
-        <div class="form-qcm-options-container">${optionsHtml}</div>
-        
-        <button class="btn-secondary" onclick="addFormQcmOption(${formQcmCounter})" style="margin-bottom:8px;padding:6px 10px;font-size:.85rem">+ Ajouter une réponse</button>
-        
-        <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:8px">
-          <div>
-            <label>Bonne réponse</label>
-            <select class="form-qcm-answer" style="width:100%;padding:10px;border:1px solid #ddd;border-radius:8px;font-size:.95rem;box-sizing:border-box">
-            </select>
-          </div>
-          <div>
-            <label>Points</label>
-            <input type="number" class="form-qcm-points" value="${q.points || 1}" min="1" style="width:100%;padding:10px;border:1px solid #ddd;border-radius:8px;font-size:.95rem;box-sizing:border-box">
-          </div>
-        </div>
-        
-        <div style="margin-top:8px;display:${isGrammar ? 'block' : 'none'}">
-          <label>Explication (affichée dans le corrigé)</label>
-          <textarea class="form-qcm-explanation" placeholder="Expliquez la règle grammaticale..." style="width:100%;padding:10px;border:1px solid #ddd;border-radius:8px;font-size:.95rem;box-sizing:border-box;min-height:60px">${q.explanation || ''}</textarea>
-        </div>
-      `;
-      $('#qcmQuestions').appendChild(qDiv);
-      updateFormQcmAnswerDropdown(formQcmCounter); // Ensure dropdown is populated
-      // Set the selected answer, ensuring the option exists
-      const answerOption = $(`.form-qcm-answer[value="${q.answer}"]`);
-      if (answerOption) {
-        answerOption.selected = true;
-      }
-    });
-  }
-
-  // Populate Vrai/Faux questions
-  if (exercise.vf && exercise.vf.length > 0) {
-    formVfCounter = 0; // Reset counter
-    $('#vfQuestions').innerHTML = ''; // Clear existing
-    exercise.vf.forEach((q, index) => {
-      formVfCounter++;
-      const div = document.createElement('div');
-      div.style.cssText = 'background:#f9f9f9;padding:12px;border-radius:8px;margin:8px 0;border:1px solid #e0e0e0';
-      div.dataset.formVfId = formVfCounter;
-      
-      const type = $('#kind').value;
-      const showKeywords = (type === 'lecture'); // Keywords relevant for reading comprehension
-      
-      div.innerHTML = `
-        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
-          <span style="font-weight:600;color:var(--brand)">Question ${formVfCounter}</span>
-          <button class="btn-danger" onclick="removeFormVfQuestion(${formVfCounter})" style="padding:6px 10px;font-size:.85rem">Supprimer</button>
-        </div>
-        <label>Énoncé</label>
-        <input class="form-vf-statement" value="${q.statement}" placeholder="La France est une île." style="width:100%;padding:10px;border:1px solid #ddd;border-radius:8px;font-size:.95rem;box-sizing:border-box;margin-bottom:8px">
-        
-        <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:8px">
-          <div>
-            <label>Réponse</label>
-            <select class="form-vf-answer" style="width:100%;padding:10px;border:1px solid #ddd;border-radius:8px;font-size:.95rem;box-sizing:border-box">
-              <option value="vrai" ${q.answer === 'vrai' ? 'selected' : ''}>Vrai</option>
-              <option value="faux" ${q.answer === 'faux' ? 'selected' : ''}>Faux</option>
-            </select>
-          </div>
-          <div>
-            <label>Points</label>
-            <input type="number" class="form-vf-points" value="${q.points || 1}" min="1" style="width:100%;padding:10px;border:1px solid #ddd;border-radius:8px;font-size:.95rem;box-sizing:border-box">
-          </div>
-        </div>
-        
-        <div style="margin-top:8px;display:${showKeywords ? 'block' : 'none'}">
-          <label>Mots-clés (pour indice ou vérification, séparés par |)</label>
-          <input class="form-vf-keywords" value="${q.keywords ? q.keywords.join('|') : ''}" placeholder="ex. France|île" style="width:100%;padding:10px;border:1px solid #ddd;border-radius:8px;font-size:.95rem;box-sizing:border-box">
-        </div>
-      `;
-      $('#vfQuestions').appendChild(div);
-    });
-  }
-  
-  // Show appropriate containers after form is updated
-  $('#qcmFormBox').style.display = 'block'; // Always show QCM box if it could contain questions
-  $('#vfFormBox').style.display = 'block'; // Always show V/F box if it could contain questions
-  $('#clozeFormBox').style.display =($('#kind').value === 'ecoute') ? 'block' : 'none'; // Show Cloze only for 'ecoute'
-  
-  $('#addItem').textContent = 'Mettre à jour l\'exercice'; // Change button text for editing
-}
-
-function cancelEdit() {
-  if (confirm('Annuler les modifications ?')) {
-    resetExerciseForm();
-    // If editing, we might want to reload the original data or just reset form.
-    // For now, resetting form is sufficient.
-    editingExerciseId = null; // Clear editing state
-    $('#addItem').textContent = 'Ajouter à la banque'; // Reset button text
-    updateExercisesTable(); // Refresh table in case some other changes were made
-  }
-}
-
-function saveBank() {
-  localStorage.setItem(BANK_KEY, JSON.stringify(bank));
-  console.log('Bank saved to localStorage');
-}
-
-// Placeholder for actual chart drawing logic
-function drawAdminActivityChart() {
-  const ctx = document.getElementById('adminActivityChart').getContext('2d');
-  // Check if chart already exists and destroy it before creating a new one
-  if (window.adminActivityChartInstance) {
-    window.adminActivityChartInstance.destroy();
-  }
-  window.adminActivityChartInstance = new Chart(ctx, {
-    type: 'line',
-    data: {
-      labels: ['Jour 1', 'Jour 2', 'Jour 3', 'Jour 4', 'Jour 5', 'Jour 6', 'Jour 7'], // Example labels
-      datasets: [{
-        label: 'Nombre de tentatives',
-        data: [10, 15, 12, 20, 18, 25, 22], // Example data
-        borderColor: 'rgba(34, 187, 85, 1)',
-        backgroundColor: 'rgba(34, 187, 85, 0.2)',
-        fill: true,
-        tension: 0.3
-      }]
-    },
-    options: {
-      responsive: true,
-      scales: {
-        y: { beginAtZero: true }
-      }
-    }
-  });
-}
-
-function drawAdminLevelChart() {
-  const ctx = document.getElementById('adminLevelChart').getContext('2d');
-  // Check if chart already exists and destroy it before creating a new one
-  if (window.adminLevelChartInstance) {
-    window.adminLevelChartInstance.destroy();
-  }
-  window.adminLevelChartInstance = new Chart(ctx, {
-    type: 'bar',
-    data: {
-      labels: ['A1', 'A2', 'B1', 'B2', 'C1', 'C2'], // Example labels
-      datasets: [{
-        label: 'Score moyen',
-        data: [75, 80, 85, 90, 92, 95], // Example data
-        backgroundColor: [
-          'rgba(54, 162, 235, 0.6)',
-          'rgba(255, 206, 86, 0.6)',
-          'rgba(75, 192, 192, 0.6)',
-          'rgba(153, 102, 255, 0.6)',
-          'rgba(255, 159, 64, 0.6)',
-          'rgba(255, 99, 132, 0.6)'
-        ],
-        borderColor: [
-          'rgba(54, 162, 235, 1)',
-          'rgba(255, 206, 86, 1)',
-          'rgba(75, 192, 192, 1)',
-          'rgba(153, 102, 255, 1)',
-          'rgba(255, 159, 64, 1)',
-          'rgba(255, 99, 132, 1)'
-        ],
-        borderWidth: 1
-      }]
-    },
-    options: {
-      responsive: true,
-      scales: {
-        y: {
-          beginAtZero: true,
-          max: 100
-        }
-      }
-    }
-  });
-}
-
-function updateUsersTable() {
-  const tbody = $('#usersBody');
-  // Use the correct key for users ('fr_users_db' instead of implicitly using 'fr_users')
-  const users = JSON.parse(localStorage.getItem(USERS_KEY) || '[]'); 
-  
-  if (users.length === 0) {
-    tbody.innerHTML = '<tr><td colspan="6" class="empty-state">Aucun utilisateur</td></tr>';
-    return;
-  }
-  
-  tbody.innerHTML = users.map(user => {
-    // Calculate completed lessons and average score (simplified)
-    const userStats = JSON.parse(localStorage.getItem('fr_stats_db') || '{}')[user.id] || {};
-    const lessonCount = Object.keys(userStats).length;
-    let totalScore = 0;
-    let attemptCount = 0;
-    Object.values(userStats).forEach(lesson => {
-      if (lesson.attempts) {
-        lesson.attempts.forEach(a => {
-          totalScore += a.percentage;
-          attemptCount++;
-        });
-      }
-    });
-    const avgScore = attemptCount > 0 ? Math.round(totalScore / attemptCount) : 0;
-
-    return `
-      <tr>
-        <td>${user.name}</td>
-        <td>${user.email}</td>
-        <td>${user.role === 'admin' ? 'Admin' : 'Étudiant'}</td>
-        <td>${lessonCount}</td>
-        <td>${avgScore}%</td>
-        <td>
-          <div class="action-btns">
-            <button class="btn-secondary" onclick="viewUserStats('${user.id}')">Statistiques</button>
-            <button class="btn-secondary" onclick="openResetStudentPinModal('${user.id}')" style="background:#f59e0b;color:#fff">Réinit. PIN</button>
-            <button class="btn-danger" onclick="deleteUser('${user.id}')">Supprimer</button>
-          </div>
-        </td>
-      </tr>
-    `;
-  }).join('');
-}
-
-function deleteUser(userId) {
-  if (!confirm('Êtes-vous sûr de vouloir supprimer cet utilisateur ?')) return;
-  // Use the correct key for users ('fr_users_db' instead of implicitly using 'fr_users')
-  let users = JSON.parse(localStorage.getItem(USERS_KEY) || '[]'); 
-  users = users.filter(u => u.id !== userId);
-  localStorage.setItem(USERS_KEY, JSON.stringify(users));
-  // Also remove stats for this user
-  let stats = JSON.parse(localStorage.getItem('fr_stats_db') || '{}');
-  delete stats[userId];
-  localStorage.setItem('fr_stats_db', JSON.stringify(stats));
-  updateUsersTable();
-  alert('Utilisateur supprimé.');
-}
-
-function viewUserStats(userId) {
-  // Use the correct key for users ('fr_users_db' instead of implicitly using 'fr_users')
-  const users = JSON.parse(localStorage.getItem(USERS_KEY) || '[]'); 
-  const user = users.find(u => u.id === userId);
-  const userStats = JSON.parse(localStorage.getItem('fr_stats_db') || '{}')[userId] || {};
-
-  if (!user) {
-    alert('Utilisateur non trouvé.');
-    return;
-  }
-
-  let totalAttempts = 0;
-  let totalScore = 0;
-  let attemptCount = 0;
-  let completedLessons = 0;
-  const attemptsListHtml = [];
-
-  // Iterate through userStats, which are keyed by lesson ID or exercise ID
-  Object.entries(userStats).forEach(([lessonId, lessonData]) => {
-    // `lessonData` likely contains attempts for a specific exercise/lesson
-    if (lessonData.completed) {
-      completedLessons++;
-    }
-    if (lessonData.attempts) {
-      lessonData.attempts.forEach(a => {
-        totalAttempts++;
-        totalScore += a.percentage;
-        attemptCount++;
-        // Attempt to find exercise title for better display
-        const exerciseTitle = bank[lessonData.type]?.find(ex => ex.id === lessonData.exerciseId)?.titre || 'Exercice inconnu';
-        attemptsListHtml.push(`
-          <div class="attempt-item">
-            <div>
-              <strong>${exerciseTitle}</strong> (${lessonData.type} - ${lessonData.level})<br>
-              <span class="attempt-date">${new Date(a.timestamp).toLocaleString()}</span>
-            </div>
-            <span class="attempt-score">${a.percentage}%</span>
-          </div>
-        `);
-      });
+  // Highlight selected user in list
+  document.querySelectorAll('#chatUsersList .user-item').forEach(item => {
+    item.classList.remove('selected');
+    if (item.dataset.userId === userId) { // Changed from item.dataset.userId to ensure it matches the actual id
+      item.classList.add('selected');
     }
   });
   
-  const avgScore = attemptCount > 0 ? Math.round(totalScore / attemptCount) : 0;
-
-  $('#modalUserInfo').innerHTML = `
-    <p><strong>Nom:</strong> ${user.name}</p>
-    <p><strong>Email:</strong> ${user.email}</p>
-  `;
-  $('#modalCompletedLessons').textContent = completedLessons;
-  $('#modalAvgScore').textContent = `${avgScore}%`;
-  $('#modalTotalAttempts').textContent = totalAttempts;
-  $('#modalTotalPoints').textContent = 'N/A'; // Placeholder, requires summing points from attempts
-  $('#modalAttemptsList').innerHTML = attemptsListHtml.length > 0 ? attemptsListHtml.join('') : '<div class="empty-state">Aucune tentative enregistrée</div>';
-
-  $('#userStatsModal').classList.add('active');
-}
-
-function closeUserStatsModal() {
-  $('#userStatsModal').classList.remove('active');
-}
-
-// CHANGE: PIN Management Modals
-function openChangePinModal() {
-  $('#changePinModal').classList.add('active');
-  $('#currentPin').value = '';
-  $('#newPin').value = '';
-  $('#confirmNewPin').value = '';
-  $('#changePinError').style.display = 'none';
-}
-
-function closeChangePinModal() {
-  $('#changePinModal').classList.remove('active');
-}
-
-function saveNewPin() {
-  const currentPin = $('#currentPin').value;
-  const newPin = $('#newPin').value;
-  const confirmNewPin = $('#confirmNewPin').value;
-  const errorEl = $('#changePinError');
-
-  if (!currentPin || !newPin || !confirmNewPin) {
-    errorEl.textContent = 'Veuillez remplir tous les champs.';
-    errorEl.style.display = 'block';
-    return;
-  }
-  if (newPin.length !== 6 || !/^\d{6}$/.test(newPin)) {
-    errorEl.textContent = 'Le nouveau code PIN doit contenir exactement 6 chiffres.';
-    errorEl.style.display = 'block';
-    return;
-  }
-  if (newPin !== confirmNewPin) {
-    errorEl.textContent = 'Les nouveaux codes PIN ne correspondent pas.';
-    errorEl.style.display = 'block';
-    return;
-  }
-
-  // Retrieve user data from localStorage
-  // Use the correct key for users ('fr_users_db' instead of implicitly using 'fr_users')
-  const users = JSON.parse(localStorage.getItem(USERS_KEY) || '[]'); 
-  const userIndex = users.findIndex(u => u.id === currentUser.id);
-
-  if (userIndex === -1) {
-    errorEl.textContent = 'Erreur: Utilisateur non trouvé.';
-    errorEl.style.display = 'block';
-    return;
-  }
-
-  // Check current PIN
-  if (users[userIndex].pin !== currentPin) {
-    errorEl.textContent = 'Le code PIN actuel est incorrect.';
-    errorEl.style.display = 'block';
-    return;
-  }
-
-  // Update PIN
-  users[userIndex].pin = newPin;
-  localStorage.setItem(USERS_KEY, JSON.stringify(users));
+  // Enable message input and buttons
+  const messageInput = $('#adminMessageInput');
+  const sendBtn = $('#sendMessageBtn');
+  const deleteBtn = $('#deleteChatBtn');
   
-  // Update currentUser object in memory as well, if needed for session
-  currentUser.pin = newPin; // This is optional if you don't re-authenticate
-
-  alert('Code PIN modifié avec succès !');
-  closeChangePinModal();
-}
-
-function openResetStudentPinModal(userId) {
-  // Use the correct key for users ('fr_users_db' instead of implicitly using 'fr_users')
-  const users = JSON.parse(localStorage.getItem(USERS_KEY) || '[]'); 
-  const student = users.find(u => u.id === userId && (u.role === 'student' || u.role === 'etudiant')); // Consider 'etudiant' role too
-
-  if (!student) {
-    alert('Étudiant non trouvé.');
-    return;
+  if (messageInput) {
+    messageInput.disabled = false;
+    messageInput.focus();
   }
-
-  $('#resetStudentInfo').textContent = `Réinitialisation du code PIN pour ${student.name} (${student.email}).`;
-  $('#resetStudentPinModal').classList.add('active');
-  $('#resetNewPin').value = '';
-  $('#resetConfirmPin').value = '';
-  $('#resetPinError').style.display = 'none';
-  $('#resetStudentPinModal').dataset.userId = userId; // Store the userId for saveResetPin
-}
-
-function closeResetStudentPinModal() {
-  $('#resetStudentPinModal').classList.remove('active');
-}
-
-function saveResetPin() {
-  const userId = $('#resetStudentPinModal').dataset.userId;
-  const newPin = $('#resetNewPin').value;
-  const confirmNewPin = $('#resetConfirmPin').value;
-  const errorEl = $('#resetPinError');
-
-  if (!newPin || !confirmNewPin) {
-    errorEl.textContent = 'Veuillez remplir tous les champs.';
-    errorEl.style.display = 'block';
-    return;
-  }
-  if (newPin.length !== 6 || !/^\d{6}$/.test(newPin)) {
-    errorEl.textContent = 'Le nouveau code PIN doit contenir exactement 6 chiffres.';
-    errorEl.style.display = 'block';
-    return;
-  }
-  if (newPin !== confirmNewPin) {
-    errorEl.textContent = 'Les nouveaux codes PIN ne correspondent pas.';
-    errorEl.style.display = 'block';
-    return;
-  }
-
-  // Use the correct key for users ('fr_users_db' instead of implicitly using 'fr_users')
-  const users = JSON.parse(localStorage.getItem(USERS_KEY) || '[]'); 
-  const userIndex = users.findIndex(u => u.id === userId);
-
-  if (userIndex === -1) {
-    errorEl.textContent = 'Erreur: Utilisateur non trouvé.';
-    errorEl.style.display = 'block';
-    return;
-  }
-
-  users[userIndex].pin = newPin; // Assuming PIN is stored directly
-  localStorage.setItem(USERS_KEY, JSON.stringify(users));
+  if (sendBtn) sendBtn.disabled = false;
+  if (deleteBtn) deleteBtn.disabled = false;
   
-  alert('Code PIN de l\'étudiant réinitialisé avec succès !');
-  closeResetStudentPinModal();
+  loadChatMessages(userId);
 }
-
-// Add, Edit, Delete Resources
-let resources = []; // Store resources locally for easier management
-
-function addResource() {
-  const title = $('#resourceTitle').value.trim();
-  const url = $('#resourceUrl').value.trim();
-  const description = $('#resourceDescription').value.trim();
-  const level = $('#resourceLevel').value;
-  const type = $('#resourceType').value;
-
-  if (!title || !url) {
-    alert('Le titre et lURL sont obligatoires.');
-    return;
-  }
-
-  const resource = { id: editingResourceId || `res_${Date.now()}`, title, url, description, level, type };
-  
-  if (editingResourceId) {
-    // Update existing resource
-    const index = resources.findIndex(r => r.id === editingResourceId);
-    if (index !== -1) {
-      resources[index] = resource;
-    }
-  } else {
-    // Add new resource
-    resources.push(resource);
-  }
-  
-  saveResources();
-  updateResourcesTable();
-  resetResourceForm();
-  alert(editingResourceId ? 'Ressource mise à jour.' : 'Ressource ajoutée.');
-}
-
-function saveResources() {
-  localStorage.setItem('fr_external_resources', JSON.stringify(resources));
-}
-
-function loadResources() {
-  resources = JSON.parse(localStorage.getItem('fr_external_resources') || '[]');
-}
-
-function updateResourcesTable() {
-  loadResources(); // Ensure resources are loaded
-  const tbody = $('#resourcesBody');
-  
-  if (resources.length === 0) {
-    tbody.innerHTML = '<tr><td colspan="5" class="empty-state">Aucune ressource</td></tr>';
-    return;
-  }
-  
-  tbody.innerHTML = resources.map(r => `
-    <tr>
-      <td>${r.title}</td>
-      <td>${r.type}</td>
-      <td>${r.level}</td>
-      <td><a href="${r.url}" target="_blank" rel="noopener noreferrer">${r.url}</a></td>
-      <td>
-        <div class="action-btns">
-          <button class="btn-secondary" onclick="editResource('${r.id}')">Éditer</button>
-          <button class="btn-danger" onclick="deleteResource('${r.id}')">Supprimer</button>
-        </div>
-      </td>
-    </tr>
-  `).join('');
-}
-
-function editResource(id) {
-  const resource = resources.find(r => r.id === id);
-  if (!resource) return;
-
-  editingResourceId = id;
-  $('#resourceTitle').value = resource.title;
-  $('#resourceUrl').value = resource.url;
-  $('#resourceDescription').value = resource.description;
-  $('#resourceLevel').value = resource.level;
-  $('#resourceType').value = resource.type;
-  $('#cancelResourceBtn').style.display = 'block';
-}
-
-function cancelResourceEdit() {
-  if (confirm('Annuler la modification ?')) {
-    resetResourceForm();
-  }
-}
-
-function deleteResource(id) {
-  if (!confirm('Supprimer cette ressource ?')) return;
-  resources = resources.filter(r => r.id !== id);
-  saveResources();
-  updateResourcesTable();
-}
-
-function resetResourceForm() {
-  editingResourceId = null;
-  $('#resourceTitle').value = '';
-  $('#resourceUrl').value = '';
-  $('#resourceDescription').value = '';
-  $('#resourceLevel').value = 'A1';
-  $('#resourceType').value = 'video';
-  $('#cancelResourceBtn').style.display = 'none';
-}
-
-// Chat Management
-// let chatUsers = []; // This local array is not strictly necessary if we rely on the DOM and messagesDb
 
 function loadChatUsers() {
   // Use the correct key for users ('fr_users_db' instead of 'fr_users')
@@ -1944,7 +887,7 @@ function loadChatUsers() {
     const unread = studentMessages.filter(m => m.sender === student.id && !m.read).length; 
     
     return `
-      <div class="user-item" onclick="selectChatUser('${student.id}')" style="padding:12px;border-bottom:1px solid #eee;cursor:pointer;display:flex;justify-content:space-between;align-items:center">
+      <div class="user-item" onclick="selectChatUser('${student.id}')" style="padding:12px;border-bottom:1px solid #eee;cursor:pointer;display:flex;justify-content:space-between;align-items:center" data-user-id="${student.id}">
         <div>
           <div style="font-weight:600">${student.name || 'Sans nom'}</div> 
           <div style="font-size:0.85rem;color:#666">${student.email}</div>
@@ -1957,14 +900,23 @@ function loadChatUsers() {
 
 function selectChatUser(userId) {
   selectedChatUserId = userId;
+  selectedRecipients = []; // Clear group recipients when selecting individual
+  updateSelectedRecipientsUI();
+  
   $('#chatMessagesArea').innerHTML = ''; // Clear previous messages
   $('#adminMessageInput').disabled = false;
   $('#sendMessageBtn').disabled = false;
   $('#deleteChatBtn').disabled = false;
   
   // Highlight selected user
-  $$('#chatUsersList .user-item').forEach(item => item.style.background = ''); // Clear previous highlights
-  event.currentTarget.style.background = '#f0f0f0'; // Highlight the clicked item
+  $$('#chatUsersList .user-item').forEach(item => {
+    item.style.background = ''; // Clear previous highlights
+    item.classList.remove('selected'); // Remove class if used
+    if (item.dataset.userId === userId) { // Changed to use dataset for clarity
+      item.style.background = '#f0f0f0'; // Highlight the clicked item
+      item.classList.add('selected'); // Add class if used
+    }
+  });
   
   loadChatMessages(userId);
 }
@@ -2097,17 +1049,103 @@ function deleteAdminChatHistory() {
   loadChatUsers();
 }
 
-// Helper for selecting all students for bulk messaging
-function selectAllStudents() {
-  const students = JSON.parse(localStorage.getItem(USERS_KEY) || '[]').filter(u => u.role === 'student' || u.role === 'etudiant');
-  selectedRecipients = students.map(s => s.id);
-  updateSelectedRecipientsUI();
+function selectGroupStudents() {
+  const students = JSON.parse(localStorage.getItem(USERS_KEY) || '[]')
+    .filter(u => u.role === 'student' || u.role === 'etudiant');
+  
+  if (students.length === 0) {
+    alert('Aucun étudiant disponible');
+    return;
+  }
+  
+  // Create modal for group selection
+  const existingModal = document.getElementById('groupSelectModal');
+  if (existingModal) existingModal.remove();
+  
+  const modal = document.createElement('div');
+  modal.id = 'groupSelectModal';
+  modal.className = 'modal active';
+  modal.innerHTML = `
+    <div class="modal-content" style="max-width:500px">
+      <div class="modal-header">
+        <h2>Sélectionner les étudiants</h2>
+        <button class="modal-close" onclick="closeGroupSelectModal()">×</button>
+      </div>
+      <div class="modal-body">
+        <div style="margin-bottom:12px">
+          <label style="display:flex;align-items:center;gap:8px;cursor:pointer">
+            <input type="checkbox" id="selectAllCheckbox" onchange="toggleSelectAllStudents(this)">
+            <strong>Sélectionner tous</strong>
+          </label>
+        </div>
+        <div style="max-height:300px;overflow-y:auto;border:1px solid #e0e0e0;border-radius:8px;padding:8px">
+          ${students.map(s => `
+            <label style="display:flex;align-items:center;gap:8px;padding:8px;cursor:pointer;border-bottom:1px solid #f0f0f0">
+              <input type="checkbox" class="student-checkbox" value="${s.id}" ${selectedRecipients.includes(s.id) ? 'checked' : ''}>
+              <span>${s.name} (${s.email})</span>
+            </label>
+          `).join('')}
+        </div>
+        <div style="margin-top:16px;display:flex;gap:8px;justify-content:flex-end">
+          <button class="btn-secondary" onclick="closeGroupSelectModal()">Annuler</button>
+          <button class="btn-primary" onclick="confirmGroupSelection()">Confirmer</button>
+        </div>
+      </div>
+    </div>
+  `;
+  document.body.appendChild(modal);
 }
 
-// Helper for selecting a custom group of students (currently just a placeholder)
-function selectGroupStudents() {
-  // In a real app, this would open a modal or another UI to select students.
-  alert('Sélection de groupe personnalisé non implémentée.');
+function closeGroupSelectModal() {
+  const modal = document.getElementById('groupSelectModal');
+  if (modal) modal.remove();
+}
+
+function toggleSelectAllStudents(checkbox) {
+  const checkboxes = document.querySelectorAll('.student-checkbox');
+  checkboxes.forEach(cb => cb.checked = checkbox.checked);
+}
+
+function confirmGroupSelection() {
+  const checkboxes = document.querySelectorAll('.student-checkbox:checked');
+  selectedRecipients = Array.from(checkboxes).map(cb => cb.value);
+  selectedChatUserId = null; // Clear individual selection
+  
+  // Enable message input for group messaging
+  const messageInput = $('#adminMessageInput');
+  const sendBtn = $('#sendMessageBtn');
+  
+  if (selectedRecipients.length > 0) {
+    if (messageInput) {
+      messageInput.disabled = false;
+      messageInput.focus();
+    }
+    if (sendBtn) sendBtn.disabled = false;
+  }
+  
+  updateSelectedRecipientsUI();
+  closeGroupSelectModal();
+}
+
+function selectAllStudents() {
+  const students = JSON.parse(localStorage.getItem(USERS_KEY) || '[]')
+    .filter(u => u.role === 'student' || u.role === 'etudiant');
+  selectedRecipients = students.map(s => s.id);
+  selectedChatUserId = null; // Clear individual selection
+  
+  // Enable message input
+  const messageInput = $('#adminMessageInput');
+  const sendBtn = $('#sendMessageBtn');
+  
+  if (selectedRecipients.length > 0) {
+    if (messageInput) {
+      messageInput.disabled = false;
+      messageInput.focus();
+    }
+    if (sendBtn) sendBtn.disabled = false;
+  }
+  
+  updateSelectedRecipientsUI();
 }
 
 // Helper to update the UI showing selected recipients for bulk messaging
@@ -2170,7 +1208,7 @@ function resetExerciseForm() {
   const audioInput = $('#audioInput'); // Also clear the file input
   if (audioInput) audioInput.value = '';
 
-  qcmQuestionCount = 0; // Use the correct counter name for QCM
+  qcmQuestionCount = 0; // Reset QCM counter
   formVfCounter = 0; // Ensure this is reset correctly
   editingExerciseId = null;
   
@@ -2182,6 +1220,10 @@ function resetExerciseForm() {
 
   const addInfo = $('#addInfo');
   if (addInfo) addInfo.textContent = '';
+
+  // Reset passage type selection if present
+  const passageTypeRadios = document.querySelectorAll('input[name="passageType"]');
+  passageTypeRadios.forEach(radio => radio.checked = false);
 }
 
 // Helper function to initialize creator tab
@@ -2189,8 +1231,8 @@ function initCreatorTab() {
   toggleBoxes(); // Initial display setup
   
   // Reset QCM and VF counters when initializing the tab
-  qcmQuestionCount = 0;
-  formVfCounter = 0; // Use the correct counter name
+  qcmQuestionCount = 0; // Reset QCM counter
+  formVfCounter = 0; 
   
   // Ensure the form is reset if not editing
   if (!editingExerciseId) {
@@ -2313,6 +1355,49 @@ function togglePassageType() {
     $('#passageImageUpload').style.display = 'none';
     $('#passageTextContent').style.display = 'block';
   }
+}
+
+// Handle image drop for passage
+function handleImageDrop(event) {
+  event.preventDefault();
+  const file = event.dataTransfer.files[0];
+  const dropZoneElement = event.currentTarget;
+  handleImageFile(file, dropZoneElement, $('#passageImageInput'), $('#passageImagePreviewImg'), $('#passageImagePreview'), $('#passageImageUploadStatus'));
+  dropZoneElement.style.background = '#eff6ff';
+}
+
+// Handle image selection for passage
+function handleImageSelect(event) {
+  const file = event.target.files[0];
+  handleImageFile(file, event.target, $('#passageImagePreviewImg'), $('#passageImagePreview'), $('#passageImageUploadStatus'));
+}
+
+// Generic handler for image file processing
+function handleImageFile(file, inputElement, previewElement, previewContainer, statusElement) {
+  if (!file) return;
+  if (!file.type.startsWith('image/')) {
+    alert('Veuillez sélectionner un fichier image valide.');
+    inputElement.value = '';
+    return;
+  }
+  
+  const reader = new FileReader();
+  reader.onload = function(e) {
+    previewElement.src = e.target.result;
+    previewContainer.style.display = 'block';
+    inputElement.value = ''; // Clear input to allow re-uploading the same file
+    statusElement.textContent = `Image chargée: ${file.name}`;
+  }
+  reader.readAsDataURL(file);
+}
+
+// Function to remove the selected passage image
+function removePassageImage() {
+  $('#passageImagePreviewImg').src = '#';
+  $('#passageImagePreview').style.display = 'none';
+  $('#passageImageUploadStatus').textContent = '';
+  $('#passageImageInput').value = ''; // Clear the file input
+  passageImageData = null; // Clear stored data
 }
 
 // Helper to update the form based on exercise type selection
@@ -2658,7 +1743,7 @@ function resetExerciseForm() {
   if (audioInput) audioInput.value = '';
   
   // Reset counters and editing state
-  qcmQuestionCount = 0; // Use the correct counter name for QCM
+  qcmQuestionCount = 0; // Reset QCM counter
   formVfCounter = 0; 
   editingExerciseId = null;
   
@@ -2684,7 +1769,7 @@ function initCreatorTab() {
   toggleBoxes(); // Set initial visibility of form sections based on default kind
   
   // Reset QCM and VF counters when initializing the tab to ensure fresh numbering
-  qcmQuestionCount = 0;
+  qcmQuestionCount = 0; // Reset QCM counter
   formVfCounter = 0; 
   
   // Ensure the form is reset if we are not currently editing an exercise
@@ -2692,6 +1777,312 @@ function initCreatorTab() {
     resetExerciseForm();
   }
 }
-</script>
-</body>
-</html>
+
+// Helper function to detect and configure cloze blanks
+function detectBuilderClozeBlanks() {
+  const clozeText = $('#clozeText').value;
+  const blanks = clozeText.match(/\[([^\]]+)\]/g); // Find text within brackets
+  
+  const builderClozeBlankslist = $('#builderClozeBlankslist');
+  const configContainer = $('#builderClozeBlanksConfig');
+  
+  if (!blanks || blanks.length === 0) {
+    configContainer.style.display = 'none';
+    builderClozeBlankslist.innerHTML = '';
+    alert('Aucun trou détecté. Assurez-vous d\'utiliser des crochets [] pour délimiter les mots à trous.');
+    return;
+  }
+  
+  builderClozeBlankslist.innerHTML = '';
+  configContainer.style.display = 'block';
+  
+  blanks.forEach((blank, index) => {
+    const blankContent = blank.slice(1, -1); // Remove brackets
+    const div = document.createElement('div');
+    div.style.cssText = 'display:flex;gap:8px;align-items:center;margin-bottom:8px;padding:8px;background:#fff;border-radius:6px';
+    div.innerHTML = `
+      <span style="flex:1;font-weight:500">Trou ${index + 1}: "${blankContent}"</span>
+      <label style="display:flex;align-items:center;gap:4px">
+        Points: <input type="number" class="cloze-blank-points" value="1" min="0" step="0.5" style="width:60px;padding:4px;border:1px solid #ddd;border-radius:4px">
+      </label>
+    `;
+    builderClozeBlankslist.appendChild(div);
+  });
+}
+
+// Function to handle audio file drop or selection
+function handleAudioFile(file, dropZoneElement, inputElement, fileNameDisplay, hiddenAudioInput, audioPlayer) {
+  if (!file) return;
+  if (!file.type.startsWith('audio/')) {
+    alert('Veuillez sélectionner un fichier audio valide.');
+    inputElement.value = ''; // Clear invalid selection
+    dropZoneElement.style.background = '#eff6ff'; // Reset drop zone style
+    return;
+  }
+
+  // In a real app, you'd upload this file to a server or CDN.
+  // For this example, we'll just display its name and store a placeholder path.
+  // Use Cloudinary upload URL for simulation/actual upload if configured
+  // For now, let's just use a placeholder path that would be replaced by the actual URL after upload.
+  const placeholderPath = `audio/${file.name}`; 
+  
+  fileNameDisplay.textContent = `Fichier sélectionné: ${file.name}`;
+  fileNameDisplay.style.display = 'block';
+  hiddenAudioInput.value = placeholderPath; // Store placeholder path
+  inputElement.value = ''; // Clear input to allow re-uploading the same file
+
+  // Display the audio player and load the file
+  audioPlayer.src = URL.createObjectURL(file); // Use a local URL for preview
+  audioPlayer.style.display = 'block'; // Make player visible
+  dropZoneElement.style.display = 'none'; // Hide drop zone
+  // Assuming audioPreview div also needs to be shown
+  const audioPreview = document.getElementById('audioPreview');
+  if (audioPreview) audioPreview.style.display = 'block';
+}
+
+// Event handler for audio file input change
+function handleAudioSelect(event) {
+  const file = event.target.files[0];
+  handleAudioFile(
+    file,
+    event.target, // inputElement
+    $('#audioFileName'), // fileNameDisplay
+    $('#audio'), // hiddenAudioInput
+    $('#audioPlayer') // audioPlayer
+  );
+}
+
+// Event handler for audio file drop
+function handleAudioDrop(event) {
+  event.preventDefault(); // Prevent default behavior
+  const file = event.dataTransfer.files[0];
+  const dropZoneElement = event.currentTarget; // The element the drop event occurred on
+  
+  handleAudioFile(
+    file,
+    dropZoneElement, // dropZoneElement
+    $('#audioInput'), // inputElement
+    $('#audioFileName'), // fileNameDisplay
+    $('#audio'), // hiddenAudioInput
+    $('#audioPlayer') // audioPlayer
+  );
+  
+  // Reset drop zone style after handling
+  dropZoneElement.style.background = '#eff6ff';
+}
+
+// Function to remove the selected audio file
+function removeAudio() {
+  $('#audio').value = ''; // Clear hidden input
+  $('#audioFileName').textContent = '';
+  $('#audioFileName').style.display = 'none';
+  $('#audioPlayer').src = '';
+  $('#audioPlayer').style.display = 'none';
+  $('#audioDrop').style.display = 'block'; // Show drop zone again
+  $('#audioPreview').style.display = 'none'; // Hide the preview div
+  $('#audioInput').value = ''; // Clear the file input itself
+}
+
+// Toggle visibility of passage type elements
+function togglePassageType() {
+  const passageType = $('input[name="passageType"]:checked').value;
+  if (passageType === 'image') {
+    $('#passageImageUpload').style.display = 'block';
+    $('#passageTextContent').style.display = 'none';
+  } else {
+    $('#passageImageUpload').style.display = 'none';
+    $('#passageTextContent').style.display = 'block';
+  }
+}
+
+// Handle image drop for passage
+function handleImageDrop(event) {
+  event.preventDefault();
+  const file = event.dataTransfer.files[0];
+  const dropZoneElement = event.currentTarget;
+  handleImageFile(file, dropZoneElement, $('#passageImageInput'), $('#passageImagePreviewImg'), $('#passageImagePreview'), $('#passageImageUploadStatus'));
+  dropZoneElement.style.background = '#eff6ff';
+}
+
+// Handle image selection for passage
+function handleImageSelect(event) {
+  const file = event.target.files[0];
+  handleImageFile(file, event.target, $('#passageImagePreviewImg'), $('#passageImagePreview'), $('#passageImageUploadStatus'));
+}
+
+// Generic handler for image file processing
+function handleImageFile(file, inputElement, previewElement, previewContainer, statusElement) {
+  if (!file) return;
+  if (!file.type.startsWith('image/')) {
+    alert('Veuillez sélectionner un fichier image valide.');
+    inputElement.value = '';
+    return;
+  }
+  
+  const reader = new FileReader();
+  reader.onload = function(e) {
+    previewElement.src = e.target.result;
+    previewContainer.style.display = 'block';
+    inputElement.value = ''; // Clear input to allow re-uploading the same file
+    statusElement.textContent = `Image chargée: ${file.name}`;
+  }
+  reader.readAsDataURL(file);
+}
+
+// Function to remove the selected passage image
+function removePassageImage() {
+  $('#passageImagePreviewImg').src = '#';
+  $('#passageImagePreview').style.display = 'none';
+  $('#passageImageUploadStatus').textContent = '';
+  $('#passageImageInput').value = ''; // Clear the file input
+  passageImageData = null; // Clear stored data
+}
+
+// Helper to update the form based on exercise type selection
+function updateAddForm() {
+  const kind = $('#kind').value;
+  const passageBox = $('#passageBox');
+  const qcmFormBox = $('#qcmFormBox');
+  const vfFormBox = $('#vfFormBox');
+  const clozeFormBox = $('#clozeFormBox');
+
+  // Hide all optional sections first
+  passageBox.classList.add('hidden');
+  qcmFormBox.style.display = 'none';
+  vfFormBox.style.display = 'none';
+  clozeFormBox.style.display = 'none';
+  $$('.ecoute-only').forEach(el => el.style.display = 'none');
+
+  if (kind === 'lecture') {
+    passageBox.classList.remove('hidden');
+    qcmFormBox.style.display = 'block';
+    vfFormBox.style.display = 'block';
+  } else if (kind === 'ecoute') {
+    $$('.ecoute-only').forEach(el => el.style.display = 'block');
+    clozeFormBox.style.display = 'block';
+    qcmFormBox.style.display = 'block'; // QCM can also be used for audio
+    vfFormBox.style.display = 'block'; // V/F might also be relevant
+  } else if (kind === 'grammaire' || kind === 'lexique') {
+    qcmFormBox.style.display = 'block';
+    vfFormBox.style.display = 'block'; // V/F can be used for grammar/lexicon too
+  }
+}
+
+// Toggle visibility based on exercise type
+function toggleBoxes() {
+  updateAddForm();
+}
+
+// INITIALIZATION
+document.addEventListener('DOMContentLoaded', async function() {
+  console.log('[v0] Admin page loaded');
+  
+  // Check authentication
+  checkAuth();
+  
+  // Load bank and update dashboard
+  await loadBank();
+  
+  // Load users table
+  updateUsersTable();
+  
+  // Load recipient options for messaging (now part of loadChatUsers)
+  loadChatUsers();
+  
+  // Load resources table
+  updateResourcesTable();
+  
+  // Load chat users list
+  loadChatUsers();
+  
+  // Logout button handler
+  const logoutBtn = $('#logoutBtn');
+  if (logoutBtn) {
+    logoutBtn.addEventListener('click', function() {
+      localStorage.removeItem(AUTH_KEY);
+      window.location.href = 'login.html';
+    });
+  }
+
+  // Add event listener for the "Add to bank" button
+  const addItemBtn = $('#addItem');
+  if (addItemBtn) {
+    addItemBtn.addEventListener('click', addExerciseFromBuilder);
+    console.log('[v0] Add item button listener attached');
+  }
+  
+  // Add QCM button listener
+  const addQcmBtn = $('#addQcmQuestion');
+  if (addQcmBtn) {
+    addQcmBtn.addEventListener('click', addFormQcmQuestion);
+    console.log('[v0] QCM button listener attached');
+  }
+  
+  // Add V/F button listener
+  const addVfBtn = $('#addVfQuestion');
+  if (addVfBtn) {
+    addVfBtn.addEventListener('click', addVfQuestion);
+    console.log('[v0] V/F button listener attached');
+  }
+
+  // Update difficulty value display on slider input
+  const difficultySlider = $('#difficulty');
+  const difficultyValue = $('#difficultyValue');
+  if (difficultySlider && difficultyValue) {
+    difficultyValue.textContent = `Niveau ${difficultySlider.value}`;
+    difficultySlider.addEventListener('input', function() {
+      difficultyValue.textContent = `Niveau ${this.value}`;
+    });
+  }
+
+  // Initialize the creator tab elements
+  initCreatorTab();
+});
+
+// Helper function to add a Vrai/Faux question to the form
+function addVfQuestion() {
+  formVfCounter++;
+  const div = document.createElement('div');
+  div.style.cssText = 'background:#f9f9f9;padding:12px;border-radius:8px;margin:8px 0;border:1px solid #e0e0e0';
+  div.dataset.formVfId = formVfCounter;
+  
+  const type = $('#kind').value;
+  const showKeywords = (type === 'lecture'); // Keywords are useful for comprehension
+  
+  div.innerHTML = `
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
+      <span style="font-weight:600;color:var(--brand)">Question ${formVfCounter}</span>
+      <button class="btn-danger" onclick="removeFormVfQuestion(${formVfCounter})" style="padding:6px 10px;font-size:.85rem">Supprimer</button>
+    </div>
+    <label>Énoncé</label>
+    <input class="form-vf-statement" placeholder="La France est une île." style="width:100%;padding:10px;border:1px solid #ddd;border-radius:8px;font-size:.95rem;box-sizing:border-box;margin-bottom:8px">
+    
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:8px">
+      <div>
+        <label>Réponse</label>
+        <select class="form-vf-answer" style="width:100%;padding:10px;border:1px solid #ddd;border-radius:8px;font-size:.95rem;box-sizing:border-box">
+          <option value="vrai">Vrai</option>
+          <option value="faux">Faux</option>
+        </select>
+      </div>
+      <div>
+        <label>Points</label>
+        <input type="number" class="form-vf-points" value="1" min="1" style="width:100%;padding:10px;border:1px solid #ddd;border-radius:8px;font-size:.95rem;box-sizing:border-box">
+      </div>
+    </div>
+    
+    <div style="margin-top:8px;display:${showKeywords ? 'block' : 'none'}">
+      <label>Mots-clés (pour indice ou vérification, séparés par |)</label>
+      <input class="form-vf-keywords" placeholder="ex. France|île" style="width:100%;padding:10px;border:1px solid #ddd;border-radius:8px;font-size:.95rem;box-sizing:border-box">
+    </div>
+  `;
+  $('#vfQuestions').appendChild(div);
+}
+
+// Function to remove a Vrai/Faux question
+window.removeFormVfQuestion = function(id) {
+  const item = document.querySelector(`[data-form-vf-id="${id}"]`);
+  if (item) {
+    item.remove();
+  }
+};
