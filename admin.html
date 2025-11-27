@@ -686,7 +686,7 @@ function addFormQcmQuestion() {
     
     <div class="form-qcm-options-container"></div>
     
-    <button id="addQcmOptionBtn_${qcmQuestionCount}" type="button" onclick="addFormQcmOption(${qcmQuestionCount})" style="margin-bottom:8px;padding:6px 10px;font-size:.85rem;background:#e0e0e0;color:#111;border:none;border-radius:6px;cursor:pointer">+ Ajouter une réponse</button>
+    <button type="button" onclick="addFormQcmOption(${qcmQuestionCount})" style="margin-bottom:8px;padding:6px 10px;font-size:.85rem;background:#e0e0e0;color:#111;border:none;border-radius:6px;cursor:pointer">+ Ajouter une réponse</button>
     
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:8px">
       <div>
@@ -723,7 +723,7 @@ window.addFormQcmOption = function(questionId) {
   
   optionDiv.innerHTML = `
     <label style="margin:0;font-weight:600;min-width:60px">Choix ${optionLetter.toUpperCase()}</label>
-    <input class="form-qcm-option" data-option-letter="${optionLetter}" placeholder="Réponse ${optionLetter.toUpperCase()}" style="flex:1;padding:10px;border:1px solid #ddd;border-radius:8px;font-size:.95rem">
+    <input class="form-qcm-option" data-option-letter="${optionLetter}" placeholder="Réponse ${letter.toUpperCase()}" style="flex:1;padding:10px;border:1px solid #ddd;border-radius:8px;font-size:.95rem">
     <button onclick="removeFormQcmOption(${questionId}, '${optionLetter}')" type="button" style="background:#e53e3e;color:#fff;border:none;padding:8px 12px;border-radius:6px;cursor:pointer;font-size:.85rem">✕</button>
   `;
   container.appendChild(optionDiv);
@@ -917,6 +917,172 @@ async function loadBank() {
   
   updateExercisesTable();
   updateDashboard();
+}
+
+function updateDashboard() {
+  const users = JSON.parse(localStorage.getItem(USERS_KEY) || '[]').filter(u => u.role === 'student');
+  const allStats = JSON.parse(localStorage.getItem('fr_stats_db') || '{}');
+
+  let totalAttempts = 0;
+  let totalScore = 0;
+  let attemptCount = 0;
+
+  Object.values(allStats).forEach(userStats => {
+    Object.values(userStats).forEach(lesson => {
+      if (lesson.attempts) {
+        totalAttempts += lesson.attempts.length;
+        lesson.attempts.forEach(a => {
+          totalScore += a.percentage;
+          attemptCount++;
+        });
+      }
+    });
+  });
+
+  $('#totalUsers').textContent = users.length;
+  const totalExercises = (bank?.lecture?.length || 0) + (bank?.ecoute?.length || 0) + (bank?.grammaire?.length || 0) + (bank?.lexique?.length || 0);
+  console.log('[v0] Dashboard - Total exercises:', totalExercises);
+  $('#totalExercises').textContent = totalExercises;
+  $('#totalAttempts').textContent = totalAttempts;
+  $('#avgScore').textContent = attemptCount > 0 ? Math.round(totalScore / attemptCount) + '%' : '0%';
+
+  setTimeout(() => {
+    drawAdminActivityChart();
+    drawAdminLevelChart();
+  }, 100);
+}
+
+function checkAuth() {
+  const auth = localStorage.getItem(AUTH_KEY);
+  if (!auth) {
+    window.location.href = 'login.html';
+    return;
+  }
+  currentUser = JSON.parse(auth);
+  if (currentUser.role !== 'admin') {
+    alert('Accès refusé');
+    window.location.href = 'dashboard.html';
+    return;
+  }
+  $('#adminUserName').textContent = currentUser.name + ' (Admin)';
+  $('#adminUserEmail').textContent = currentUser.email;
+}
+
+function syncFromCloudinary() {
+  try {
+    console.log('[v0] Manual sync from Cloudinary triggered');
+    
+    const filesIndex = JSON.parse(localStorage.getItem(FILES_INDEX_KEY) || '[]');
+    console.log('[v0] Files index from localStorage:', filesIndex);
+    
+    if (filesIndex.length > 0) {
+      // Use the index if available
+      loadBank().then(() => {
+        alert('✅ Synchronisation réussie! ' + filesIndex.length + ' fichier(s) chargé(s) depuis Cloudinary.');
+      });
+      return;
+    }
+    
+    console.log('[v0] No index found, trying to load known files directly...');
+    const cloudName = CLOUDINARY_CLOUD_NAME;
+    const knownFiles = ['questions.json', 'tous_exercices.json', 'a1_CO.json', 'a1_CE.json', 'a2_CO.json', 'a2_CE.json', 'b1_CO.json', 'b1_CE.json', 'b2_CO.json', 'b2_CE.json', 'c1_CO.json', 'c1_CE.json', 'c2_CO.json', 'c2_CE.json'];
+    
+    let loadedCount = 0;
+    const allExercises = [];
+    
+    const fetchPromises = knownFiles.map(async (fileName) => {
+      try {
+        const url = `https://res.cloudinary.com/${cloudName}/raw/upload/entrainement-francais/${fileName}`;
+        console.log('[v0] Trying to fetch:', url);
+        
+        const response = await fetch(url, {
+          mode: 'cors',
+          headers: {
+            'Accept': 'application/json'
+          }
+        });
+        
+        console.log('[v0] Response status for', fileName, ':', response.status);
+        
+        if (response.ok) {
+          const data = await response.json();
+          console.log('[v0] Successfully loaded:', fileName, data);
+          
+          // Handle different data formats
+          if (Array.isArray(data)) {
+            allExercises.push(...data);
+          } else if (data.exercises && Array.isArray(data.exercises)) {
+            allExercises.push(...data.exercises);
+          } else {
+            // Try to extract exercises from category structure
+            ['lecture', 'ecoute', 'grammaire', 'lexique'].forEach(cat => {
+              if (data[cat] && Array.isArray(data[cat])) {
+                allExercises.push(...data[cat]);
+              }
+            });
+          }
+          
+          loadedCount++;
+          return true; // Indicate success
+        } else {
+          console.log('[v0] File not found or error:', fileName, response.status, response.statusText);
+          return false; // Indicate failure
+        }
+      } catch (err) {
+        console.error('[v0] Error loading', fileName, ':', err.message);
+        return false; // Indicate failure
+      }
+    });
+    
+    Promise.all(fetchPromises).then(results => {
+      const successfulLoads = results.filter(Boolean).length;
+      console.log('[v0] Total files loaded:', successfulLoads, 'Total exercises:', allExercises.length);
+      
+      if (successfulLoads > 0) {
+        console.log('[v0] Total exercises loaded:', allExercises.length);
+        
+        // Merge with existing localStorage data
+        const stored = JSON.parse(localStorage.getItem(BANK_KEY) || '{"lecture":[],"ecoute":[],"grammaire":[],"lexique":[]}');
+        
+        // Categorize and merge exercises
+        allExercises.forEach(ex => {
+          const category = ex.type === 'lecture' || ex.type === 'CE' ? 'lecture' : 
+                           ex.type === 'ecoute' || ex.type === 'CO' ? 'ecoute' :
+                           ex.type === 'grammaire' || ex.type === 'Grammaire' ? 'grammaire' : 'lexique';
+          
+          if (!stored[category]) stored[category] = [];
+          
+          if (!ex.type) {
+              if (category === 'lecture') ex.type = 'CE';
+              else if (category === 'ecoute') ex.type = 'CO';
+              else if (category === 'grammaire') ex.type = 'Grammaire';
+              else ex.type = 'Lexique';
+          }
+
+          if (!ex.id) {
+              ex.id = `${category}_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`;
+          }
+
+          const exists = stored[category].some(e => e.id === ex.id);
+          if (!exists) {
+            stored[category].push(ex);
+          }
+        });
+        
+        localStorage.setItem(BANK_KEY, JSON.stringify(stored));
+        bank = stored;
+        
+        updateExercisesTable();
+        alert('✅ Synchronisation réussie! ' + successfulLoads + ' fichier(s) trouvé(s), ' + allExercises.length + ' exercice(s) chargé(s).');
+      } else {
+        alert('⚠️ Aucun fichier trouvé sur Cloudinary. Vérifiez que les fichiers sont bien uploadés dans le dossier "entrainement-francais".');
+      }
+    });
+    
+  } catch (error) {
+    console.error('[v0] Sync error:', error);
+    alert('❌ Erreur lors de la synchronisation: ' + error.message);
+  }
 }
 
 function updateDashboard() {
@@ -1179,7 +1345,7 @@ function editExercise(id) {
         optionsHtml += `
           <div style="display:flex;gap:8px;margin-bottom:8px;align-items:center" data-option-id="${letter}" data-option-letter="${letter}">
             <label style="margin:0;font-weight:600;min-width:60px">Choix ${letter.toUpperCase()}</label>
-            <input class="form-qcm-option" data-option-letter="${letter}" value="${q[letter]}" placeholder="Réponse ${letter.toUpperCase()}" style="flex:1;padding:10px;border:1px solid #ddd;border-radius:8px;font-size:.95rem">
+            <input class="form-qcm-option" data-option-letter="${letter}" value="${q[letter]}" placeholder="Réponse ${letter.toUpperCase()}" style="flex:1;padding:10px;border:1px solid #ddd;border-radius:8px;font-size:.95rem;box-sizing:border-box">
             <button onclick="removeFormQcmOption(${formQcmCounter}, '${letter}')" style="background:#e53e3e;color:#fff;border:none;padding:8px 12px;border-radius:6px;cursor:pointer;font-size:.85rem">✕</button>
           </div>
         `;
@@ -1195,7 +1361,7 @@ function editExercise(id) {
         
         <div class="form-qcm-options-container">${optionsHtml}</div>
         
-        <button id="addQcmOptionBtn_${formQcmCounter}" class="btn-secondary" onclick="addFormQcmOption(${formQcmCounter})" style="margin-bottom:8px;padding:6px 10px;font-size:.85rem">+ Ajouter une réponse</button>
+        <button class="btn-secondary" onclick="addFormQcmOption(${formQcmCounter})" style="margin-bottom:8px;padding:6px 10px;font-size:.85rem">+ Ajouter une réponse</button>
         
         <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:8px">
           <div>
@@ -1267,7 +1433,7 @@ function editExercise(id) {
   // Show appropriate containers after form is updated
   $('#qcmFormBox').style.display = 'block'; // Always show QCM box if present or not empty
   $('#vfFormBox').style.display = 'block'; // Always show V/F box if present or not empty
-  $('#clozeFormBox').style.display = ($('#kind').value === 'ecoute') ? 'block' : 'none'; // Show Cloze only for 'ecoute'
+  $('#clozeFormBox').style.display =($('#kind').value === 'ecoute') ? 'block' : 'none'; // Show Cloze only for 'ecoute'
   
   $('#addItem').textContent = 'Mettre à jour l\'exercice'; // Change button text for editing
 }
