@@ -175,8 +175,8 @@ h1 {
     <button class="tab-btn active" onclick="switchTab('dashboard')">Tableau de bord</button>
     <button class="tab-btn" onclick="switchTab('exercises')">Exercices</button>
     <button class="tab-btn" onclick="switchTab('users')">Utilisateurs</button>
-    <button class="tab-btn" onclick="switchTab('builder')">Créateur</button>
-    <!-- Added new tabs for resources and chat -->
+    <!-- Removed Créateur tab, keeping only Builder -->
+    <button class="tab-btn" onclick="switchTab('builder')">Builder</button>
     <button class="tab-btn" onclick="switchTab('resources')">Ressources externes</button>
     <button class="tab-btn" onclick="switchTab('chat')">Messages</button>
   </div>
@@ -221,50 +221,103 @@ h1 {
   </div>
 
   <!-- Exercises Tab -->
+  <!-- Exercises section - Added grouping by discipline -->
   <div id="exercises" class="tab-content">
     <div class="card">
       <h2>Gestion des exercices</h2>
-      <div class="table-container">
-        <table id="exercisesTable">
-          <thead>
-            <tr>
-              <th>Titre</th>
-              <th>Type</th>
-              <th>Niveau</th>
-              <th>Thème</th>
-              <th>Questions</th>
-              <th>Actions</th>
-            </tr>
-          </thead>
-          <tbody id="exercisesBody">
-            <tr><td colspan="6" class="empty-state">Aucun exercice</td></tr>
-          </tbody>
-        </table>
+      
+      <!-- CE Exercises Group -->
+      <div class="exercise-group" style="margin-bottom: 24px;">
+        <h3 style="color: #2b5; margin: 16px 0 8px; font-size: 1.1rem;">📖 Compréhension Écrite (CE)</h3>
+        <div class="table-container">
+          <table>
+            <thead>
+              <tr>
+                <th>Titre</th>
+                <th>Niveau</th>
+                <th>Thème</th>
+                <th>Questions</th>
+                <th>Actions</th>
+              </tr>
+            </thead>
+            <tbody id="exercicesBodyCE">
+              <tr><td colspan="5" class="empty-state">Aucun exercice CE</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- CO Exercises Group -->
+      <div class="exercise-group" style="margin-bottom: 24px;">
+        <h3 style="color: #f59e0b; margin: 16px 0 8px; font-size: 1.1rem;">🎧 Compréhension Orale (CO)</h3>
+        <div class="table-container">
+          <table>
+            <thead>
+              <tr>
+                <th>Titre</th>
+                <th>Niveau</th>
+                <th>Thème</th>
+                <th>Questions</th>
+                <th>Actions</th>
+              </tr>
+            </thead>
+            <tbody id="exercicesBodyCO">
+              <tr><td colspan="5" class="empty-state">Aucun exercice CO</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- Grammaire Exercises Group -->
+      <div class="exercise-group" style="margin-bottom: 24px;">
+        <h3 style="color: #3b82f6; margin: 16px 0 8px; font-size: 1.1rem;">📝 Grammaire</h3>
+        <div class="table-container">
+          <table>
+            <thead>
+              <tr>
+                <th>Titre</th>
+                <th>Niveau</th>
+                <th>Thème</th>
+                <th>Questions</th>
+                <th>Actions</th>
+              </tr>
+            </thead>
+            <tbody id="exercicesBodyGrammaire">
+              <tr><td colspan="5" class="empty-state">Aucun exercice de grammaire</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- Lexique Exercises Group -->
+      <div class="exercise-group" style="margin-bottom: 24px;">
+        <h3 style="color: #8b5cf6; margin: 16px 0 8px; font-size: 1.1rem;">💬 Lexique</h3>
+        <div class="table-container">
+          <table>
+            <thead>
+              <tr>
+                <th>Titre</th>
+                <th>Niveau</th>
+                <th>Thème</th>
+                <th>Questions</th>
+                <th>Actions</th>
+              </tr>
+            </thead>
+            <tbody id="exercicesBodyLexique">
+              <tr><td colspan="5" class="empty-state">Aucun exercice de lexique</td></tr>
+            </tbody>
+          </table>
+        </div>
       </div>
     </div>
   </div>
 
   <!-- Users Tab -->
+  <!-- Users section - Added grouping by filière -->
   <div id="users" class="tab-content">
     <div class="card">
       <h2>Gestion des utilisateurs</h2>
-      <div class="table-container">
-        <table id="usersTable">
-          <thead>
-            <tr>
-              <th>Nom</th>
-              <th>Email</th>
-              <th>Rôle</th>
-              <th>Leçons complétées</th>
-              <th>Score moyen</th>
-              <th>Actions</th>
-            </tr>
-          </thead>
-          <tbody id="usersBody">
-            <tr><td colspan="6" class="empty-state">Aucun utilisateur</td></tr>
-          </tbody>
-        </table>
-      </div>
+      <div id="usersGroupedContainer"></div>
     </div>
   </div>
 
@@ -850,9 +903,9 @@ async function loadBank() {
       
       // Merge exercises from this file
       if (data.lecture)cloudinaryExercises.lecture.push(...data.lecture);
-      if (data.ecoute) cloudinaryExercises.ecoute.push(...data.ecoute);
+      if (data.ecoute)cloudinaryExercises.ecoute.push(...data.ecoute);
       if (data.grammaire)cloudinaryExercises.grammaire.push(...data.grammaire);
-      if (data.lexique) cloudinaryExercises.lexique.push(...data.lexique);
+      if (data.lexique)cloudinaryExercises.lexique.push(...data.lexique);
       
     } catch (error) {
       console.log('[v0] Error loading', fileInfo.fileName, ':', error);
@@ -1110,46 +1163,64 @@ function updateDashboard() {
 }
 
 function updateExercisesTable() {
-  const tbody = $('#exercisesBody');
+  const tbodyCE = $('#exercicesBodyCE');
+  const tbodyCO = $('#exercicesBodyCO');
+  const tbodyGrammaire = $('#exercicesBodyGrammaire');
+  const tbodyLexique = $('#exercicesBodyLexique');
+  
   // Ensure bank and its properties exist before accessing
-  const allExercises = [
-    ...(bank?.lecture || []).map(e => ({ ...e, type: 'CE' })), // Use consistent type labels
-    ...(bank?.ecoute || []).map(e => ({ ...e, type: 'CO' })),
-    ...(bank?.grammaire || []).map(e => ({ ...e, type: 'Grammaire' })),
-    ...(bank?.lexique || []).map(e => ({ ...e, type: 'Lexique' }))
-  ];
+  const ceExercises = (bank?.lecture || []).map(e => ({ ...e, type: 'CE' }));
+  const coExercises = (bank?.ecoute || []).map(e => ({ ...e, type: 'CO' }));
+  const grammaireExercises = (bank?.grammaire || []).map(e => ({ ...e, type: 'Grammaire' }));
+  const lexiqueExercises = (bank?.lexique || []).map(e => ({ ...e, type: 'Lexique' }));
 
-  if (allExercises.length === 0) {
-    tbody.innerHTML = '<tr><td colspan="6" class="empty-state">Aucun exercice</td></tr>';
-    return;
+  // Render CE exercises
+  if (ceExercises.length === 0) {
+    tbodyCE.innerHTML = '<tr><td colspan="5" class="empty-state">Aucun exercice CE</td></tr>';
+  } else {
+    tbodyCE.innerHTML = ceExercises.map(ex => renderExerciseRow(ex)).join('');
   }
 
-  tbody.innerHTML = allExercises.map(ex => {
-    const qCount = (ex.qcm?.length || 0) + (ex.vf?.length || 0) + (ex.cloze ? 1 : 0);
-    let typeLabel = ex.type; // Use the type property directly
-    let typeClass = 'badge-lecture';
-    if (ex.type === 'CO') { typeClass = 'badge-ecoute'; }
-    else if (ex.type === 'Grammaire') { typeClass = 'badge-a1'; } // Example class mapping
-    else if (ex.type === 'Lexique') { typeClass = 'badge-a2'; } // Example class mapping
+  // Render CO exercises
+  if (coExercises.length === 0) {
+    tbodyCO.innerHTML = '<tr><td colspan="5" class="empty-state">Aucun exercice CO</td></tr>';
+  } else {
+    tbodyCO.innerHTML = coExercises.map(ex => renderExerciseRow(ex)).join('');
+  }
 
-    const levelClass = 'badge-' + (ex.niveau || 'a1').toLowerCase();
+  // Render Grammaire exercises
+  if (grammaireExercises.length === 0) {
+    tbodyGrammaire.innerHTML = '<tr><td colspan="5" class="empty-state">Aucun exercice de grammaire</td></tr>';
+  } else {
+    tbodyGrammaire.innerHTML = grammaireExercises.map(ex => renderExerciseRow(ex)).join('');
+  }
 
-    return `
-      <tr>
-        <td>${ex.titre}</td>
-        <td><span class="badge ${typeClass}">${typeLabel}</td>
-        <td><span class="badge ${levelClass}">${ex.niveau}</span></td>
-        <td>${ex.theme}</td>
-        <td>${qCount}</td>
-        <td>
-          <div class="action-btns">
-            <button class="btn-secondary" onclick="editExercise('${ex.id}')">Éditer</button>
-            <button class="btn-danger" onclick="deleteExercise('${ex.id}', '${ex.type}')">Supprimer</button>
-          </div>
-        </td>
-      </tr>
-    `;
-  }).join('');
+  // Render Lexique exercises
+  if (lexiqueExercises.length === 0) {
+    tbodyLexique.innerHTML = '<tr><td colspan="5" class="empty-state">Aucun exercice de lexique</td></tr>';
+  } else {
+    tbodyLexique.innerHTML = lexiqueExercises.map(ex => renderExerciseRow(ex)).join('');
+  }
+}
+
+function renderExerciseRow(ex) {
+  const qCount = (ex.qcm?.length || 0) + (ex.vf?.length || 0) + (ex.cloze ? 1 : 0);
+  const levelClass = 'badge-' + (ex.niveau || 'a1').toLowerCase();
+
+  return `
+    <tr>
+      <td>${ex.titre}</td>
+      <td><span class="badge ${levelClass}">${ex.niveau}</span></td>
+      <td>${ex.theme}</td>
+      <td>${qCount}</td>
+      <td>
+        <div class="action-btns">
+          <button class="btn-secondary" onclick="editExercise('${ex.id}')">Éditer</button>
+          <button class="btn-danger" onclick="deleteExercise('${ex.id}', '${ex.type}')">Supprimer</button>
+        </div>
+      </td>
+    </tr>
+  `;
 }
 
 function deleteExercise(id, type) {
@@ -1284,7 +1355,7 @@ function editExercise(id) {
         optionsHtml += `
           <div style="display:flex;gap:8px;margin-bottom:8px;align-items:center" data-option-id="${letter}" data-option-letter="${letter}">
             <label style="margin:0;font-weight:600;min-width:60px">Choix ${letter.toUpperCase()}</label>
-            <input class="form-qcm-option" data-option-letter="${letter}" value="${q[letter]}" placeholder="Réponse ${letter.toUpperCase()}" style="flex:1;padding:10px;border:1px solid #ddd;border-radius:8px;font-size:.95rem;box-sizing:border-box">
+            <input class="form-qcm-option" data-option-letter="${letter}" value="${q[letter]}" placeholder="Réponse ${letter.toUpperCase()}" style="flex:1;padding:10px;border:1px solid #ddd;border-radius:8px;font-size:.95rem">
             <button onclick="removeFormQcmOption(${formQcmCounter}, '${letter}')" style="background:#e53e3e;color:#fff;border:none;padding:8px 12px;border-radius:6px;cursor:pointer;font-size:.85rem">✕</button>
           </div>
         `;
@@ -1455,48 +1526,97 @@ function drawAdminLevelChart() {
 }
 
 function updateUsersTable() {
-  const tbody = $('#usersBody');
+  const container = $('#usersGroupedContainer');
   const users = JSON.parse(localStorage.getItem(USERS_KEY) || '[]');
+  const students = users.filter(u => u.role === 'student');
   
-  if (users.length === 0) {
-    tbody.innerHTML = '<tr><td colspan="6" class="empty-state">Aucun utilisateur</td></tr>';
+  if (students.length === 0) {
+    container.innerHTML = '<p class="empty-state">Aucun étudiant inscrit</p>';
     return;
   }
-  
-  tbody.innerHTML = users.map(user => {
-    // Calculate completed lessons and average score (simplified)
-    const userStats = JSON.parse(localStorage.getItem('fr_stats_db') || '{}')[user.id] || {};
-    const lessonCount = Object.keys(userStats).length;
-    let totalScore = 0;
-    let attemptCount = 0;
-    Object.values(userStats).forEach(lesson => {
-      if (lesson.attempts) {
-        lesson.attempts.forEach(a => {
-          totalScore += a.percentage;
-          attemptCount++;
-        });
-      }
-    });
-    const avgScore = attemptCount > 0 ? Math.round(totalScore / attemptCount) : 0;
 
-    return `
-      <tr>
-        <td>${user.name}</td>
-        <td>${user.email}</td>
-        <td>${user.role === 'admin' ? 'Admin' : 'Étudiant'}</td>
-        <td>${lessonCount}</td>
-        <td>${avgScore}%</td>
-        <td>
-          <div class="action-btns">
-            <button class="btn-secondary" onclick="viewUserStats('${user.id}')">Statistiques</button>
-            <button class="btn-secondary" onclick="openResetStudentPinModal('${user.id}')" style="background:#f59e0b;color:#fff">Réinit. PIN</button>
-            <button class="btn-danger" onclick="deleteUser('${user.id}')">Supprimer</button>
-          </div>
-        </td>
-      </tr>
+  // Group students by filière
+  const filieres = {
+    'Tourisme': [],
+    'Traduction-Interprétation': [],
+    'Communication': [],
+    'Idécaf': [],
+    'Droit': [],
+    'Autre': []
+  };
+
+  students.forEach(user => {
+    const filiere = user.filiere || 'Autre';
+    if (filieres[filiere]) {
+      filieres[filiere].push(user);
+    } else {
+      filieres['Autre'].push(user);
+    }
+  });
+
+  // Render grouped tables
+  let html = '';
+  
+  Object.keys(filieres).forEach(filiere => {
+    const studentsInFiliere = filieres[filiere];
+    if (studentsInFiliere.length === 0) return;
+
+    html += `
+      <div class="filiere-group" style="margin-bottom: 24px;">
+        <h3 style="color: #2b5; margin: 16px 0 8px; font-size: 1.1rem;">🎓 ${filiere} (${studentsInFiliere.length})</h3>
+        <div class="table-container">
+          <table>
+            <thead>
+              <tr>
+                <th>Nom</th>
+                <th>Email</th>
+                <th>Leçons complétées</th>
+                <th>Score moyen</th>
+                <th>Actions</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${studentsInFiliere.map(user => {
+                const userStats = JSON.parse(localStorage.getItem('fr_stats_db') || '{}')[user.id] || {};
+                const lessonCount = Object.keys(userStats).length;
+                let totalScore = 0;
+                let attemptCount = 0;
+                Object.values(userStats).forEach(lesson => {
+                  if (lesson.attempts) {
+                    lesson.attempts.forEach(a => {
+                      totalScore += a.percentage;
+                      attemptCount++;
+                    });
+                  }
+                });
+                const avgScore = attemptCount > 0 ? Math.round(totalScore / attemptCount) : 0;
+
+                return `
+                  <tr>
+                    <td>${user.name}</td>
+                    <td>${user.email}</td>
+                    <td>${lessonCount}</td>
+                    <td>${avgScore}%</td>
+                    <td>
+                      <div class="action-btns">
+                        <button class="btn-secondary" onclick="viewUserStats('${user.id}')">Statistiques</button>
+                        <button class="btn-secondary" onclick="openResetStudentPinModal('${user.id}')" style="background:#f59e0b;color:#fff">Réinit. PIN</button>
+                        <button class="btn-danger" onclick="deleteUser('${user.id}')">Supprimer</button>
+                      </div>
+                    </td>
+                  </tr>
+                `;
+              }).join('')}
+            </tbody>
+          </table>
+        </div>
+      </div>
     `;
-  }).join('');
+  });
+
+  container.innerHTML = html;
 }
+
 
 function deleteUser(userId) {
   if (!confirm('Êtes-vous sûr de vouloir supprimer cet utilisateur ?')) return;
