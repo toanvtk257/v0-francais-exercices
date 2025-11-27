@@ -153,7 +153,7 @@ h1 {
   transition:all .2s;
 }
 .logout-btn:hover{
-  background:#1ea34a;
+  background:#1a9d4d;
 }
 /* END NEW STYLES */
 </style>
@@ -802,7 +802,7 @@ window.addFormQcmOption = function(questionId) {
   
   optionDiv.innerHTML = `
     <label style="margin:0;font-weight:600;min-width:60px">Choix ${optionLetter.toUpperCase()}</label>
-    <input class="form-qcm-option" data-option-letter="${optionLetter}" placeholder="Réponse ${letter.toUpperCase()}" style="flex:1;padding:10px;border:1px solid #ddd;border-radius:8px;font-size:.95rem">
+    <input class="form-qcm-option" data-option-letter="${optionLetter}" placeholder="Réponse ${optionLetter.toUpperCase()}" style="flex:1;padding:10px;border:1px solid #ddd;border-radius:8px;font-size:.95rem">
     <button onclick="removeFormQcmOption(${questionId}, '${optionLetter}')" type="button" style="background:#e53e3e;color:#fff;border:none;padding:8px 12px;border-radius:6px;cursor:pointer;font-size:.85rem">✕</button>
   `;
   container.appendChild(optionDiv);
@@ -1881,7 +1881,15 @@ function syncFromCloudinary() {
     localStorage.setItem(BANK_KEY, JSON.stringify(BANK));
     // Only update table once after sync is complete
     updateExercisesTable();
-    alert(`✅ ${loadedCount} fichier(s) synchronisé(s) depuis Cloudinary!`);
+    
+    uploadBankToCloudinary()
+      .then(() => {
+        alert(`✅ ${loadedCount} fichier(s) synchronisé(s) depuis Cloudinary!\n📤 Vos modifications locales ont été uploadées sur Cloudinary.`);
+      })
+      .catch(err => {
+        console.error('[v0] Error uploading to Cloudinary:', err);
+        alert(`✅ ${loadedCount} fichier(s) synchronisé(s) depuis Cloudinary!\n⚠️ Erreur lors de l'upload: ${err.message}`);
+      });
   }).catch(err => {
     console.error('[v0] Error during Cloudinary sync Promise.all:', err);
     alert('❌ Erreur lors de la synchronisation depuis Cloudinary. Veuillez réessayer.');
@@ -1922,6 +1930,43 @@ function exportBank() {
   URL.revokeObjectURL(a.href);
   alert('✅ Fichier JSON exporté!');
 }
+
+async function uploadBankToCloudinary() {
+  console.log('[v0] uploadBankToCloudinary called');
+  
+  // Create a JSON blob from the current BANK
+  const jsonBlob = new Blob([JSON.stringify(BANK, null, 2)], { type: 'application/json' });
+  const file = new File([jsonBlob], 'tous_exercices.json', { type: 'application/json' });
+  
+  const formData = new FormData();
+  formData.append('file', file);
+  formData.append('upload_preset', CLOUDINARY_UPLOAD_PRESET);
+  formData.append('folder', CLOUDINARY_JSON_FOLDER);
+  formData.append('public_id', 'tous_exercices'); // Keep same filename
+  formData.append('overwrite', 'true'); // Overwrite existing file
+  formData.append('invalidate', 'true'); // Invalidate CDN cache
+
+  try {
+    const response = await fetch(`https://api.cloudinary.com/v1_1/${CLOUDINARY_CLOUD_NAME}/upload`, {
+      method: 'POST',
+      body: formData,
+    });
+    
+    if (!response.ok) {
+      const errorData = await response.json();
+      console.error('[v0] Cloudinary upload error:', errorData);
+      throw new Error(`Upload failed: ${errorData.error?.message || 'Unknown error'}`);
+    }
+    
+    const data = await response.json();
+    console.log('[v0] Bank successfully uploaded to Cloudinary:', data.secure_url);
+    return data.secure_url;
+  } catch (error) {
+    console.error('[v0] Error uploading bank to Cloudinary:', error);
+    throw error;
+  }
+}
+
 
 // Dashboard stats functions
 function loadDashboardStats() {
@@ -2686,12 +2731,12 @@ function editExercise(id) {
       qDiv.dataset.formQcmId = qcmQuestionCount;
       
       let optionsHtml = '';
-      let letters = Object.keys(q.options).sort(); // Ensure consistent order
+      let letters = Object.keys(q.options || {}).sort(); // Ensure consistent order
       letters.forEach((letter, i) => {
         optionsHtml += `
           <div data-option-letter="${letter}" style="display:flex;gap:8px;margin-bottom:8px;align-items:center">
             <label style="margin:0;font-weight:600;min-width:60px">Choix ${letter.toUpperCase()}</label>
-            <input class="form-qcm-option" data-option-letter="${letter}" placeholder="Réponse ${letter.toUpperCase()}" value="${q.options[letter]}" style="flex:1;padding:10px;border:1px solid #ddd;border-radius:8px;font-size:.95rem">
+            <input class="form-qcm-option" data-option-letter="${letter}" placeholder="Réponse ${letter.toUpperCase()}" value="${q.options[letter] || ''}" style="flex:1;padding:10px;border:1px solid #ddd;border-radius:8px;font-size:.95rem">
             <button onclick="removeFormQcmOption(${qcmQuestionCount}, '${letter}')" type="button" style="background:#e53e3e;color:#fff;border:none;padding:8px 12px;border-radius:6px;cursor:pointer;font-size:.85rem">✕</button>
           </div>
         `;
@@ -2703,7 +2748,7 @@ function editExercise(id) {
           <button class="btn-danger" onclick="removeFormQcmQuestion(${qcmQuestionCount})" type="button" style="padding:6px 10px;font-size:.85rem">Supprimer</button>
         </div>
         <label>Question</label>
-        <input class="form-qcm-question" placeholder="Quelle est la capitale de la France ?" value="${q.question}" style="width:100%;padding:10px;border:1px solid #ddd;border-radius:8px;font-size:.95rem;box-sizing:border-box;margin-bottom:8px">
+        <input class="form-qcm-question" placeholder="Quelle est la capitale de la France ?" value="${q.question || ''}" style="width:100%;padding:10px;border:1px solid #ddd;border-radius:8px;font-size:.95rem;box-sizing:border-box;margin-bottom:8px">
         
         <div class="form-qcm-options-container">${optionsHtml}</div>
         
@@ -2717,14 +2762,19 @@ function editExercise(id) {
           </div>
           <div>
             <label>Points</label>
-            <input type="number" class="form-qcm-points" value="${q.points}" min="1" style="width:100%;padding:10px;border:1px solid #ddd;border-radius:8px;font-size:.95rem;box-sizing:border-box">
+            <input type="number" class="form-qcm-points" value="${q.points || 1}" min="1" style="width:100%;padding:10px;border:1px solid #ddd;border-radius:8px;font-size:.95rem;box-sizing:border-box">
           </div>
         </div>
       `;
       qcmContainer.appendChild(qDiv);
+      
+      // Update dropdown with current options and set correct answer
+      updateFormQcmAnswerDropdown(qcmQuestionCount);
+      const answerDropdown = qDiv.querySelector('.form-qcm-answer');
+      if (answerDropdown && q.answer) {
+        answerDropdown.value = q.answer;
+      }
     });
-    // Ensure the dropdowns are updated correctly after all questions are added
-    updateFormQcmAnswerDropdown(qcmQuestionCount); 
     // Manually set qcmQuestionCount to the correct value after filling
     qcmQuestionCount = foundExercise.qcm.length > 0 ? foundExercise.qcm.length : 0;
   }
@@ -2747,7 +2797,7 @@ function editExercise(id) {
           <button class="btn-danger" onclick="removeFormVfQuestion(${formVfCounter})" style="padding:6px 10px;font-size:.85rem">Supprimer</button>
         </div>
         <label>Énoncé</label>
-        <input class="form-vf-statement" placeholder="La France est une île." value="${q.statement}" style="width:100%;padding:10px;border:1px solid #ddd;border-radius:8px;font-size:.95rem;box-sizing:border-box;margin-bottom:8px">
+        <input class="form-vf-statement" placeholder="La France est une île." value="${q.statement || ''}" style="width:100%;padding:10px;border:1px solid #ddd;border-radius:8px;font-size:.95rem;box-sizing:border-box;margin-bottom:8px">
         
         <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:8px">
           <div>
@@ -2759,7 +2809,7 @@ function editExercise(id) {
           </div>
           <div>
             <label>Points</label>
-            <input type="number" class="form-vf-points" value="${q.points}" min="1" style="width:100%;padding:10px;border:1px solid #ddd;border-radius:8px;font-size:.95rem;box-sizing:border-box">
+            <input type="number" class="form-vf-points" value="${q.points || 1}" min="1" style="width:100%;padding:10px;border:1px solid #ddd;border-radius:8px;font-size:.95rem;box-sizing:border-box">
           </div>
         </div>
         
@@ -2770,13 +2820,13 @@ function editExercise(id) {
       `;
       vfContainer.appendChild(div);
     });
-    formVfCounter = foundExercise.vf.length > 0 ? foundExercise.vf.length : 0;
+    formVfCounter = foundExercise.vf.length;
   }
 
   // Cloze exercise
   if (foundExercise.cloze) {
     $('#clozeFormBox').style.display = 'block';
-    $('#clozeText').value = foundExercise.cloze.text;
+    $('#clozeText').value = foundExercise.cloze.text || '';
     $('#transText').value = foundExercise.cloze.transcription || '';
     
     // Populate cloze blanks configuration
@@ -2784,23 +2834,31 @@ function editExercise(id) {
     const configContainer = $('#builderClozeBlanksConfig');
     configContainer.style.display = 'block';
     clozeBlankslist.innerHTML = '';
-    foundExercise.cloze.blanks.forEach((blank, index) => {
-      const div = document.createElement('div');
-      div.style.cssText = 'display:flex;gap:8px;align-items:center;margin-bottom:8px;padding:8px;background:#fff;border-radius:6px';
-      div.innerHTML = `
-        <span style="flex:1;font-weight:500">Trou ${index + 1}: "${blank.text}"</span>
-        <label style="display:flex;align-items:center;gap:4px">
-          Points: <input type="number" class="cloze-blank-points" value="${blank.points}" min="0" step="0.5" style="width:60px;padding:4px;border:1px solid #ddd;border-radius:4px">
-        </label>
-      `;
-      clozeBlankslist.appendChild(div);
-    });
+    if (foundExercise.cloze.blanks && foundExercise.cloze.blanks.length > 0) {
+      foundExercise.cloze.blanks.forEach((blank, index) => {
+        const div = document.createElement('div');
+        div.style.cssText = 'display:flex;gap:8px;align-items:center;margin-bottom:8px;padding:8px;background:#fff;border-radius:6px';
+        div.innerHTML = `
+          <span style="flex:1;font-weight:500">Trou ${index + 1}: "${blank.text || ''}"</span>
+          <label style="display:flex;align-items:center;gap:4px">
+            Points: <input type="number" class="cloze-blank-points" value="${blank.points || 1}" min="0" step="0.5" style="width:60px;padding:4px;border:1px solid #ddd;border-radius:4px">
+          </label>
+        `;
+        clozeBlankslist.appendChild(div);
+      });
+    }
   } else {
     $('#clozeFormBox').style.display = 'none'; // Hide if no cloze data
   }
   
+  // Update visibility based on kind
+  toggleBoxes();
+  
   // Update button text
   $('#addItem').textContent = 'Mettre à jour l\'exercice';
+  
+  switchTab('builder');
+  console.log('[v0] editExercise completed, switched to builder tab');
 }
 
 // Helper to load image data for preview during editing
