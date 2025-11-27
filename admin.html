@@ -176,7 +176,6 @@ h1 {
     <button class="tab-btn" onclick="switchTab('exercises')">Exercices</button>
     <button class="tab-btn" onclick="switchTab('users')">Utilisateurs</button>
     <!-- Removed Créateur tab, keeping only Builder -->
-    <button class="tab-btn" onclick="switchTab('builder')">Builder</button>
     <button class="tab-btn" onclick="switchTab('resources')">Ressources externes</button>
     <button class="tab-btn" onclick="switchTab('chat')">Messages</button>
   </div>
@@ -318,163 +317,6 @@ h1 {
     <div class="card">
       <h2>Gestion des utilisateurs</h2>
       <div id="usersGroupedContainer"></div>
-    </div>
-  </div>
-
-  <!-- Builder Tab -->
-  <div id="builder" class="tab-content">
-    <div class="card">
-      <h2>Importer/Exporter la banque</h2>
-      <!-- <div class="btns">
-        <input type="file" id="importBank" accept=".json" style="display:none">
-        <button class="btn-primary" onclick="document.getElementById('importBank').click()">Importer JSON</button>
-        <button class="btn-secondary" onclick="exportBank()">Exporter JSON</button>
-        <button class="btn-secondary" onclick="loadDefaultBank()">Charger exemple</button>
-      </div> -->
-
-      <!-- Adding button to manually sync Cloudinary files -->
-      <div class="border-t pt-3 flex gap-3">
-        <input type="file" id="importBank" accept=".json" style="display:none">
-        <button class="btn-primary" onclick="document.getElementById('importBank').click()">Importer JSON</button>
-        <button class="btn-secondary" onclick="exportBank()">Exporter JSON</button>
-        <button class="btn-secondary" onclick="loadDefaultBank()">Charger exemple</button>
-        <button class="btn-primary" onclick="syncFromCloudinary()">🔄 Synchroniser Cloudinary</button>
-      </div>
-      
-      <div id="importMsg" class="success-msg"></div>
-      <div id="importError" class="error-msg"></div>
-    </div>
-
-    <div class="card">
-      <h2>2) Ajouter un cours</h2>
-      <form id="exerciseForm">
-        <div class="grid" style="display:grid;grid-template-columns:1fr 1fr;gap:16px">
-          <div class="form-group">
-            <label for="kind">Discipline</label>
-            <select id="kind" name="kind" required onchange="toggleBoxes()">
-              <option value="">-- Sélectionnez --</option>
-              <option value="lecture">CE (compréhension écrite)</option>
-              <option value="ecoute">CO (compréhension orale)</option>
-              <option value="grammaire">Grammaire</option>
-              <option value="lexique">Lexique</option>
-            </select>
-          </div>
-          <div class="form-group">
-            <label for="niveau">Niveau</label>
-            <select id="niveau">
-              <option>A1</option><option>A2</option><option>B1</option><option>B2</option><option>C1</option><option>C2</option>
-            </select>
-          </div>
-          <div class="form-group">
-            <label for="theme">Thème</label>
-            <input type="text" id="theme" placeholder="ex. Salutations / Voyage">
-          </div>
-          <div class="form-group">
-            <label for="exerciseNumber">N° exercice</label>
-            <input type="number" id="exerciseNumber" min="1" placeholder="ex. 1">
-          </div>
-          <div class="form-group">
-            <label for="id">ID (facultatif)</label>
-            <input type="text" id="id" placeholder="ex. lec_a1_01">
-          </div>
-          <div class="form-group">
-            <label for="difficulty">Difficulté (facultatif)</label>
-            <input type="range" id="difficulty" min="1" max="5" value="1" style="width:100%">
-            <span id="difficultyValue" style="font-size:0.85rem;color:#666">Niveau 1</span>
-          </div>
-        </div>
-
-        <div class="form-group ecoute-only" style="display:none">
-          <label for="audio">Fichier audio (optionnel - uniquement pour CO)</label>
-          <p style="color:#64748b;font-size:0.9rem;margin-bottom:0.5rem">Uniquement pour CO. Laissez vide si vous ne souhaitez pas ajouter de fichier audio.</p>
-          
-          <div 
-            id="audioDrop" 
-            style="border:2px dashed #3b82f6;border-radius:0.5rem;padding:2rem;text-align:center;cursor:pointer;background:#eff6ff;transition:all 0.2s"
-            ondrop="handleAudioDrop(event)"
-            ondragover="event.preventDefault();this.style.background='#dbeafe'"
-            ondragleave="this.style.background='#eff6ff'"
-            onclick="document.getElementById('audioInput').click()"
-          >
-            <p style="margin:0;color:#3b82f6;font-weight:500">🎵 Glissez-déposez un fichier audio ici ou cliquez pour sélectionner</p>
-            <p style="margin:0.5rem 0 0 0;font-size:0.85rem;color:#64748b">Le fichier sera automatiquement uploadé vers Cloudinary</p>
-          </div>
-          <input type="file" id="audioInput" accept="audio/*" onchange="handleAudioSelect(event)" style="display:none">
-          <input type="hidden" id="audio" name="audio">
-          
-          <div id="audioPreview" style="display:none;margin-top:1rem;padding:1rem;background:#f0f9ff;border-radius:0.5rem;border:1px solid #bae6fd">
-            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:0.5rem">
-              <strong id="audioFileName" style="color:#0c4a6e"></strong>
-              <button type="button" onclick="removeAudio()" style="background:#ef4444;color:white;border:none;padding:0.25rem 0.75rem;border-radius:0.25rem;cursor:pointer;font-size:0.85rem">
-                Supprimer
-              </button>
-            </div>
-            <p id="audioFilePath" style="font-size:0.85rem;color:#64748b;margin-bottom:0.5rem"></p>
-            <audio id="audioPlayer" controls style="width:100%;margin-top:0.5rem"></audio>
-            <div id="audioUploadStatus" style="margin-top:0.5rem;font-weight:500"></div>
-          </div>
-        </div>
-
-        <hr>
-
-        <div id="passageBox" class="hidden">
-          <h3 style="margin-bottom:1rem">Contenu du passage</h3>
-          
-          <div class="form-group">
-            <label>Titre du passage (affiché en gras)</label>
-            <input type="text" id="passageTitle" placeholder="ex. La Tour Eiffel">
-          </div>
-          <div class="form-group">
-            <label>Texte principal</label>
-            <textarea id="passageText" placeholder="Entrez le texte à lire..." style="min-height:120px"></textarea>
-          </div>
-          <div class="form-group">
-            <label>Source (affichée en italique à droite)</label>
-            <input type="text" id="passageSource" placeholder="ex. Source: Le Monde, 2024">
-          </div>
-        </div>
-
-        <div id="qcmFormBox" style="margin-top:20px">
-          <h3>Questions QCM (optionnel)</h3>
-          <p class="small" style="margin-bottom:12px;color:#666">Laissez vide si vous ne souhaitez pas ajouter de questions QCM.</p>
-          <div id="qcmQuestions"></div>
-          <button id="addQcmQuestion" type="button" class="secondary" style="background:#e0e0e0;color:#111">+ Ajouter une question QCM</button>
-        </div>
-
-        <div id="vfFormBox" style="margin-top:20px">
-          <h3>Questions Vrai/Faux (optionnel)</h3>
-          <p class="small" style="margin-bottom:12px;color:#666">Laissez vide si vous ne souhaitez pas ajouter de questions Vrai/Faux.</p>
-          <div id="vfQuestions"></div>
-          <button id="addVfQuestion" type="button" class="secondary" style="background:#e0e0e0;color:#111">+ Ajouter une question Vrai/Faux</button>
-        </div>
-
-        <div id="clozeFormBox" style="margin-top:20px" class="ecoute-only" style="display:none">
-          <h3>Exercice Cloze (optionnel)</h3>
-          <p class="small" style="margin-bottom:12px;color:#666">Uniquement pour CO. Laissez vide si vous ne souhaitez pas ajouter d'exercice Cloze.</p>
-          <div style="background:#f9f9f9;padding:16px;border-radius:8px;border:1px solid #e0e0e0">
-            <label>Texte avec trous (entourez les réponses avec [crochets])</label>
-            <textarea id="clozeText" placeholder="Exemple: Je vais au [marché] à [10h]." style="width:100%;padding:10px;border:1px solid #ddd;border-radius:10px;font-size:1rem;box-sizing:border-box;min-height:120px;margin-bottom:12px"></textarea>
-            
-            <button type="button" class="secondary" onclick="detectBuilderClozeBlanks()" style="margin-bottom:12px;background:#e0e0e0;color:#111">🔍 Détecter les trous et configurer les points</button>
-            
-            <div id="builderClozeBlanksConfig" style="display:none;margin-top:12px">
-              <h4 style="margin:8px 0;font-size:1rem;color:var(--brand)">Configuration des points par trou</h4>
-              <div id="builderClozeBlankslist"></div>
-            </div>
-            
-            <div style="margin-top:16px;padding-top:16px;border-top:1px solid #e0e0e0">
-              <h4 style="margin:8px 0 12px;font-size:1rem;color:#2d3748">Transcription (affichée après soumission)</h4>
-              <p class="small" style="margin-bottom:8px;color:#666">La transcription apparaîtra avec un bouton "Voir la transcription" après que l'étudiant a répondu à toutes les questions.</p>
-              <textarea id="transText" placeholder="Entrez la transcription complète de l'audio..." style="width:100%;padding:10px;border:1px solid #ddd;border-radius:10px;font-size:1rem;box-sizing:border-box;min-height:120px"></textarea>
-            </div>
-          </div>
-        </div>
-
-        <div class="btns" style="display:flex;gap:10px;flex-wrap:wrap;margin-top:10px">
-          <button id="addItem" type="button" style="border:0;background:var(--brand);color:#fff;padding:10px 14px;border-radius:12px;cursor:pointer;font-weight:600">Ajouter à la banque</button>
-        </div>
-        <p id="addInfo" class="small"></p>
-      </form>
     </div>
   </div>
 
@@ -748,7 +590,7 @@ window.addFormQcmOption = function(questionId) {
   
   optionDiv.innerHTML = `
     <label style="margin:0;font-weight:600;min-width:60px">Choix ${optionLetter.toUpperCase()}</label>
-    <input class="form-qcm-option" data-option-letter="${optionLetter}" placeholder="Réponse ${optionLetter.toUpperCase()}" style="flex:1;padding:10px;border:1px solid #ddd;border-radius:8px;font-size:.95rem">
+    <input class="form-qcm-option" data-option-letter="${optionLetter}" placeholder="Réponse ${letter.toUpperCase()}" style="flex:1;padding:10px;border:1px solid #ddd;border-radius:8px;font-size:.95rem">
     <button onclick="removeFormQcmOption(${questionId}, '${optionLetter}')" type="button" style="background:#e53e3e;color:#fff;border:none;padding:8px 12px;border-radius:6px;cursor:pointer;font-size:.85rem">✕</button>
   `;
   container.appendChild(optionDiv);
@@ -861,7 +703,7 @@ function loadRecipientOptions() {
 }
 
 async function loadBank() {
-  console.log('[v0] === LOADING BANK ===');
+  console.log('[v0] ===LOADING BANK===');
   
   // Load localStorage data
   const stored = localStorage.getItem(BANK_KEY);
@@ -1124,9 +966,7 @@ function switchTab(tabName) {
     loadRecipientOptions(); // Ensure recipient options are loaded for chat tab
     loadChatUsers();
   }
-  if (tabName === 'builder') { // Initialize creator tab components
-    initCreatorTab();
-  }
+  // No need to initialize creator tab anymore
 }
 
 function updateDashboard() {
@@ -2226,122 +2066,6 @@ document.addEventListener('DOMContentLoaded', async function() {
   }
 });
 
-// Handler for adding exercise from the builder form
-function addExerciseFromBuilder() {
-  const form = $('#exerciseForm');
-  const kind = $('#kind').value;
-  const niveau = $('#niveau').value;
-  const theme = $('#theme').value.trim();
-  const exerciseNumber = $('#exerciseNumber').value;
-  const customId = $('#id').value.trim();
-  const difficulty = $('#difficulty').value;
-  const audio = $('#audio').value;
-  const passageTitle = $('#passageTitle').value.trim();
-  const passageText = $('#passageText').value.trim();
-  const passageSource = $('#passageSource').value.trim();
-  const clozeText = $('#clozeText').value;
-  const transText = $('#transText').value;
-
-  if (!kind || !niveau || !theme) {
-    alert('Veuillez remplir au moins la Discipline, le Niveau et le Thème.');
-    return;
-  }
-  
-  // Generate a default ID if not provided
-  let exerciseId = customId || `${kind.toLowerCase()}_${niveau.toLowerCase()}_${Date.now().toString().substring(0, 6)}`;
-  
-  // Check for duplicate IDs within the same type
-  if (bank[kind] && bank[kind].some(ex => ex.id === exerciseId && ex.id !== editingExerciseId)) {
-      alert(`L'ID "${exerciseId}" existe déjà pour la discipline "${kind}". Veuillez en choisir un autre.`);
-      return;
-  }
-  
-  const exercise = {
-    id: exerciseId,
-    type: kind,
-    niveau: niveau,
-    theme: theme,
-    exerciseNumber: parseInt(exerciseNumber) || null,
-    difficulty: parseInt(difficulty),
-    titre: `${kind.toUpperCase()} - ${niveau} - Thème: ${theme}` + (exerciseNumber ? ` - N°${exerciseNumber}` : ''),
-  };
-
-  if (audio) exercise.audio = audio;
-  if (passageTitle || passageText || passageSource) {
-    exercise.passage_html = `<h3>${passageTitle}</h3><p>${passageText}</p>` + (passageSource ? `<p style="font-style: italic; float: right;">${passageSource}</p>` : '');
-  }
-  
-  // QCM questions
-  const qcmQuestions = $$('#qcmQuestions .form-qcm-question').map(qInput => {
-    const qDiv = qInput.closest('div[data-form-qcm-id]');
-    const questionText = qInput.value.trim();
-    const optionsHtmlDivs = qDiv.querySelectorAll(':scope > .form-qcm-options-container > div[data-option-letter]');
-    const options = {};
-    let correctAnswer = '';
-    let points = parseInt(qDiv.querySelector('.form-qcm-points').value) || 1;
-    
-    optionsHtmlDivs.forEach((optionDiv, index) => {
-        const letter = optionDiv.dataset.optionLetter;
-        const optionInput = optionDiv.querySelector('.form-qcm-option');
-        options[letter] = optionInput.value.trim();
-    });
-
-    const answerDropdown = qDiv.querySelector('.form-qcm-answer');
-    correctAnswer = answerDropdown.value;
-
-    if (!correctAnswer && Object.keys(options).length > 0) {
-        correctAnswer = Object.keys(options)[0]; // Default to first option if none marked
-    }
-
-    return { question: questionText, ...options, answer: correctAnswer, points };
-  });
-  if (qcmQuestions.length > 0) exercise.qcm = qcmQuestions;
-
-  // Vrai/Faux questions
-  const vfQuestions = $$('#vfQuestions .form-vf-statement').map(vfInput => {
-    const qDiv = vfInput.closest('div[data-form-vf-id]');
-    const statement = vfInput.value.trim();
-    const answer = qDiv.querySelector('.form-vf-answer:checked').value;
-    const points = parseInt(qDiv.querySelector('.form-vf-points').value) || 1;
-    const keywordsInput = qDiv.querySelector('.form-vf-keywords');
-    const keywords = keywordsInput ? keywordsInput.value.split('|').map(k => k.trim()).filter(Boolean) : [];
-    return { statement, answer, keywords, points };
-  });
-  if (vfQuestions.length > 0) exercise.vf = vfQuestions;
-
-  // Cloze exercise
-  if (clozeText) {
-    exercise.cloze = clozeText;
-    exercise.transcription = transText;
-    
-    const blankConfigs = $$('#builderClozeBlankslist .cloze-blank-points').map(input => parseInt(input.value) || 1);
-    if (blankConfigs.length > 0) {
-        exercise.clozePoints = blankConfigs;
-    }
-  }
-
-  // Add or update exercise
-  if (editingExerciseId) {
-    const typeIndex = bank[kind].findIndex(ex => ex.id === editingExerciseId);
-    if (typeIndex !== -1) {
-      // Merge with existing properties to keep things like created_at, etc.
-      bank[kind][typeIndex] = { ...bank[kind][typeIndex], ...exercise };
-    } else {
-      // Should not happen if ID is valid and matches kind, but as fallback:
-      bank[kind].push(exercise);
-    }
-  } else {
-    bank[kind].push(exercise);
-  }
-  
-  saveBank();
-  updateExercisesTable();
-  resetExerciseForm(); // Clear the form after adding
-  $('#addInfo').textContent = editingExerciseId ? 'Exercice mis à jour !' : 'Exercice ajouté à la banque !';
-  $('#addInfo').style.color = 'green';
-  setTimeout(() => $('#addInfo').textContent = '', 3000);
-}
-
 // Helper function to reset the exercise form
 function resetExerciseForm() {
   const form = $('#exerciseForm');
@@ -2385,18 +2109,15 @@ function resetExerciseForm() {
 }
 
 // Helper function to initialize creator tab
-function initCreatorTab() {
-  toggleBoxes();
-  
-  // Reset QCM and VF counters when initializing the tab
-  qcmQuestionCount = 0;
-  vfQuestionCount = 0;
-  
-  // Ensure the form is reset if not editing
-  if (!editingExerciseId) {
-    resetExerciseForm();
-  }
-}
+// This is now a no-op as the Builder tab is removed.
+// function initCreatorTab() {
+//   toggleBoxes();
+//   qcmQuestionCount = 0;
+//   vfQuestionCount = 0;
+//   if (!editingExerciseId) {
+//     resetExerciseForm();
+//   }
+// }
 </script>
 </body>
 </html>

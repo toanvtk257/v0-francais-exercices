@@ -88,8 +88,8 @@ button:hover{opacity:.9}
       <input type="text" id="register-pin" class="pin-input" autocomplete="off" data-form-type="other" placeholder="••••••" maxlength="6" pattern="[0-9]*" inputmode="numeric">
     </div>
 
-    <!-- Added filière/specialité dropdown for student registration -->
-    <div class="form-group">
+    <!-- Added filière dropdown, initially hidden, shown only for students -->
+    <div class="form-group" id="filiere-field" style="display:none;">
       <label for="register-filiere">Filière/Spécialité</label>
       <select id="register-filiere">
         <option value="Tourisme">Tourisme</option>
@@ -247,12 +247,15 @@ function isLocalStorageAvailable() {
 
 function toggleAdminSecretField() {
   const role = document.getElementById('register-role').value;
-  const secretField = document.getElementById('admin-secret-field');
+  const adminSecretField = document.getElementById('admin-secret-field');
+  const filiereField = document.getElementById('filiere-field');
   
   if (role === 'admin') {
-    secretField.style.display = 'block';
+    adminSecretField.style.display = 'block';
+    filiereField.style.display = 'none'; // Hide filiere for admins
   } else {
-    secretField.style.display = 'none';
+    adminSecretField.style.display = 'none';
+    filiereField.style.display = 'block'; // Show filiere for students
   }
 }
 
@@ -340,9 +343,10 @@ function handleRegister() {
   const name = document.getElementById('register-name').value.trim();
   const username = document.getElementById('register-username').value.trim();
   const pin = document.getElementById('register-pin').value;
-  const filiere = document.getElementById('register-filiere').value;
   const role = document.getElementById('register-role').value;
   const errorDiv = document.getElementById('register-error');
+  
+  const filiere = role === 'student' ? document.getElementById('register-filiere').value : null;
   
   if (!isLocalStorageAvailable()) {
     errorDiv.textContent = 'Le stockage local n\'est pas disponible dans ce navigateur';
@@ -395,7 +399,7 @@ function handleRegister() {
       email: username,
       pin: pin,
       role: role,
-      filiere: filiere,
+      filiere: filiere, // This will be null for admins, only set for students
       createdAt: new Date().toISOString()
     };
     
@@ -495,6 +499,7 @@ function resetAdminPin() {
 document.addEventListener('DOMContentLoaded', function() {
   migrateOldAccounts();
   initializeDefaultAccounts();
+  toggleAdminSecretField(); // Set initial state
   
   document.getElementById('login-pin').addEventListener('keypress', function(e) {
     if (e.key === 'Enter') handleLogin();
