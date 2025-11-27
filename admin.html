@@ -1121,7 +1121,7 @@ function sendAdminMessage() {
     return; // Do not proceed if no recipient is selected
   }
 
-  localStorage.setItem('fr_chat_messages', JSON.stringify(messagesDb));
+  localStorage.setItem('fr_chat_messages', JSON.JSON.stringify(messagesDb));
   loadChatUsers(); // Refresh user list to update unread status
 }
 
@@ -1813,7 +1813,7 @@ function saveResetPin() {
   }
   
   usersDb[userIndex].pin = newPin;
-  localStorage.setItem(USERS_KEY, JSON.stringify(usersDb));
+  localStorage.setItem(USERS_KEY, JSON.JSON.stringify(usersDb));
   
   alert(`Code PIN réinitialisé avec succès pour ${usersDb[userIndex].name}`);
   closeResetStudentPinModal();
@@ -2660,26 +2660,20 @@ function editExercise(id) {
   
   console.log('[v0] Found exercise:', foundExercise);
   
-  try {
-    switchTab('builder');
-  } catch(e) {
-    console.error('[v0] Error switching tab:', e);
-    return;
+  // Switch to builder tab
+  const builderTab = document.querySelector('[onclick*="builder"]');
+  if (builderTab) {
+    builderTab.click();
   }
   
-  // Use setTimeout to ensure tab switch completes before filling form
+  // Fill form after tab switch
   setTimeout(() => {
-    console.log('[v0] Starting to fill form...');
-    const form = $('#exerciseForm');
-    if (!form) {
-      console.error('[v0] Exercise form not found');
-      return;
-    }
+    console.log('[v0] Filling form...');
     
     // Basic fields
     const idField = $('#id');
     if (idField) {
-      idField.value = foundExercise.id;
+      idField.value = foundExercise.id || '';
       idField.setAttribute('readonly', true);
     }
     
@@ -2687,16 +2681,16 @@ function editExercise(id) {
     if (titreField) titreField.value = foundExercise.titre || '';
     
     const kindField = $('#kind');
-    if (kindField) kindField.value = foundExercise.kind;
+    if (kindField) kindField.value = foundExercise.kind || '';
     
     const niveauField = $('#niveau');
-    if (niveauField) niveauField.value = foundExercise.niveau;
+    if (niveauField) niveauField.value = foundExercise.niveau || '';
     
     const themeField = $('#theme');
     if (themeField) themeField.value = foundExercise.theme || '';
     
-    const exerciseNumberField = $('#exerciseNumber');
-    if (exerciseNumberField) exerciseNumberField.value = foundExercise.number || '';
+    const numberField = $('#exerciseNumber');
+    if (numberField) numberField.value = foundExercise.number || '';
     
     const difficultyField = $('#difficulty');
     const difficultyValue = $('#difficultyValue');
@@ -2705,42 +2699,18 @@ function editExercise(id) {
       if (difficultyValue) difficultyValue.textContent = `Niveau ${foundExercise.difficulty || 1}`;
     }
     
-    console.log('[v0] Basic fields filled');
-    
-    // Audio
-    if (foundExercise.audio) {
-      const audioField = $('#audio');
-      if (audioField) audioField.value = foundExercise.audio;
-      
-      const audioFileName = $('#audioFileName');
-      if (audioFileName) {
-        audioFileName.textContent = `Fichier audio: ${foundExercise.audio.split('/').pop()}`;
-        audioFileName.style.display = 'block';
-      }
-      
-      const audioPlayer = $('#audioPlayer');
-      if (audioPlayer) {
-        audioPlayer.src = foundExercise.audio.startsWith('http') ? foundExercise.audio : `https://res.cloudinary.com/${CLOUDINARY_CLOUD_NAME}/video/upload/${foundExercise.audio}`;
-        audioPlayer.style.display = 'block';
-      }
-      
-      const audioDrop = $('#audioDrop');
-      if (audioDrop) audioDrop.style.display = 'none';
-      
-      const audioPreview = $('#audioPreview');
-      if (audioPreview) audioPreview.style.display = 'block';
-      
-      const audioUploadStatus = $('#audioUploadStatus');
-      if (audioUploadStatus) audioUploadStatus.textContent = 'Audio loaded from existing data.';
-    }
-
-    console.log('[v0] Audio fields processed');
-
     // Passage
-    const passageBox = $('#passageBox');
     if (foundExercise.passage) {
-      if (passageBox) passageBox.classList.remove('hidden');
+      const passageTitleField = $('#passageTitle');
+      if (passageTitleField) passageTitleField.value = foundExercise.passage.title || '';
       
+      const passageTextField = $('#passageText');
+      if (passageTextField) passageTextField.value = foundExercise.passage.text || '';
+      
+      const passageSourceField = $('#passageSource');
+      if (passageSourceField) passageSourceField.value = foundExercise.passage.source || '';
+      
+      // Handle image passage specifically
       if (foundExercise.passage.image) {
         const imageRadio = $('input[name="passageType"][value="image"]');
         if (imageRadio) imageRadio.checked = true;
@@ -2752,199 +2722,26 @@ function editExercise(id) {
         if (previewImg) previewImg.src = foundExercise.passage.image;
         if (previewContainer) previewContainer.style.display = 'block';
         if (statusElement) statusElement.textContent = 'Image chargée';
-        passageImageData = foundExercise.passage.image;
-        
-        const passageImageUpload = $('#passageImageUpload');
-        if (passageImageUpload) passageImageUpload.style.display = 'block';
-        
-        const passageTextContent = $('#passageTextContent');
-        if (passageTextContent) passageTextContent.style.display = 'none';
-      } else if (foundExercise.passage.text) {
+        passageImageData = foundExercise.passage.image; // Store the data URL
+      } else {
+        // Ensure text passage fields are updated if no image
         const textRadio = $('input[name="passageType"][value="text"]');
         if (textRadio) textRadio.checked = true;
-        
-        const passageTitleField = $('#passageTitle');
-        if (passageTitleField) passageTitleField.value = foundExercise.passage.title || '';
-        
-        const passageTextField = $('#passageText');
-        if (passageTextField) passageTextField.value = foundExercise.passage.text;
-        
-        const passageSourceField = $('#passageSource');
-        if (passageSourceField) passageSourceField.value = foundExercise.passage.source || '';
-        
-        const passageImageUpload = $('#passageImageUpload');
-        if (passageImageUpload) passageImageUpload.style.display = 'none';
-        
-        const passageTextContent = $('#passageTextContent');
-        if (passageTextContent) passageTextContent.style.display = 'block';
-      }
-    } else {
-      if (passageBox) passageBox.classList.add('hidden');
-    }
-    
-    console.log('[v0] Passage processed');
-    
-    // QCM questions
-    const qcmContainer = $('#qcmQuestions');
-    if (qcmContainer) {
-      qcmContainer.innerHTML = '';
-      qcmQuestionCount = 0;
-      
-      if (foundExercise.qcm && foundExercise.qcm.length > 0) {
-        foundExercise.qcm.forEach((q, index) => {
-          qcmQuestionCount++;
-          const qDiv = document.createElement('div');
-          qDiv.style.cssText = 'background:#f9f9f9;padding:12px;border-radius:8px;margin:8px 0;border:1px solid #e0e0e0';
-          qDiv.dataset.formQcmId = qcmQuestionCount;
-          
-          let optionsHtml = '';
-          let letters = Object.keys(q.options || {}).sort();
-          letters.forEach((letter, i) => {
-            optionsHtml += `
-              <div data-option-letter="${letter}" style="display:flex;gap:8px;margin-bottom:8px;align-items:center">
-                <label style="margin:0;font-weight:600;min-width:60px">Choix ${letter.toUpperCase()}</label>
-                <input class="form-qcm-option" data-option-letter="${letter}" placeholder="Réponse ${letter.toUpperCase()}" value="${q.options[letter] || ''}" style="flex:1;padding:10px;border:1px solid #ddd;border-radius:8px;font-size:.95rem">
-                <button onclick="removeFormQcmOption(${qcmQuestionCount}, '${letter}')" type="button" style="background:#e53e3e;color:#fff;border:none;padding:8px 12px;border-radius:6px;cursor:pointer;font-size:.85rem">✕</button>
-              </div>
-            `;
-          });
-          
-          qDiv.innerHTML = `
-            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
-              <span style="font-weight:600;color:var(--brand)">Question ${qcmQuestionCount}</span>
-              <button class="btn-danger" onclick="removeFormQcmQuestion(${qcmQuestionCount})" type="button" style="padding:6px 10px;font-size:.85rem">Supprimer</button>
-            </div>
-            <label>Question</label>
-            <input class="form-qcm-question" placeholder="Quelle est la capitale de la France ?" value="${q.question || ''}" style="width:100%;padding:10px;border:1px solid #ddd;border-radius:8px;font-size:.95rem;box-sizing:border-box;margin-bottom:8px">
-            
-            <div class="form-qcm-options-container">${optionsHtml}</div>
-            
-            <button type="button" onclick="addFormQcmOption(${qcmQuestionCount})" style="margin-bottom:8px;padding:6px 10px;font-size:.85rem;background:#e0e0e0;color:#111;border:none;border-radius:6px;cursor:pointer">+ Ajouter une réponse</button>
-            
-            <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:8px">
-              <div>
-                <label>Bonne réponse</label>
-                <select class="form-qcm-answer" style="width:100%;padding:10px;border:1px solid #ddd;border-radius:8px;font-size:.95rem;box-sizing:border-box">
-                </select>
-              </div>
-              <div>
-                <label>Points</label>
-                <input type="number" class="form-qcm-points" value="${q.points || 1}" min="1" style="width:100%;padding:10px;border:1px solid #ddd;border-radius:8px;font-size:.95rem;box-sizing:border-box">
-              </div>
-            </div>
-          `;
-          qcmContainer.appendChild(qDiv);
-          
-          updateFormQcmAnswerDropdown(qcmQuestionCount);
-          const answerDropdown = qDiv.querySelector('.form-qcm-answer');
-          if (answerDropdown && q.answer) {
-            answerDropdown.value = q.answer;
-          }
-        });
       }
     }
     
-    console.log('[v0] QCM questions processed');
-    
-    // V/F questions
-    const vfContainer = $('#vfQuestions');
-    if (vfContainer) {
-      vfContainer.innerHTML = '';
-      formVfCounter = 0;
-      
-      if (foundExercise.vf && foundExercise.vf.length > 0) {
-        foundExercise.vf.forEach((q, index) => {
-          formVfCounter++;
-          const div = document.createElement('div');
-          div.style.cssText = 'background:#f9f9f9;padding:12px;border-radius:8px;margin:8px 0;border:1px solid #e0e0e0';
-          div.dataset.formVfId = formVfCounter;
-          
-          const showKeywords = (foundExercise.kind === 'lecture');
-          
-          div.innerHTML = `
-            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
-              <span style="font-weight:600;color:var(--brand)">Question ${formVfCounter}</span>
-              <button class="btn-danger" onclick="removeFormVfQuestion(${formVfCounter})" style="padding:6px 10px;font-size:.85rem">Supprimer</button>
-            </div>
-            <label>Énoncé</label>
-            <input class="form-vf-statement" placeholder="La France est une île." value="${q.statement || ''}" style="width:100%;padding:10px;border:1px solid #ddd;border-radius:8px;font-size:.95rem;box-sizing:border-box;margin-bottom:8px">
-            
-            <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:8px">
-              <div>
-                <label>Réponse</label>
-                <select class="form-vf-answer" style="width:100%;padding:10px;border:1px solid #ddd;border-radius:8px;font-size:.95rem;box-sizing:border-box">
-                  <option value="vrai" ${q.answer === 'vrai' ? 'selected' : ''}>Vrai</option>
-                  <option value="faux" ${q.answer === 'faux' ? 'selected' : ''}>Faux</option>
-                </select>
-              </div>
-              <div>
-                <label>Points</label>
-                <input type="number" class="form-vf-points" value="${q.points || 1}" min="1" style="width:100%;padding:10px;border:1px solid #ddd;border-radius:8px;font-size:.95rem;box-sizing:border-box">
-              </div>
-            </div>
-            
-            <div style="margin-top:8px;display:${showKeywords ? 'block' : 'none'}">
-              <label>Mots-clés (pour indice ou vérification, séparés par |)</label>
-              <input class="form-vf-keywords" placeholder="ex. France|île" value="${q.keywords?.join(' | ') || ''}" style="width:100%;padding:10px;border:1px solid #ddd;border-radius:8px;font-size:.95rem;box-sizing:border-box">
-            </div>
-          `;
-          vfContainer.appendChild(div);
-        });
-      }
-    }
-
-    console.log('[v0] V/F questions processed');
-
-    // Cloze exercise
-    const clozeFormBox = $('#clozeFormBox');
-    if (foundExercise.cloze) {
-      if (clozeFormBox) clozeFormBox.style.display = 'block';
-      
-      const clozeTextField = $('#clozeText');
-      if (clozeTextField) clozeTextField.value = foundExercise.cloze.text || '';
-      
-      const transTextField = $('#transText');
-      if (transTextField) transTextField.value = foundExercise.cloze.transcription || '';
-      
-      const clozeBlankslist = $('#builderClozeBlankslist');
-      const configContainer = $('#builderClozeBlanksConfig');
-      if (configContainer) configContainer.style.display = 'block';
-      
-      if (clozeBlankslist) {
-        clozeBlankslist.innerHTML = '';
-        if (foundExercise.cloze.blanks && foundExercise.cloze.blanks.length > 0) {
-          foundExercise.cloze.blanks.forEach((blank, index) => {
-            const div = document.createElement('div');
-            div.style.cssText = 'display:flex;gap:8px;align-items:center;margin-bottom:8px;padding:8px;background:#fff;border-radius:6px';
-            div.innerHTML = `
-              <span style="flex:1;font-weight:500">Trou ${index + 1}: "${blank.text || ''}"</span>
-              <label style="display:flex;align-items:center;gap:4px">
-                Points: <input type="number" class="cloze-blank-points" value="${blank.points || 1}" min="0" step="0.5" style="width:60px;padding:4px;border:1px solid #ddd;border-radius:4px">
-              </label>
-            `;
-            clozeBlankslist.appendChild(div);
-          });
-        }
-      }
-    } else {
-      if (clozeFormBox) clozeFormBox.style.display = 'none';
-    }
-    
-    console.log('[v0] Cloze processed');
+    // Update button text
+    const submitBtn = $('#addItem') || document.querySelector('button[onclick*="addExerciseFromBuilder"]');
+    if (submitBtn) submitBtn.textContent = 'Mettre à jour l\'exercice';
     
     // Update visibility based on kind
     if (typeof toggleBoxes === 'function') {
       toggleBoxes();
     }
     
-    // Update button text
-    const addItemBtn = $('#addItem');
-    if (addItemBtn) {
-      addItemBtn.textContent = 'Mettre à jour l\'exercice';
-    }
-    
-    console.log('[v0] editExercise completed successfully');
-  }, 150); // Increased timeout slightly for stability
+    console.log('[v0] Form filled successfully');
+    alert('Exercice chargé dans le formulaire. Modifiez les champs et cliquez sur "Mettre à jour".');
+  }, 200);
 }
 
 // Helper to load image data for preview during editing
