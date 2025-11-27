@@ -808,7 +808,7 @@ window.addFormQcmOption = function(questionId) {
   optionDiv.innerHTML = `
     <label style="margin:0;font-weight:600;min-width:60px">Choix ${optionLetter.toUpperCase()}</label>
     <input class="form-qcm-option" data-option-letter="${optionLetter}" placeholder="Réponse ${letter.toUpperCase()}" style="flex:1;padding:10px;border:1px solid #ddd;border-radius:8px;font-size:.95rem">
-    <button onclick="removeFormQcmOption(${questionId}, '${optionLetter}')" type="button" style="background:#e53e3e;color:#fff;border:none;padding:8px 12px;border-radius:6px;cursor:pointer;font-size:.85rem">✕</button>
+    <button onclick="removeFormQcmOption(${questionId}, '${optionLetter}')" type="button" style="background:#ef4444;color:white;border:none;padding:8px 12px;border-radius:6px;cursor:pointer;font-size:.85rem">✕</button>
   `;
   container.appendChild(optionDiv);
   
@@ -1784,28 +1784,23 @@ function loadBank() {
 }
 
 async function syncFromCloudinary() {
-  console.log('[v0] syncFromCloudinary called');
-  const btn = document.getElementById('syncCloudinary');
-  if (!btn) {
-    console.error('[v0] Sync button not found!');
-    return;
-  }
+  const btn = $('#syncCloudinary');
   const originalText = btn.innerHTML;
   btn.disabled = true;
   btn.innerHTML = '⏳ Synchronisation...';
   
+  console.log('[v0] syncFromCloudinary called');
+  
   try {
-    // Try to load tous-exercices.json from Cloudinary
-    const cloudinaryUrl = `https://res.cloudinary.com/${CLOUDINARY_CLOUD_NAME}/raw/upload/${CLOUDINARY_JSON_FOLDER}/tous-exercices.json`;
-    console.log('[v0] Attempting to fetch from:', cloudinaryUrl);
+    const url = `https://res.cloudinary.com/${CLOUDINARY_CLOUD_NAME}/raw/upload/entrainement-francais/tous-exercices.json`;
+    console.log('[v0] Fetching from:', url);
     
-    const response = await fetch(cloudinaryUrl);
+    const response = await fetch(url);
     
     if (response.ok) {
       const cloudinaryData = await response.json();
-      console.log('[v0] Successfully loaded from Cloudinary:', cloudinaryData);
+      console.log('[v0] Cloudinary data loaded:', cloudinaryData);
       
-      // Get local bank
       const localBank = JSON.parse(localStorage.getItem(BANK_KEY) || '{"lecture":[],"ecoute":[],"grammaire":[],"lexique":[]}');
       console.log('[v0] Local bank before merge:', localBank);
       
@@ -1835,9 +1830,14 @@ async function syncFromCloudinary() {
       localStorage.setItem(BANK_KEY, JSON.stringify(BANK));
       console.log('[v0] Merged bank saved:', BANK);
       
-      btn.innerHTML = '✓ Synchronisé avec Cloudinary';
+      btn.innerHTML = '✓ Synchronisé';
       updateExercisesTable();
+      alert('✅ Synchronisation réussie! Exercices Cloudinary ajoutés.');
       
+    } else if (response.status === 404) {
+      console.log('[v0] File not found on Cloudinary (404). Using local data only.');
+      btn.innerHTML = '⚠ Fichier non trouvé';
+      alert('Le fichier tous-exercices.json n\'existe pas encore sur Cloudinary.\n\nVos exercices sont sauvegardés localement dans le navigateur.\n\nPour partager vos exercices entre ordinateurs:\n1. Cliquez sur "Exporter JSON"\n2. Uploadez le fichier sur Cloudinary à l\'emplacement: entrainement-francais/tous-exercices.json\n3. Puis utilisez "Synchroniser Cloudinary" sur les autres ordinateurs');
     } else {
       throw new Error(`HTTP ${response.status}: ${response.statusText}`);
     }
@@ -1845,11 +1845,11 @@ async function syncFromCloudinary() {
     setTimeout(() => {
       btn.innerHTML = originalText;
       btn.disabled = false;
-    }, 2000);
+    }, 3000);
     
   } catch (error) {
     console.error('[v0] Sync error:', error);
-    alert(`Erreur lors de la synchronisation: ${error.message}\n\nVérifiez que le fichier tous-exercices.json existe sur Cloudinary à l'emplacement: entrainement-francais/tous-exercices.json`);
+    alert(`Erreur lors de la synchronisation: ${error.message}\n\nVos exercices restent sauvegardés localement.`);
     btn.innerHTML = originalText;
     btn.disabled = false;
   }
