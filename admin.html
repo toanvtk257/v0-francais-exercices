@@ -642,6 +642,34 @@ let selectedRecipients = [];
 let qcmQuestionCount = 0;
 const availableLetters = 'abcdefghijklmnopqrstuvwxyz';
 
+// CHANGE: Adding toggleBoxes function to show/hide sections based on exercise type
+function toggleBoxes() {
+  const kind = $('#kind').value;
+  const passageBox = $('#passageBox');
+  const ecouteOnlyElements = document.querySelectorAll('.ecoute-only');
+  
+  // Show "Contenu du passage" only for CE (lecture)
+  if (passageBox) {
+    if (kind === 'lecture') {
+      passageBox.classList.remove('hidden');
+      passageBox.style.display = 'block';
+    } else {
+      passageBox.classList.add('hidden');
+      passageBox.style.display = 'none';
+    }
+  }
+  
+  // Show audio upload and cloze sections only for CO (ecoute)
+  ecouteOnlyElements.forEach(el => {
+    if (kind === 'ecoute') {
+      el.style.display = 'block';
+    } else {
+      el.style.display = 'none';
+    }
+  });
+}
+
+
 function addFormQcmQuestion() {
   qcmQuestionCount++;
   const qDiv = document.createElement('div');
@@ -695,7 +723,7 @@ window.addFormQcmOption = function(questionId) {
   
   optionDiv.innerHTML = `
     <label style="margin:0;font-weight:600;min-width:60px">Choix ${optionLetter.toUpperCase()}</label>
-    <input class="form-qcm-option" data-option-letter="${optionLetter}" placeholder="Réponse ${optionLetter.toUpperCase()}" style="flex:1;padding:10px;border:1px solid #ddd;border-radius:8px;font-size:.95rem">
+    <input class="form-qcm-option" data-option-letter="${optionLetter}" placeholder="Réponse ${letter.toUpperCase()}" style="flex:1;padding:10px;border:1px solid #ddd;border-radius:8px;font-size:.95rem">
     <button onclick="removeFormQcmOption(${questionId}, '${optionLetter}')" type="button" style="background:#e53e3e;color:#fff;border:none;padding:8px 12px;border-radius:6px;cursor:pointer;font-size:.85rem">✕</button>
   `;
   container.appendChild(optionDiv);
@@ -808,7 +836,7 @@ function loadRecipientOptions() {
 }
 
 async function loadBank() {
-  console.log('[v0] === LOADING BANK ===');
+  console.log('[v0] ===LOADING BANK ===');
   
   // Load localStorage data
   const stored = localStorage.getItem(BANK_KEY);
@@ -850,9 +878,9 @@ async function loadBank() {
       
       // Merge exercises from this file
       if (data.lecture)cloudinaryExercises.lecture.push(...data.lecture);
-      if (data.ecoute) cloudinaryExercises.ecoute.push(...data.ecoute);
+      if (data.ecoute)cloudinaryExercises.ecoute.push(...data.ecoute);
       if (data.grammaire)cloudinaryExercises.grammaire.push(...data.grammaire);
-      if (data.lexique) cloudinaryExercises.lexique.push(...data.lexique);
+      if (data.lexique)cloudinaryExercises.lexique.push(...data.lexique);
       
     } catch (error) {
       console.log('[v0] Error loading', fileInfo.fileName, ':', error);
@@ -1055,6 +1083,39 @@ function syncFromCloudinary() {
     console.error('[v0] Sync error:', error);
     alert('❌ Erreur lors de la synchronisation: ' + error.message);
   }
+}
+
+function updateDashboard() {
+  const users = JSON.parse(localStorage.getItem(USERS_KEY) || '[]').filter(u => u.role === 'student');
+  const allStats = JSON.parse(localStorage.getItem('fr_stats_db') || '{}');
+
+  let totalAttempts = 0;
+  let totalScore = 0;
+  let attemptCount = 0;
+
+  Object.values(allStats).forEach(userStats => {
+    Object.values(userStats).forEach(lesson => {
+      if (lesson.attempts) {
+        totalAttempts += lesson.attempts.length;
+        lesson.attempts.forEach(a => {
+          totalScore += a.percentage;
+          attemptCount++;
+        });
+      }
+    });
+  });
+
+  $('#totalUsers').textContent = users.length;
+  const totalExercises = (bank?.lecture?.length || 0) + (bank?.ecoute?.length || 0) + (bank?.grammaire?.length || 0) + (bank?.lexique?.length || 0);
+  console.log('[v0] Dashboard - Total exercises:', totalExercises);
+  $('#totalExercises').textContent = totalExercises;
+  $('#totalAttempts').textContent = totalAttempts;
+  $('#avgScore').textContent = attemptCount > 0 ? Math.round(totalScore / attemptCount) + '%' : '0%';
+
+  setTimeout(() => {
+    drawAdminActivityChart();
+    drawAdminLevelChart();
+  }, 100);
 }
 
 function switchTab(tabName) {
