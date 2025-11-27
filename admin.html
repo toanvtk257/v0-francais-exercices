@@ -1838,7 +1838,7 @@ async function syncFromCloudinary() {
     } else if (response.status === 404) {
       console.log('[v0] File not found on Cloudinary (404). Using local data only.');
       btn.innerHTML = '⚠ Fichier non trouvé';
-      alert('Le fichier tous-exercices.json n\'existe pas encore sur Cloudinary.\n\nVos exercices sont sauvegardés localement dans le navigateur.\n\nPour partager vos exercices entre ordinateurs:\n1. Cliquez sur "Exporter JSON"\n2. Uploadez le fichier sur Cloudinary avec l\'upload preset "francais_exercices"\n   (le fichier sera placé dans le dossier entrainement-francais)\n3. Puis utilisez "Synchroniser Cloudinary" sur les autres ordinateurs');
+      alert('Le fichier tous-exercices.json n\'existe pas encore sur Cloudinary.\n\nVos exercices sont sauvegardés localement dans le navigateur.\n\nPour partager vos exercices entre ordinateurs:\n1. Cliquez sur "Exporter JSON"\n2. Uploadez le fichier sur Cloudinary avec l\'upload preset "entrainement-francais"\n   (le fichier sera placé dans le dossier entrainement-francais)\n3. Puis utilisez "Synchroniser Cloudinary" sur les autres ordinateurs');
     } else {
       throw new Error(`HTTP ${response.status}: ${response.statusText}`);
     }
