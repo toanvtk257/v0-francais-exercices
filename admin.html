@@ -394,15 +394,15 @@ h1 {
 
           <div id="passageTextContent" style="display:block">
             <div class="form-group">
-              <label>Titre du passage (affiché en gras)</label>
+              <label for="passageTitle">Titre du passage (affiché en gras)</label>
               <input type="text" id="passageTitle" placeholder="ex. La Tour Eiffel">
             </div>
             <div class="form-group">
-              <label>Texte principal</label>
+              <label for="passageText">Texte principal</label>
               <textarea id="passageText" placeholder="Entrez le texte à lire..." style="min-height:120px"></textarea>
             </div>
             <div class="form-group">
-              <label>Source (affichée en italique à droite)</label>
+              <label for="passageSource">Source (affichée en italique à droite)</label>
               <input type="text" id="passageSource" placeholder="ex. Source: Le Monde, 2024">
             </div>
           </div>
@@ -1943,8 +1943,6 @@ async function uploadBankToCloudinary() {
   formData.append('upload_preset', CLOUDINARY_UPLOAD_PRESET);
   formData.append('folder', CLOUDINARY_JSON_FOLDER);
   formData.append('public_id', 'tous_exercices'); // Keep same filename
-  formData.append('overwrite', 'true'); // Overwrite existing file
-  formData.append('invalidate', 'true'); // Invalidate CDN cache
 
   try {
     const response = await fetch(`https://api.cloudinary.com/v1_1/${CLOUDINARY_CLOUD_NAME}/upload`, {
@@ -2119,17 +2117,29 @@ function updateExercisesTable() {
   
   allExercises.forEach(ex => {
     const row = tbody.insertRow();
+    const modifierBtn = document.createElement('button');
+    modifierBtn.textContent = 'Modifier';
+    modifierBtn.style.cssText = 'background:#3b82f6;color:white;border:none;padding:0.375rem 0.75rem;border-radius:0.375rem;cursor:pointer;margin-right:0.5rem';
+    modifierBtn.addEventListener('click', () => editExercise(ex.id));
+    
+    const supprimerBtn = document.createElement('button');
+    supprimerBtn.textContent = 'Supprimer';
+    supprimerBtn.style.cssText = 'background:#ef4444;color:white;border:none;padding:0.375rem 0.75rem;border-radius:0.375rem;cursor:pointer';
+    supprimerBtn.addEventListener('click', () => deleteExercise(ex.id));
+    
+    const actionsCell = document.createElement('td');
+    actionsCell.style.padding = '0.75rem';
+    actionsCell.appendChild(modifierBtn);
+    actionsCell.appendChild(supprimerBtn);
+    
     row.innerHTML = `
       <td style="padding:0.75rem">${ex.titre || 'Sans titre'}</td>
       <td style="padding:0.75rem">${ex.type}</td>
       <td style="padding:0.75rem">${ex.niveau || 'N/A'}</td>
       <td style="padding:0.75rem">${ex.theme || 'N/A'}</td>
       <td style="padding:0.75rem">${(ex.qcm?.length || 0) + (ex.vf?.length || 0) + (ex.questions?.length || 0)}</td>
-      <td style="padding:0.75rem">
-        <button onclick="editExercise('${ex.id}')" style="background:#3b82f6;color:white;border:none;padding:0.375rem 0.75rem;border-radius:0.375rem;cursor:pointer;margin-right:0.5rem">Modifier</button>
-        <button onclick="deleteExercise('${ex.id}')" style="background:#ef4444;color:white;border:none;padding:0.375rem 0.75rem;border-radius:0.375rem;cursor:pointer">Supprimer</button>
-      </td>
     `;
+    row.appendChild(actionsCell);
   });
   console.log(`[v0] ${allExercises.length} exercises rendered.`);
 }
@@ -2670,6 +2680,8 @@ function editExercise(id) {
     return;
   }
   
+  switchTab('builder');
+  
   // Fill the form
   const form = $('#exerciseForm');
   form.reset(); // Reset first
@@ -2699,7 +2711,7 @@ function editExercise(id) {
   } else {
       removeAudio(); // Ensure it's hidden if no audio
   }
-  
+
   // Passage
   if (foundExercise.passage) {
     $('#passageBox').classList.remove('hidden');
@@ -2857,8 +2869,9 @@ function editExercise(id) {
   // Update button text
   $('#addItem').textContent = 'Mettre à jour l\'exercice';
   
-  switchTab('builder');
-  console.log('[v0] editExercise completed, switched to builder tab');
+  // console.log('[v0] editExercise completed, now switching tab.'); // Debug log
+  // switchTab('builder'); // Moved this to the top of the function
+  console.log('[v0] editExercise completed, form filled.');
 }
 
 // Helper to load image data for preview during editing
