@@ -2660,14 +2660,16 @@ function editExercise(id) {
   
   console.log('[v0] Found exercise:', foundExercise);
   
-  // Switch to builder tab first
-  const builderTab = document.querySelector('[onclick*="switchTab(\'builder\'"]'); // More robust selector for the button
-  if (builderTab) {
-    builderTab.click();
+  try {
+    switchTab('builder');
+  } catch(e) {
+    console.error('[v0] Error switching tab:', e);
+    return;
   }
   
   // Use setTimeout to ensure tab switch completes before filling form
   setTimeout(() => {
+    console.log('[v0] Starting to fill form...');
     const form = $('#exerciseForm');
     if (!form) {
       console.error('[v0] Exercise form not found');
@@ -2703,6 +2705,8 @@ function editExercise(id) {
       if (difficultyValue) difficultyValue.textContent = `Niveau ${foundExercise.difficulty || 1}`;
     }
     
+    console.log('[v0] Basic fields filled');
+    
     // Audio
     if (foundExercise.audio) {
       const audioField = $('#audio');
@@ -2730,6 +2734,8 @@ function editExercise(id) {
       if (audioUploadStatus) audioUploadStatus.textContent = 'Audio loaded from existing data.';
     }
 
+    console.log('[v0] Audio fields processed');
+
     // Passage
     const passageBox = $('#passageBox');
     if (foundExercise.passage) {
@@ -2739,7 +2745,14 @@ function editExercise(id) {
         const imageRadio = $('input[name="passageType"][value="image"]');
         if (imageRadio) imageRadio.checked = true;
         
-        handleImageFileFromData(foundExercise.passage.image, $('#passageImagePreviewImg'), $('#passageImagePreview'), $('#passageImageUploadStatus'));
+        const previewImg = $('#passageImagePreviewImg');
+        const previewContainer = $('#passageImagePreview');
+        const statusElement = $('#passageImageUploadStatus');
+        
+        if (previewImg) previewImg.src = foundExercise.passage.image;
+        if (previewContainer) previewContainer.style.display = 'block';
+        if (statusElement) statusElement.textContent = 'Image chargée';
+        passageImageData = foundExercise.passage.image;
         
         const passageImageUpload = $('#passageImageUpload');
         if (passageImageUpload) passageImageUpload.style.display = 'block';
@@ -2768,6 +2781,8 @@ function editExercise(id) {
     } else {
       if (passageBox) passageBox.classList.add('hidden');
     }
+    
+    console.log('[v0] Passage processed');
     
     // QCM questions
     const qcmContainer = $('#qcmQuestions');
@@ -2829,6 +2844,8 @@ function editExercise(id) {
       }
     }
     
+    console.log('[v0] QCM questions processed');
+    
     // V/F questions
     const vfContainer = $('#vfQuestions');
     if (vfContainer) {
@@ -2876,6 +2893,8 @@ function editExercise(id) {
       }
     }
 
+    console.log('[v0] V/F questions processed');
+
     // Cloze exercise
     const clozeFormBox = $('#clozeFormBox');
     if (foundExercise.cloze) {
@@ -2911,6 +2930,8 @@ function editExercise(id) {
       if (clozeFormBox) clozeFormBox.style.display = 'none';
     }
     
+    console.log('[v0] Cloze processed');
+    
     // Update visibility based on kind
     if (typeof toggleBoxes === 'function') {
       toggleBoxes();
@@ -2922,10 +2943,8 @@ function editExercise(id) {
       addItemBtn.textContent = 'Mettre à jour l\'exercice';
     }
     
-    // console.log('[v0] editExercise completed, now switching tab.'); // Debug log
-    // switchTab('builder'); // Moved this to the top of the function
-    console.log('[v0] editExercise completed, form filled.');
-  }, 100);
+    console.log('[v0] editExercise completed successfully');
+  }, 150); // Increased timeout slightly for stability
 }
 
 // Helper to load image data for preview during editing
