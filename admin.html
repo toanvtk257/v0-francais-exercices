@@ -249,8 +249,8 @@ h1 {
               <th>Actions</th>
             </tr>
           </thead>
-          <tbody id="exercisesBody">
-            <tr><td colspan="6" class="empty-state">Aucun exercice</td></tr>
+          <tbody id="exercisesTableBody">
+            <tr><td colspan="6" class="empty-state">Chargement...</td></tr>
           </tbody>
         </table>
       </div>
@@ -274,7 +274,7 @@ h1 {
             </tr>
           </thead>
           <tbody id="usersBody">
-            <tr><td colspan="6" class="empty-state">Aucun utilisateur</td></tr>
+            <tr><td colspan="6" class="empty-state">Chargement...</td></tr>
           </tbody>
         </table>
       </div>
@@ -2100,58 +2100,74 @@ function displayDetailedResults(results) {
 
 // Exercises table function
 function updateExercisesTable() {
-  console.log('[v0] updateExercisesTable called');
-  const tbody = document.querySelector('#exercisesTable tbody');
-  if (!tbody) {
-    console.log('[v0] Exercises table body not found');
+  console.log('[v0] updateExercisesTable called, BANK:', BANK);
+  const tableBody = $('#exercisesTableBody');
+  if (!tableBody) {
+    console.log('[v0] ERROR: exercisesTableBody not found');
     return;
   }
-  
-  tbody.innerHTML = '';
-  
-  const allExercises = [
-    ...(BANK?.lecture || []).map(ex => ({ ...ex, type: 'CE' })),
-    ...(BANK?.ecoute || []).map(ex => ({ ...ex, type: 'CO' })),
-    ...(BANK?.grammaire || []).map(ex => ({ ...ex, type: 'Grammaire' })),
-    ...(BANK?.lexique || []).map(ex => ({ ...ex, type: 'Lexique' }))
-  ];
-  
+
+  tableBody.innerHTML = '';
+
+  // Collect all exercises with their categories
+  const allExercises = [];
+  ['lecture', 'ecoute', 'grammaire', 'lexique'].forEach(category => {
+    if (BANK[category] && BANK[category].length > 0) {
+      BANK[category].forEach(ex => {
+        allExercises.push({ ...ex, category });
+      });
+    }
+  });
+
+  console.log('[v0] Total exercises:', allExercises.length);
+
   if (allExercises.length === 0) {
-    tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;padding:2rem;color:#64748b">Aucun exercice</td></tr>';
-    console.log('[v0] No exercises to display');
+    tableBody.innerHTML = `
+      <tr>
+        <td colspan="6" style="text-align:center;padding:20px;color:#888">
+          Aucun exercice dans la banque. Créez un exercice en utilisant l'onglet "Créateur".
+        </td>
+      </tr>
+    `;
     return;
   }
-  
-  allExercises.forEach(ex => {
-    const row = tbody.insertRow();
-    const modifierBtn = document.createElement('button');
-    modifierBtn.textContent = 'Modifier';
-    modifierBtn.style.cssText = 'background:#3b82f6;color:white;border:none;padding:0.375rem 0.75rem;border-radius:0.375rem;cursor:pointer;margin-right:0.5rem';
-    modifierBtn.addEventListener('click', () => editExercise(ex.id));
+
+  allExercises.forEach((ex) => {
+    const row = document.createElement('tr');
     
-    const supprimerBtn = document.createElement('button');
-    supprimerBtn.textContent = 'Supprimer';
-    supprimerBtn.style.cssText = 'background:#ef4444;color:white;border:none;padding:0.375rem 0.75rem;border-radius:0.375rem;cursor:pointer';
-    supprimerBtn.addEventListener('click', () => deleteExercise(ex.id));
-    
-    const actionsCell = document.createElement('td');
-    actionsCell.style.padding = '0.75rem';
-    actionsCell.appendChild(modifierBtn);
-    actionsCell.appendChild(supprimerBtn);
+    const questionCount = (ex.qcm?.length || 0) + (ex.vf?.length || 0);
     
     row.innerHTML = `
-      <td style="padding:0.75rem">${ex.titre || 'Sans titre'}</td>
-      <td style="padding:0.75rem">${ex.type}</td>
-      <td style="padding:0.75rem">${ex.niveau || 'N/A'}</td>
-      <td style="padding:0.75rem">${ex.theme || 'N/A'}</td>
-      <td style="padding:0.75rem">${(ex.qcm?.length || 0) + (ex.vf?.length || 0) + (ex.questions?.length || 0)}</td>
+      <td>${ex.titre || 'Sans titre'}</td>
+      <td>${ex.kind.toUpperCase()}</td>
+      <td>${ex.niveau}</td>
+      <td>${ex.theme || '-'}</td>
+      <td>${questionCount}</td>
+      <td style="display:flex;gap:4px">
+        <button class="btn-modify" data-exercise-id="${ex.id}" style="background:#3b82f6;color:#fff;border:none;padding:6px 12px;border-radius:6px;cursor:pointer;font-size:.85rem">Modifier</button>
+        <button class="btn-delete" data-exercise-id="${ex.id}" style="background:#e53e3e;color:#fff;border:none;padding:6px 12px;border-radius:6px;cursor:pointer;font-size:.85rem">Supprimer</button>
+      </td>
     `;
-    row.appendChild(actionsCell);
+    
+    tableBody.appendChild(row);
   });
-  console.log(`[v0] ${allExercises.length} exercises rendered.`);
+  
+  document.querySelectorAll('.btn-modify').forEach(btn => {
+    btn.addEventListener('click', function() {
+      const exerciseId = this.getAttribute('data-exercise-id');
+      console.log('[v0] Modify button clicked for exercise:', exerciseId);
+      editExercise(exerciseId);
+    });
+  });
+  
+  document.querySelectorAll('.btn-delete').forEach(btn => {
+    btn.addEventListener('click', function() {
+      const exerciseId = this.getAttribute('data-exercise-id');
+      console.log('[v0] Delete button clicked for exercise:', exerciseId);
+      deleteExercise(exerciseId);
+    });
+  });
 }
-
-// Removed viewExercise function as editExercise now handles opening the form
 
 function deleteExercise(id) {
   console.log(`[v0] deleteExercise called for id: ${id}`);
@@ -2645,7 +2661,7 @@ function editExercise(id) {
   console.log('[v0] Found exercise:', foundExercise);
   
   // Switch to builder tab first
-  const builderTab = document.querySelector('[data-tab="builder"]');
+  const builderTab = document.querySelector('[onclick*="switchTab(\'builder\'"]'); // More robust selector for the button
   if (builderTab) {
     builderTab.click();
   }
