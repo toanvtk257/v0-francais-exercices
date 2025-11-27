@@ -808,7 +808,7 @@ window.addFormQcmOption = function(questionId) {
   optionDiv.innerHTML = `
     <label style="margin:0;font-weight:600;min-width:60px">Choix ${optionLetter.toUpperCase()}</label>
     <input class="form-qcm-option" data-option-letter="${optionLetter}" placeholder="Réponse ${letter.toUpperCase()}" style="flex:1;padding:10px;border:1px solid #ddd;border-radius:8px;font-size:.95rem">
-    <button onclick="removeFormQcmOption(${questionId}, '${optionLetter}')" type="button" style="background:#ef4444;color:white;border:none;padding:0.25rem 0.75rem;border-radius:0.25rem;cursor:pointer;font-size:.85rem">✕</button>
+    <button onclick="removeFormQcmOption(${questionId}, '${optionLetter}')" type="button" style="background:#ef4444;color:white;border:none;padding:8px 12px;border-radius:6px;cursor:pointer;font-size:.85rem">✕</button>
   `;
   container.appendChild(optionDiv);
   
@@ -1789,71 +1789,70 @@ async function syncFromCloudinary() {
   btn.disabled = true;
   btn.innerHTML = '⏳ Synchronisation...';
   
-  console.log('[v0] syncFromCloudinary: Starting sync...');
+  console.log('[v0] syncFromCloudinary called');
   
-  let url = `https://res.cloudinary.com/${CLOUDINARY_CLOUD_NAME}/raw/upload/${CLOUDINARY_JSON_FOLDER}/tous-exercices.json`;
-  console.log('[v0] syncFromCloudinary: Fetching from folder:', url);
-  
-  let response = await fetch(url);
-  
-  // If not found in folder, try root
-  if (!response.ok && response.status === 404) {
-    console.log('[v0] syncFromCloudinary: File not found in folder, trying root...');
-    url = `https://res.cloudinary.com/${CLOUDINARY_CLOUD_NAME}/raw/upload/tous-exercices.json`;
-    response = await fetch(url);
-  }
-  
-  if (!response.ok) {
-    throw new Error(`HTTP ${response.status}`);
-  }
-
-  const cloudinaryData = await response.json();
-  console.log('[v0] Cloudinary data loaded:', cloudinaryData);
-  
-  const localBank = JSON.parse(localStorage.getItem(BANK_KEY) || '{"lecture":[],"ecoute":[],"grammaire":[],"lexique":[]}');
-  console.log('[v0] Local bank before merge:', localBank);
-  
-  // Merge: Keep local exercises and add new ones from Cloudinary
-  const mergedBank = { lecture: [], ecoute: [], grammaire: [], lexique: [] };
-  
-  ['lecture', 'ecoute', 'grammaire', 'lexique'].forEach(category => {
-    const cloudExercises = cloudinaryData[category] || [];
-    const localExercises = localBank[category] || [];
+  try {
+    const url = `https://res.cloudinary.com/${CLOUDINARY_CLOUD_NAME}/raw/upload/tous-exercices.json`;
+    console.log('[v0] Fetching from:', url);
     
-    // Create a map of local exercise IDs for quick lookup
-    const localIds = new Set(localExercises.map(ex => ex.id));
+    const response = await fetch(url);
     
-    // Add all local exercises first
-    mergedBank[category] = [...localExercises];
+    if (response.ok) {
+      const cloudinaryData = await response.json();
+      console.log('[v0] Cloudinary data loaded:', cloudinaryData);
+      
+      const localBank = JSON.parse(localStorage.getItem(BANK_KEY) || '{"lecture":[],"ecoute":[],"grammaire":[],"lexique":[]}');
+      console.log('[v0] Local bank before merge:', localBank);
+      
+      // Merge: Keep local exercises and add new ones from Cloudinary
+      const mergedBank = { lecture: [], ecoute: [], grammaire: [], lexique: [] };
+      
+      ['lecture', 'ecoute', 'grammaire', 'lexique'].forEach(category => {
+        const cloudExercises = cloudinaryData[category] || [];
+        const localExercises = localBank[category] || [];
+        
+        // Create a map of local exercise IDs for quick lookup
+        const localIds = new Set(localExercises.map(ex => ex.id));
+        
+        // Add all local exercises first
+        mergedBank[category] = [...localExercises];
+        
+        // Add Cloudinary exercises that don't exist locally
+        cloudExercises.forEach(cloudEx => {
+          if (!localIds.has(cloudEx.id)) {
+            mergedBank[category].push(cloudEx);
+            console.log('[v0] Adding new exercise from Cloudinary:', cloudEx.id, cloudEx.titre);
+          }
+        });
+      });
+      
+      BANK = mergedBank;
+      localStorage.setItem(BANK_KEY, JSON.stringify(BANK));
+      console.log('[v0] Merged bank saved:', BANK);
+      
+      btn.innerHTML = '✓ Synchronisé';
+      updateExercisesTable();
+      alert('✅ Synchronisation réussie! Exercices Cloudinary ajoutés.');
+      
+    } else if (response.status === 404) {
+      console.log('[v0] File not found on Cloudinary (404). Using local data only.');
+      btn.innerHTML = '⚠ Fichier non trouvé';
+      alert('Le fichier tous-exercices.json n\'existe pas encore sur Cloudinary.\n\nVos exercices sont sauvegardés localement dans le navigateur.\n\nPour partager vos exercices entre ordinateurs:\n1. Cliquez sur "Exporter JSON"\n2. Uploadez le fichier sur Cloudinary à la racine (pas dans un dossier)\n3. Puis utilisez "Synchroniser Cloudinary" sur les autres ordinateurs');
+    } else {
+      throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+    }
     
-    // Add Cloudinary exercises that don't exist locally
-    cloudExercises.forEach(cloudEx => {
-      if (!localIds.has(cloudEx.id)) {
-        mergedBank[category].push(cloudEx);
-        console.log('[v0] Adding new exercise from Cloudinary:', cloudEx.id, cloudEx.titre);
-      }
-    });
-  });
-  
-  BANK = mergedBank;
-  localStorage.setItem(BANK_KEY, JSON.stringify(BANK));
-  console.log('[v0] Merged bank saved:', BANK);
-  
-  btn.innerHTML = '✓ Synchronisé';
-  updateExercisesTable();
-  alert('✅ Synchronisation réussie! Exercices Cloudinary ajoutés.');
-  
-  setTimeout(() => {
+    setTimeout(() => {
+      btn.innerHTML = originalText;
+      btn.disabled = false;
+    }, 3000);
+    
+  } catch (error) {
+    console.error('[v0] Sync error:', error);
+    alert(`Erreur lors de la synchronisation: ${error.message}\n\nVos exercices restent sauvegardés localement.`);
     btn.innerHTML = originalText;
     btn.disabled = false;
-  }, 3000);
-  
-} catch (error) {
-  console.error('[v0] Sync error:', error);
-  alert(`Erreur lors de la synchronisation: ${error.message}\n\nVos exercices restent sauvegardés localement.`);
-  btn.innerHTML = originalText;
-  btn.disabled = false;
-}
+  }
 }
 
 
