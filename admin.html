@@ -808,7 +808,7 @@ window.addFormQcmOption = function(questionId) {
   optionDiv.innerHTML = `
     <label style="margin:0;font-weight:600;min-width:60px">Choix ${optionLetter.toUpperCase()}</label>
     <input class="form-qcm-option" data-option-letter="${optionLetter}" placeholder="Réponse ${letter.toUpperCase()}" style="flex:1;padding:10px;border:1px solid #ddd;border-radius:8px;font-size:.95rem">
-    <button onclick="removeFormQcmOption(${questionId}, '${optionLetter}')" type="button" style="background:#ef4444;color:white;border:none;padding:8px 12px;border-radius:6px;cursor:pointer;font-size:.85rem">✕</button>
+    <button onclick="removeFormQcmOption(${questionId}, '${optionLetter}')" type="button" style="background:#ef4444;color:white;border:none;padding:0.25rem 0.75rem;border-radius:0.25rem;cursor:pointer;font-size:.85rem">✕</button>
   `;
   container.appendChild(optionDiv);
   
@@ -1783,6 +1783,7 @@ function loadBank() {
   loadDashboardStats();
 }
 
+// START NEW CODE FOR syncFromCloudinary
 async function syncFromCloudinary() {
   const btn = $('#syncCloudinary');
   const originalText = btn.innerHTML;
@@ -1792,7 +1793,7 @@ async function syncFromCloudinary() {
   console.log('[v0] syncFromCloudinary called');
   
   try {
-    const url = `https://res.cloudinary.com/${CLOUDINARY_CLOUD_NAME}/raw/upload/tous-exercices.json`;
+    const url = `https://res.cloudinary.com/${CLOUDINARY_CLOUD_NAME}/raw/upload/entrainement-francais/tous-exercices.json`;
     console.log('[v0] Fetching from:', url);
     
     const response = await fetch(url);
@@ -1837,7 +1838,7 @@ async function syncFromCloudinary() {
     } else if (response.status === 404) {
       console.log('[v0] File not found on Cloudinary (404). Using local data only.');
       btn.innerHTML = '⚠ Fichier non trouvé';
-      alert('Le fichier tous-exercices.json n\'existe pas encore sur Cloudinary.\n\nVos exercices sont sauvegardés localement dans le navigateur.\n\nPour partager vos exercices entre ordinateurs:\n1. Cliquez sur "Exporter JSON"\n2. Uploadez le fichier sur Cloudinary à la racine (pas dans un dossier)\n3. Puis utilisez "Synchroniser Cloudinary" sur les autres ordinateurs');
+      alert('Le fichier tous-exercices.json n\'existe pas encore sur Cloudinary.\n\nVos exercices sont sauvegardés localement dans le navigateur.\n\nPour partager vos exercices entre ordinateurs:\n1. Cliquez sur "Exporter JSON"\n2. Uploadez le fichier sur Cloudinary avec l\'upload preset "francais_exercices"\n   (le fichier sera placé dans le dossier entrainement-francais)\n3. Puis utilisez "Synchroniser Cloudinary" sur les autres ordinateurs');
     } else {
       throw new Error(`HTTP ${response.status}: ${response.statusText}`);
     }
@@ -1854,6 +1855,7 @@ async function syncFromCloudinary() {
     btn.disabled = false;
   }
 }
+// END NEW CODE FOR syncFromCloudinary
 
 
 function loadDefaultBank() {
