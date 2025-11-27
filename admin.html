@@ -1783,80 +1783,74 @@ function loadBank() {
   loadDashboardStats();
 }
 
-// START NEW CODE FOR syncFromCloudinary
-async function syncFromCloudinary() {
-  const btn = $('#syncCloudinary');
-  const originalText = btn.innerHTML;
-  btn.disabled = true;
-  btn.innerHTML = '⏳ Synchronisation...';
-  
-  console.log('[v0] syncFromCloudinary called');
-  
+async function autoSyncToCloudinary() {
+  console.log('[v0] autoSyncToCloudinary called');
   try {
-    const url = `https://res.cloudinary.com/${CLOUDINARY_CLOUD_NAME}/raw/upload/entrainement-francais/tous-exercices.json`;
-    console.log('[v0] Fetching from:', url);
+    // Create JSON blob from current BANK
+    const jsonContent = JSON.stringify(BANK, null, 2);
+    const blob = new Blob([jsonContent], { type: 'application/json' });
+    const file = new File([blob], 'tous-exercices.json', { type: 'application/json' });
     
-    const response = await fetch(url);
+    // Upload to Cloudinary
+    const formData = new FormData();
+    formData.append('file', file);
+    formData.append('upload_preset', CLOUDINARY_UPLOAD_PRESET);
+    formData.append('public_id', 'tous-exercices'); // Fixed name so it overwrites
+    formData.append('folder', CLOUDINARY_JSON_FOLDER);
+    formData.append('overwrite', 'true');
+    formData.append('invalidate', 'true'); // Invalidate CDN cache
     
-    if (response.ok) {
-      const cloudinaryData = await response.json();
-      console.log('[v0] Cloudinary data loaded:', cloudinaryData);
-      
-      const localBank = JSON.parse(localStorage.getItem(BANK_KEY) || '{"lecture":[],"ecoute":[],"grammaire":[],"lexique":[]}');
-      console.log('[v0] Local bank before merge:', localBank);
-      
-      // Merge: Keep local exercises and add new ones from Cloudinary
-      const mergedBank = { lecture: [], ecoute: [], grammaire: [], lexique: [] };
-      
-      ['lecture', 'ecoute', 'grammaire', 'lexique'].forEach(category => {
-        const cloudExercises = cloudinaryData[category] || [];
-        const localExercises = localBank[category] || [];
-        
-        // Create a map of local exercise IDs for quick lookup
-        const localIds = new Set(localExercises.map(ex => ex.id));
-        
-        // Add all local exercises first
-        mergedBank[category] = [...localExercises];
-        
-        // Add Cloudinary exercises that don't exist locally
-        cloudExercises.forEach(cloudEx => {
-          if (!localIds.has(cloudEx.id)) {
-            mergedBank[category].push(cloudEx);
-            console.log('[v0] Adding new exercise from Cloudinary:', cloudEx.id, cloudEx.titre);
-          }
-        });
-      });
-      
-      BANK = mergedBank;
-      localStorage.setItem(BANK_KEY, JSON.stringify(BANK));
-      console.log('[v0] Merged bank saved:', BANK);
-      
-      btn.innerHTML = '✓ Synchronisé';
-      updateExercisesTable();
-      alert('✅ Synchronisation réussie! Exercices Cloudinary ajoutés.');
-      
-    } else if (response.status === 404) {
-      console.log('[v0] File not found on Cloudinary (404). Using local data only.');
-      btn.innerHTML = '⚠ Fichier non trouvé';
-      alert('Le fichier tous-exercices.json n\'existe pas encore sur Cloudinary.\n\nVos exercices sont sauvegardés localement dans le navigateur.\n\nPour partager vos exercices entre ordinateurs:\n1. Cliquez sur "Exporter JSON"\n2. Uploadez le fichier sur Cloudinary avec l\'upload preset "entrainement-francais"\n   (le fichier sera placé dans le dossier entrainement-francais)\n3. Puis utilisez "Synchroniser Cloudinary" sur les autres ordinateurs');
-    } else {
-      throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+    const response = await fetch(`https://api.cloudinary.com/v1_1/${CLOUDINARY_CLOUD_NAME}/raw/upload`, {
+      method: 'POST',
+      body: formData,
+    });
+    
+    if (!response.ok) {
+      const errorData = await response.json();
+      console.error('[v0] Auto-sync to Cloudinary failed:', errorData);
+      return false;
     }
     
-    setTimeout(() => {
-      btn.innerHTML = originalText;
-      btn.disabled = false;
-    }, 3000);
-    
+    const data = await response.json();
+    console.log('[v0] Auto-sync to Cloudinary successful:', data.secure_url);
+    return true;
   } catch (error) {
-    console.error('[v0] Sync error:', error);
-    alert(`Erreur lors de la synchronisation: ${error.message}\n\nVos exercices restent sauvegardés localement.`);
-    btn.innerHTML = originalText;
-    btn.disabled = false;
+    console.error('[v0] Auto-sync error:', error);
+    return false;
   }
 }
-// END NEW CODE FOR syncFromCloudinary
 
+function loadBank() {
+  console.log('[v0] loadBank called');
+  const stored = localStorage.getItem(BANK_KEY);
+  if (stored) {
+    try {
+      BANK = JSON.parse(stored);
+      console.log('[v0] Bank loaded from localStorage:', BANK);
+      console.log('[v0] Number of exercises per category:', {
+        lecture: BANK.lecture?.length || 0,
+        ecoute: BANK.ecoute?.length || 0,
+        grammaire: BANK.grammaire?.length || 0,
+        lexique: BANK.lexique?.length || 0
+      });
+    } catch (err) {
+      console.error('[v0] Error loading bank:', err);
+      BANK = {lecture:[], ecoute:[], grammaire:[], lexique:[]};
+    }
+  } else {
+    BANK = {lecture:[], ecoute:[], grammaire:[], lexique:[]};
+    console.log('[v0] No bank found in localStorage, initialized empty bank.');
+  }
+  updateExercisesTable();
+  loadDashboardStats();
+
+  // Automatically sync to Cloudinary if exercises exist and the auto-sync flag is set (optional feature)
+  // For now, we can just call it on load if BANK is not empty, or let the button trigger it.
+  // To implement auto-sync on load, you might want a flag in localStorage.
+  // Example: if (BANK && Object.values(BANK).flat().length > 0 && localStorage.getItem('autoSyncEnabled') === 'true') {
+  //   autoSyncToCloudinary();
+  // }
+}
 
 function loadDefaultBank() {
   console.log('[v0] loadDefaultBank called');
@@ -1871,6 +1865,8 @@ function loadDefaultBank() {
       localStorage.setItem(BANK_KEY, JSON.stringify(BANK));
       updateExercisesTable();
       alert('✅ Exemples chargés!');
+      // Trigger auto-sync after loading defaults
+      autoSyncToCloudinary();
     })
     .catch(err => {
       console.log('[v0] No default file found or error loading:', err, 'Using empty bank.');
@@ -2051,7 +2047,7 @@ function updateExercisesTable() {
       <td style="padding:0.75rem">${(ex.qcm?.length || 0) + (ex.vf?.length || 0) + (ex.questions?.length || 0)}</td>
       <td style="padding:0.75rem">
         <button onclick="editExercise('${ex.id}')" style="background:#3b82f6;color:white;border:none;padding:0.375rem 0.75rem;border-radius:0.375rem;cursor:pointer;margin-right:0.5rem">Modifier</button>
-        <button onclick="deleteExercise('${ex.id}')" style="background:#ef4444;color:white;border:none;padding:0.375rem 0.75rem;border-radius:0.375rem;cursor:pointer">Supprimer</button>
+        <button onclick="deleteExercise('${ex.id}', '${ex.kind}')" style="background:#ef4444;color:white;border:none;padding:0.375rem 0.75rem;border-radius:0.375rem;cursor:pointer">Supprimer</button>
       </td>
     `;
   });
@@ -2060,28 +2056,35 @@ function updateExercisesTable() {
 
 // Removed viewExercise function as editExercise now handles opening the form
 
-function deleteExercise(id) {
-  console.log(`[v0] deleteExercise called for id: ${id}`);
-  if (!confirm('Voulez-vous vraiment supprimer cet exercice?')) return;
+function deleteExercise(id, kind) { // Added 'kind' parameter
+  if (!confirm('Supprimer cet exercice?')) return;
   
-  let deleted = false;
-  ['lecture', 'ecoute', 'grammaire', 'lexique'].forEach(category => {
-    if (BANK[category]) {
-      const initialLength = BANK[category].length;
-      BANK[category] = BANK[category].filter(ex => ex.id !== id);
-      if (BANK[category].length < initialLength) {
-        deleted = true;
-      }
+  console.log('[v0] deleteExercise called for id:', id, 'kind:', kind);
+  
+  // Use the 'kind' parameter directly to target the category
+  if (BANK[kind]) {
+    const initialLength = BANK[kind].length;
+    BANK[kind] = BANK[kind].filter(ex => ex.id !== id);
+    if (BANK[kind].length === initialLength) {
+      alert('Exercice non trouvé.');
+      return;
+    }
+  } else {
+    alert('Catégorie d\'exercice inconnue.');
+    return;
+  }
+  
+  localStorage.setItem(BANK_KEY, JSON.stringify(BANK));
+  
+  // Auto-sync to Cloudinary after deletion
+  autoSyncToCloudinary().then(success => {
+    if (success) {
+      console.log('[v0] Deletion synced to Cloudinary');
     }
   });
   
-  if (deleted) {
-    localStorage.setItem(BANK_KEY, JSON.stringify(BANK));
-    updateExercisesTable();
-    alert('Exercice supprimé');
-  } else {
-    alert('Exercice non trouvé.');
-  }
+  updateExercisesTable();
+  alert('Exercice supprimé');
 }
 
 // Users table function
@@ -2566,6 +2569,12 @@ function addExerciseFromBuilder() {
     }
     
     localStorage.setItem(BANK_KEY, JSON.stringify(BANK));
+    // </CHANGE> Auto-sync to Cloudinary after saving
+    autoSyncToCloudinary().then(success => {
+      if (success) {
+        console.log('[v0] Exercises auto-synced to Cloudinary');
+      }
+    });
     updateExercisesTable();
     resetExerciseForm(); // Reset form after adding
   } else {
