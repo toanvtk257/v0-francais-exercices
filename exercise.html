@@ -653,13 +653,14 @@ function getDraft(userId, lessonId) {
   return null;
 }
 
+function recordAttempt(userId, lessonId, type, earnedPoints, totalPoints, timeSpent) {
+  // Placeholder function for recording attempt
+  console.log(`User ${userId} completed lesson ${lessonId} (${type}) with score ${earnedPoints}/${totalPoints} in ${timeSpent} seconds.`);
+}
+
 checkAuth();
 loadBank();
-
-// Wait for bank to load, then load the lesson
-setTimeout(() => {
-  loadLesson();
-}, 100);
+loadLesson();
 </script>
 </body>
 </html>
