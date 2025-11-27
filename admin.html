@@ -642,33 +642,43 @@ let selectedRecipients = [];
 let qcmQuestionCount = 0;
 const availableLetters = 'abcdefghijklmnopqrstuvwxyz';
 
-// CHANGE: Adding toggleBoxes function to show/hide sections based on exercise type
-function toggleBoxes() {
-  const kind = $('#kind').value;
-  const passageBox = $('#passageBox');
-  const ecouteOnlyElements = document.querySelectorAll('.ecoute-only');
+function addFormQcmQuestion() {
+  qcmQuestionCount++;
+  const qDiv = document.createElement('div');
+  qDiv.style.cssText = 'background:#f9f9f9;padding:12px;border-radius:8px;margin:8px 0;border:1px solid #e0e0e0';
+  qDiv.dataset.formQcmId = qcmQuestionCount;
   
-  // Show "Contenu du passage" only for CE (lecture)
-  if (passageBox) {
-    if (kind === 'lecture') {
-      passageBox.classList.remove('hidden');
-      passageBox.style.display = 'block';
-    } else {
-      passageBox.classList.add('hidden');
-      passageBox.style.display = 'none';
-    }
-  }
+  qDiv.innerHTML = `
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
+      <span style="font-weight:600;color:var(--brand)">Question ${qcmQuestionCount}</span>
+      <button class="btn-danger" onclick="removeFormQcmQuestion(${qcmQuestionCount})" type="button" style="padding:6px 10px;font-size:.85rem">Supprimer</button>
+    </div>
+    <label>Question</label>
+    <input class="form-qcm-question" placeholder="Quelle est la capitale de la France ?" style="width:100%;padding:10px;border:1px solid #ddd;border-radius:8px;font-size:.95rem;box-sizing:border-box;margin-bottom:8px">
+    
+    <div class="form-qcm-options-container"></div>
+    
+    <button type="button" onclick="addFormQcmOption(${qcmQuestionCount})" style="margin-bottom:8px;padding:6px 10px;font-size:.85rem;background:#e0e0e0;color:#111;border:none;border-radius:6px;cursor:pointer">+ Ajouter une réponse</button>
+    
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:8px">
+      <div>
+        <label>Bonne réponse</label>
+        <select class="form-qcm-answer" style="width:100%;padding:10px;border:1px solid #ddd;border-radius:8px;font-size:.95rem;box-sizing:border-box">
+        </select>
+      </div>
+      <div>
+        <label>Points</label>
+        <input type="number" class="form-qcm-points" value="1" min="1" style="width:100%;padding:10px;border:1px solid #ddd;border-radius:8px;font-size:.95rem;box-sizing:border-box">
+      </div>
+    </div>
+  `;
+  $('#qcmQuestions').appendChild(qDiv);
   
-  // Show audio upload and cloze sections only for CO (ecoute)
-  ecouteOnlyElements.forEach(el => {
-    if (kind === 'ecoute') {
-      el.style.display = 'block';
-    } else {
-      el.style.display = 'none';
-    }
-  });
+  // Add 3 default options
+  addFormQcmOption(qcmQuestionCount);
+  addFormQcmOption(qcmQuestionCount);
+  addFormQcmOption(qcmQuestionCount);
 }
-
 
 window.addFormQcmOption = function(questionId) {
   const questionDiv = document.querySelector(`[data-form-qcm-id="${questionId}"]`);
@@ -798,7 +808,7 @@ function loadRecipientOptions() {
 }
 
 async function loadBank() {
-  console.log('[v0] ===LOADING BANK ===');
+  console.log('[v0] === LOADING BANK ===');
   
   // Load localStorage data
   const stored = localStorage.getItem(BANK_KEY);
@@ -840,9 +850,9 @@ async function loadBank() {
       
       // Merge exercises from this file
       if (data.lecture)cloudinaryExercises.lecture.push(...data.lecture);
-      if (data.ecoute)cloudinaryExercises.ecoute.push(...data.ecoute);
+      if (data.ecoute) cloudinaryExercises.ecoute.push(...data.ecoute);
       if (data.grammaire)cloudinaryExercises.grammaire.push(...data.grammaire);
-      if (data.lexique)cloudinaryExercises.lexique.push(...data.lexique);
+      if (data.lexique) cloudinaryExercises.lexique.push(...data.lexique);
       
     } catch (error) {
       console.log('[v0] Error loading', fileInfo.fileName, ':', error);
@@ -912,6 +922,139 @@ function updateDashboard() {
     drawAdminActivityChart();
     drawAdminLevelChart();
   }, 100);
+}
+
+function checkAuth() {
+  const auth = localStorage.getItem(AUTH_KEY);
+  if (!auth) {
+    window.location.href = 'login.html';
+    return;
+  }
+  currentUser = JSON.parse(auth);
+  if (currentUser.role !== 'admin') {
+    alert('Accès refusé');
+    window.location.href = 'dashboard.html';
+    return;
+  }
+  $('#adminUserName').textContent = currentUser.name + ' (Admin)';
+  $('#adminUserEmail').textContent = currentUser.email;
+}
+
+function syncFromCloudinary() {
+  try {
+    console.log('[v0] Manual sync from Cloudinary triggered');
+    
+    const filesIndex = JSON.parse(localStorage.getItem(FILES_INDEX_KEY) || '[]');
+    console.log('[v0] Files index from localStorage:', filesIndex);
+    
+    if (filesIndex.length > 0) {
+      // Use the index if available
+      loadBank().then(() => {
+        alert('✅ Synchronisation réussie! ' + filesIndex.length + ' fichier(s) chargé(s) depuis Cloudinary.');
+      });
+      return;
+    }
+    
+    console.log('[v0] No index found, trying to load known files directly...');
+    const cloudName = CLOUDINARY_CLOUD_NAME;
+    const knownFiles = ['questions.json', 'tous_exercices.json', 'a1_CO.json', 'a1_CE.json', 'a2_CO.json', 'a2_CE.json', 'b1_CO.json', 'b1_CE.json', 'b2_CO.json', 'b2_CE.json', 'c1_CO.json', 'c1_CE.json', 'c2_CO.json', 'c2_CE.json'];
+    
+    let loadedCount = 0;
+    const allExercises = [];
+    
+    const fetchPromises = knownFiles.map(async (fileName) => {
+      try {
+        const url = `https://res.cloudinary.com/${cloudName}/raw/upload/entrainement-francais/${fileName}`;
+        console.log('[v0] Trying to fetch:', url);
+        
+        const response = await fetch(url, {
+          mode: 'cors',
+          headers: {
+            'Accept': 'application/json'
+          }
+        });
+        
+        console.log('[v0] Response status for', fileName, ':', response.status);
+        
+        if (response.ok) {
+          const data = await response.json();
+          console.log('[v0] Successfully loaded:', fileName, data);
+          
+          // Handle different data formats
+          if (Array.isArray(data)) {
+            allExercises.push(...data);
+          } else if (data.exercises && Array.isArray(data.exercises)) {
+            allExercises.push(...data.exercises);
+          } else {
+            // Try to extract exercises from category structure
+            ['lecture', 'ecoute', 'grammaire', 'lexique'].forEach(cat => {
+              if (data[cat] && Array.isArray(data[cat])) {
+                allExercises.push(...data[cat]);
+              }
+            });
+          }
+          
+          loadedCount++;
+          return true; // Indicate success
+        } else {
+          console.log('[v0] File not found or error:', fileName, response.status, response.statusText);
+          return false; // Indicate failure
+        }
+      } catch (err) {
+        console.error('[v0] Error loading', fileName, ':', err.message);
+        return false; // Indicate failure
+      }
+    });
+    
+    Promise.all(fetchPromises).then(results => {
+      const successfulLoads = results.filter(Boolean).length;
+      console.log('[v0] Total files loaded:', successfulLoads, 'Total exercises:', allExercises.length);
+      
+      if (successfulLoads > 0) {
+        console.log('[v0] Total exercises loaded:', allExercises.length);
+        
+        // Merge with existing localStorage data
+        const stored = JSON.parse(localStorage.getItem(BANK_KEY) || '{"lecture":[],"ecoute":[],"grammaire":[],"lexique":[]}');
+        
+        // Categorize and merge exercises
+        allExercises.forEach(ex => {
+          const category = ex.type === 'lecture' || ex.type === 'CE' ? 'lecture' : 
+                           ex.type === 'ecoute' || ex.type === 'CO' ? 'ecoute' :
+                           ex.type === 'grammaire' || ex.type === 'Grammaire' ? 'grammaire' : 'lexique';
+          
+          if (!stored[category]) stored[category] = [];
+          
+          if (!ex.type) {
+              if (category === 'lecture') ex.type = 'CE';
+              else if (category === 'ecoute') ex.type = 'CO';
+              else if (category === 'grammaire') ex.type = 'Grammaire';
+              else ex.type = 'Lexique';
+          }
+
+          if (!ex.id) {
+              ex.id = `${category}_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`;
+          }
+
+          const exists = stored[category].some(e => e.id === ex.id);
+          if (!exists) {
+            stored[category].push(ex);
+          }
+        });
+        
+        localStorage.setItem(BANK_KEY, JSON.stringify(stored));
+        bank = stored;
+        
+        updateExercisesTable();
+        alert('✅ Synchronisation réussie! ' + successfulLoads + ' fichier(s) trouvé(s), ' + allExercises.length + ' exercice(s) chargé(s).');
+      } else {
+        alert('⚠️ Aucun fichier trouvé sur Cloudinary. Vérifiez que les fichiers sont bien uploadés dans le dossier "entrainement-francais".');
+      }
+    });
+    
+  } catch (error) {
+    console.error('[v0] Sync error:', error);
+    alert('❌ Erreur lors de la synchronisation: ' + error.message);
+  }
 }
 
 function switchTab(tabName) {
@@ -1141,7 +1284,7 @@ function editExercise(id) {
         optionsHtml += `
           <div style="display:flex;gap:8px;margin-bottom:8px;align-items:center" data-option-id="${letter}" data-option-letter="${letter}">
             <label style="margin:0;font-weight:600;min-width:60px">Choix ${letter.toUpperCase()}</label>
-            <input class="form-qcm-option" data-option-letter="${letter}" value="${q[letter]}" placeholder="Réponse ${letter.toUpperCase()}" style="flex:1;padding:10px;border:1px solid #ddd;border-radius:8px;font-size:.95rem">
+            <input class="form-qcm-option" data-option-letter="${letter}" value="${q[letter]}" placeholder="Réponse ${letter.toUpperCase()}" style="flex:1;padding:10px;border:1px solid #ddd;border-radius:8px;font-size:.95rem;box-sizing:border-box">
             <button onclick="removeFormQcmOption(${formQcmCounter}, '${letter}')" style="background:#e53e3e;color:#fff;border:none;padding:8px 12px;border-radius:6px;cursor:pointer;font-size:.85rem">✕</button>
           </div>
         `;
@@ -1835,7 +1978,7 @@ function deleteAdminChatHistory() {
   loadChatUsers();
 }
 
-// Helper function to parse bulk QCM lines
+// Helper for parsing bulk QCM lines
 function parseBulkQCM(lines) {
   const questions = [];
   lines.split('\n').forEach(line => {
@@ -1863,7 +2006,7 @@ function parseBulkQCM(lines) {
   return questions;
 }
 
-// Helper function to parse bulk Vrai/Faux lines
+// Helper for parsing bulk Vrai/Faux lines
 function parseVF(lines) {
   const questions = [];
   lines.split('\n').forEach(line => {
