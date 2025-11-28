@@ -872,6 +872,32 @@ window.addEventListener('DOMContentLoaded', () => {
   }, 100);
 });
 
+window.startLesson = function(lessonId, lessonType) {
+  console.log('[v0] startLesson called with:', lessonId, lessonType);
+  
+  if (!lessonId || !lessonType) {
+    console.error('[v0] Missing lessonId or lessonType');
+    return;
+  }
+  
+  try {
+    // Save current lesson to localStorage
+    localStorage.setItem('current_lesson', JSON.stringify({
+      id: lessonId,
+      type: lessonType
+    }));
+    console.log('[v0] Saved to localStorage:', localStorage.getItem('current_lesson'));
+    
+    // Redirect to exercise page
+    console.log('[v0] Redirecting to exercise.html');
+    window.location.href = 'exercise.html';
+  } catch (error) {
+    console.error('[v0] Error in startLesson:', error);
+  }
+};
+
+console.log('[v0] window.startLesson defined:', typeof window.startLesson);
+
 document.getElementById('lessonsList').addEventListener('click', function(e) {
   console.log('[v0] Click detected on:', e.target);
   
