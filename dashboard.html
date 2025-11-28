@@ -624,12 +624,13 @@ function findLessonById(lessonId) {
 }
 
 function getAllAttempts(userId) {
-  const key = `fr_stats_${userId}`;
-  const data = localStorage.getItem(key);
-  if (!data) return [];
+  console.log('[v0] getAllAttempts called for userId:', userId);
   
   const allStats = JSON.parse(localStorage.getItem('fr_stats_db') || '{}');
+  console.log('[v0] fr_stats_db content:', allStats);
+  
   const userStats = allStats[userId] || {};
+  console.log('[v0] User stats for', userId, ':', userStats);
   
   const attempts = [];
   Object.entries(userStats).forEach(([lessonId, lessonData]) => {
@@ -643,6 +644,7 @@ function getAllAttempts(userId) {
     }
   });
   
+  console.log('[v0] Total attempts found:', attempts.length);
   return attempts.sort((a, b) => a.timestamp - b.timestamp);
 }
 
