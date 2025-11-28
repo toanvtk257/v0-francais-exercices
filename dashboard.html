@@ -283,16 +283,14 @@ function renderLessons() {
     bank.lexique?.forEach(lesson => { allLessons.push({ ...lesson, type: 'lexique' }); });
   }
 
-  if (levelFilter) {
-    allLessons = allLessons.filter(l => l.niveau === levelFilter);
-  }
+  const filtered = allLessons.filter(l => !levelFilter || l.niveau === levelFilter);
 
-  if (allLessons.length === 0) {
+  if (filtered.length === 0) {
     $('#lessonsList').innerHTML = '<div class="empty-state"><div class="empty-state-icon">🔍</div><p>Aucun exercice ne correspond à vos filtres.</p></div>';
     return;
   }
 
-  const html = allLessons.map(lesson => {
+  const html = filtered.map(lesson => {
     const stats = getLessonStats(currentUser.id, lesson.id);
     const progressPercent = stats ? stats.bestScore : 0;
     let typeLabel = '📖 CE';
@@ -301,7 +299,7 @@ function renderLessons() {
     else if (lesson.type === 'lexique') typeLabel = '📚 Lexique';
     
     return `
-      <div class="lesson-card" onclick="startLesson('${lesson.id}', '${lesson.type}')">
+      <div class="lesson-card" data-lesson-id="${lesson.id}" data-lesson-type="${lesson.type}">
         <div class="lesson-header">
           <div class="lesson-title">${lesson.titre}</div>
           <div class="lesson-level">${lesson.niveau}</div>
@@ -322,28 +320,43 @@ function renderLessons() {
           <div class="lesson-meta" style="color:#999">Pas encore commencé</div>
         `}
         <div class="lesson-actions">
-          <button class="btn-primary" onclick="event.stopPropagation(); startLesson('${lesson.id}', '${lesson.type}')">Commencer</button>
+          <button class="btn-primary start-lesson-btn">Commencer</button>
         </div>
       </div>
     `;
   }).join('');
 
   $('#lessonsList').innerHTML = html;
+  
+  $('#lessonsList').addEventListener('click', (e) => {
+    if (e.target.classList.contains('start-lesson-btn')) {
+      e.stopPropagation();
+      const card = e.target.closest('.lesson-card');
+      const lessonId = card.getAttribute('data-lesson-id');
+      const type = card.getAttribute('data-lesson-type');
+      console.log('[v0] Starting lesson:', lessonId, type);
+      startLesson(lessonId, type);
+    }
+  });
+  
+  $('#lessonsList').querySelectorAll('.lesson-card').forEach(card => {
+    card.addEventListener('click', (e) => {
+      if (!e.target.classList.contains('btn-primary')) {
+        const lessonId = card.getAttribute('data-lesson-id');
+        const type = card.getAttribute('data-lesson-type');
+        console.log('[v0] Card clicked, starting lesson:', lessonId, type);
+        startLesson(lessonId, type);
+      }
+    });
+  });
 }
 
 function startLesson(lessonId, type) {
+  console.log('[v0] startLesson called with:', { lessonId, type });
   localStorage.setItem('current_lesson', JSON.stringify({ lessonId, type }));
+  console.log('[v0] Redirecting to exercise.html');
   window.location.href = 'exercise.html';
 }
-
-$('#logoutBtn').addEventListener('click', () => {
-  localStorage.removeItem(AUTH_KEY);
-  localStorage.removeItem('fr_current_user');
-  window.location.href = 'login.html';
-});
-
-$('#levelFilter').addEventListener('change', renderLessons);
-$('#typeFilter').addEventListener('change', renderLessons);
 
 function drawProgressChart() {
   const canvas = $('#progressChart');
