@@ -332,25 +332,32 @@ function renderLessons() {
 }
 
 window.startLesson = function(lessonId, type) {
-  console.log('[v0] startLesson called with:', lessonId, type);
+  console.log('[v0] ========== startLesson DEBUG ==========');
+  console.log('[v0] Function called:', typeof window.startLesson);
+  console.log('[v0] lessonId:', lessonId, 'type:', type);
+  console.log('[v0] lessonId type:', typeof lessonId);
+  console.log('[v0] type type:', typeof type);
+  
   try {
-    localStorage.setItem('current_lesson', JSON.stringify({ lessonId, type }));
-    console.log('[v0] Data saved to localStorage, redirecting...');
+    const dataToSave = { lessonId, type };
+    console.log('[v0] Data to save:', JSON.stringify(dataToSave));
+    
+    localStorage.setItem('current_lesson', JSON.stringify(dataToSave));
+    console.log('[v0] Data saved to localStorage');
+    
+    const savedData = localStorage.getItem('current_lesson');
+    console.log('[v0] Verification - saved data:', savedData);
+    
+    console.log('[v0] Redirecting to exercise.html...');
     window.location.href = 'exercise.html';
   } catch (error) {
     console.error('[v0] Error in startLesson:', error);
+    console.error('[v0] Error stack:', error.stack);
     alert('Erreur lors du démarrage de l\'exercice: ' + error.message);
   }
 }
 
-$('#logoutBtn').addEventListener('click', () => {
-  localStorage.removeItem(AUTH_KEY);
-  localStorage.removeItem('fr_current_user');
-  window.location.href = 'login.html';
-});
-
-$('#levelFilter').addEventListener('change', renderLessons);
-$('#typeFilter').addEventListener('change', renderLessons);
+console.log('[v0] window.startLesson defined:', typeof window.startLesson);
 
 function drawProgressChart() {
   const canvas = $('#progressChart');
