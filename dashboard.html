@@ -592,25 +592,29 @@ function drawTypeChart() {
   ctx.closePath();
   ctx.fill();
 
-  const legendY = height - 30;
+  const legendStartY = height - 40;
+  const legendSpacing = 15;
+  
+  // First row - CE and CO
   ctx.fillStyle = '#4caf50';
-  ctx.fillRect(width/2 - 100, legendY, 12, 12);
+  ctx.fillRect(20, legendStartY, 12, 12);
   ctx.fillStyle = '#333';
   ctx.font = '12px system-ui';
   ctx.textAlign = 'left';
-  ctx.fillText(`CE: ${lectureCount} (${Math.round(lectureCount/total*100)}%)`, width/2 - 82, legendY + 10);
+  ctx.fillText(`CE: ${lectureCount} (${Math.round(lectureCount/total*100)}%)`, 38, legendStartY + 10);
 
   ctx.fillStyle = '#2196f3';
-  ctx.fillRect(width/2 + 20, legendY, 12, 12);
-  ctx.fillText(`CO: ${ecouteCount} (${Math.round(ecouteCount/total*100)}%)`, width/2 + 38, legendY + 10);
+  ctx.fillRect(width/2 + 10, legendStartY, 12, 12);
+  ctx.fillText(`CO: ${ecouteCount} (${Math.round(ecouteCount/total*100)}%)`, width/2 + 28, legendStartY + 10);
 
+  // Second row - Grammaire and Lexique
   ctx.fillStyle = '#ff5722';
-  ctx.fillRect(width/2 - 40, legendY, 12, 12);
-  ctx.fillText(`Grammaire: ${grammaireCount} (${Math.round(grammaireCount/total*100)}%)`, width/2 - 22, legendY + 10);
+  ctx.fillRect(20, legendStartY + legendSpacing, 12, 12);
+  ctx.fillText(`Grammaire: ${grammaireCount} (${Math.round(grammaireCount/total*100)}%)`, 38, legendStartY + legendSpacing + 10);
 
   ctx.fillStyle = '#8bc34a';
-  ctx.fillRect(width/2 + 60, legendY, 12, 12);
-  ctx.fillText(`Lexique: ${lexiqueCount} (${Math.round(lexiqueCount/total*100)}%)`, width/2 + 78, legendY + 10);
+  ctx.fillRect(width/2 + 10, legendStartY + legendSpacing, 12, 12);
+  ctx.fillText(`Lexique: ${lexiqueCount} (${Math.round(lexiqueCount/total*100)}%)`, width/2 + 28, legendStartY + legendSpacing + 10);
 }
 
 function findLessonById(lessonId) {
@@ -918,6 +922,15 @@ window.addEventListener('DOMContentLoaded', () => {
   loadExternalResources();
   loadStudentChat();
   loadAdminRecipients();
+  
+  const logoutBtn = document.getElementById('logoutBtn');
+  if (logoutBtn) {
+    logoutBtn.addEventListener('click', () => {
+      localStorage.removeItem('current_user');
+      localStorage.removeItem('current_lesson');
+      window.location.href = 'login.html';
+    });
+  }
   
   $('#levelFilter').addEventListener('change', renderLessons);
   $('#typeFilter').addEventListener('change', renderLessons);
