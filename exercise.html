@@ -203,45 +203,138 @@ async function loadBankFromCloudinary() {
 }
 
 function loadBank() {
+  console.log('[v0] exercise.html: Loading bank from localStorage...');
   const stored = localStorage.getItem(BANK_KEY);
+  console.log('[v0] exercise.html: Stored bank exists:', !!stored);
+  
   if (stored) {
-    bank = JSON.parse(stored);
+    try {
+      bank = JSON.parse(stored);
+      console.log('[v0] exercise.html: Bank loaded successfully:', {
+        lecture: bank.lecture?.length || 0,
+        ecoute: bank.ecoute?.length || 0,
+        grammaire: bank.grammaire?.length || 0,
+        lexique: bank.lexique?.length || 0
+      });
+    } catch (error) {
+      console.error('[v0] exercise.html: Error parsing bank:', error);
+      bank = { lecture: [], ecoute: [], grammaire: [], lexique: [] };
+    }
+  } else {
+    console.log('[v0] exercise.html: No bank data found in localStorage');
+    bank = { lecture: [], ecoute: [], grammaire: [], lexique: [] };
   }
   
+  // Load from Cloudinary asynchronously (won't block initial load)
   loadBankFromCloudinary();
 }
 
+async function loadBankFromCloudinary() {
+  try {
+    const cacheTimestamp = localStorage.getItem(CACHE_TIMESTAMP_KEY);
+    const now = Date.now();
+    
+    if (cacheTimestamp && (now - parseInt(cacheTimestamp)) < CACHE_DURATION_MS) {
+      const cachedData = localStorage.getItem(CACHE_KEY_PREFIX + 'merged');
+      if (cachedData) {
+        bank = JSON.parse(cachedData);
+        return;
+      }
+    }
+    
+    const filesIndex = JSON.parse(localStorage.getItem(FILES_INDEX_KEY) || '[]');
+    if (filesIndex.length === 0) return;
+    
+    const mergedBank = {lecture: [], ecoute: [], grammaire: [], lexique: []};
+    
+    const loadPromises = filesIndex.map(async (fileInfo) => {
+      try {
+        const response = await fetch(fileInfo.cloudinaryUrl);
+        if (!response.ok) return null;
+        return await response.json();
+      } catch (err) {
+        return null;
+      }
+    });
+    
+    const results = await Promise.all(loadPromises);
+    
+    results.forEach(data => {
+      if (data) {
+        if (data.lecture) mergedBank.lecture.push(...data.lecture);
+        if (data.ecoute) mergedBank.ecoute.push(...data.ecoute);
+        if (data.grammaire) mergedBank.grammaire.push(...data.grammaire);
+        if (data.lexique) mergedBank.lexique.push(...data.lexique);
+      }
+    });
+    
+    bank = mergedBank;
+    localStorage.setItem(BANK_KEY, JSON.stringify(bank));
+    localStorage.setItem(CACHE_KEY_PREFIX + 'merged', JSON.stringify(bank));
+    localStorage.setItem(CACHE_TIMESTAMP_KEY, now.toString());
+    
+  } catch(e) {
+    console.error('[v0] Error loading from Cloudinary:', e);
+  }
+}
+
 function loadLesson() {
-  console.log('[v0] loadLesson called');
+  console.log('[v0] exercise.html: loadLesson called');
+  console.log('[v0] exercise.html: bank is:', bank);
+  
   const lessonData = localStorage.getItem('current_lesson');
-  console.log('[v0] lessonData from localStorage:', lessonData);
+  console.log('[v0] exercise.html: lessonData from localStorage:', lessonData);
   
   if (!lessonData) {
-    console.log('[v0] No lesson data found, redirecting to dashboard');
+    console.log('[v0] exercise.html: No lesson data found, redirecting to dashboard');
+    alert('Aucune donnée d\'exercice trouvée. Redirection vers le tableau de bord.');
     window.location.href = 'dashboard.html';
     return;
   }
 
-  const { lessonId, type } = JSON.parse(lessonData);
-  console.log('[v0] Parsed lesson:', { lessonId, type });
+  let lessonId, type;
+  try {
+    const parsed = JSON.parse(lessonData);
+    lessonId = parsed.lessonId;
+    type = parsed.type;
+    console.log('[v0] exercise.html: Parsed lesson:', { lessonId, type });
+  } catch (error) {
+    console.error('[v0] exercise.html: Error parsing lesson data:', error);
+    alert('Erreur lors du chargement de l\'exercice. Redirection vers le tableau de bord.');
+    window.location.href = 'dashboard.html';
+    return;
+  }
+  
   currentType = type;
 
-  let lessons = [];
-  if (type === 'lecture') lessons = bank.lecture;
-  else if (type === 'ecoute') lessons = bank.ecoute;
-  else if (type === 'grammaire') lessons = bank.grammaire;
-  else if (type === 'lexique') lessons = bank.lexique;
-
-  console.log('[v0] Available lessons for type', type, ':', lessons);
-  currentLesson = lessons?.find(l => l.id === lessonId);
-  console.log('[v0] Found currentLesson:', currentLesson);
-
-  if (!currentLesson) {
-    console.log('[v0] Lesson not found in bank, redirecting to dashboard');
+  if (!bank) {
+    console.error('[v0] exercise.html: Bank is null!');
+    alert('La banque d\'exercices n\'est pas chargée. Redirection vers le tableau de bord.');
     window.location.href = 'dashboard.html';
     return;
   }
 
+  let lessons = [];
+  if (type === 'lecture') lessons = bank.lecture || [];
+  else if (type === 'ecoute') lessons = bank.ecoute || [];
+  else if (type === 'grammaire') lessons = bank.grammaire || [];
+  else if (type === 'lexique') lessons = bank.lexique || [];
+
+  console.log('[v0] exercise.html: Available lessons for type', type, ':', lessons.length, 'lessons');
+  console.log('[v0] exercise.html: Looking for lessonId:', lessonId);
+  
+  currentLesson = lessons.find(l => l.id === lessonId);
+  console.log('[v0] exercise.html: Found currentLesson:', currentLesson);
+
+  if (!currentLesson) {
+    console.error('[v0] exercise.html: Lesson not found in bank');
+    console.log('[v0] exercise.html: Available lesson IDs:', lessons.map(l => l.id));
+    alert(`Exercice non trouvé (ID: ${lessonId}, Type: ${type}). Redirection vers le tableau de bord.`);
+    window.location.href = 'dashboard.html';
+    return;
+  }
+
+  console.log('[v0] exercise.html: Successfully loaded lesson:', currentLesson.titre);
   $('#lessonTitle').textContent = currentLesson.titre;
   renderLesson();
   checkForDraft();
@@ -631,12 +724,16 @@ function goBack() {
 }
 
 function checkAuth() {
+  console.log('[v0] exercise.html: Checking authentication');
   const auth = localStorage.getItem(AUTH_KEY);
   if (!auth) {
+    console.log('[v0] exercise.html: Not authenticated, redirecting to login');
     window.location.href = 'login.html';
-    return;
+    return false;
   }
   currentUser = JSON.parse(auth);
+  console.log('[v0] exercise.html: User authenticated:', currentUser.name);
+  return true;
 }
 
 function formatTime(seconds) {
@@ -666,9 +763,20 @@ function recordAttempt(userId, lessonId, type, earnedPoints, totalPoints, timeSp
   console.log(`User ${userId} completed lesson ${lessonId} (${type}) with score ${earnedPoints}/${totalPoints} in ${timeSpent} seconds.`);
 }
 
-checkAuth();
-loadBank();
-loadLesson();
+window.addEventListener('DOMContentLoaded', () => {
+  console.log('[v0] exercise.html: DOMContentLoaded fired');
+  
+  if (!checkAuth()) {
+    return;
+  }
+  
+  loadBank();
+  
+  // Give a small delay to ensure bank is loaded from localStorage
+  setTimeout(() => {
+    loadLesson();
+  }, 100);
+});
 </script>
 </body>
 </html>

@@ -242,9 +242,20 @@ function checkAuth() {
 }
 
 function loadBank() {
+  console.log('[v0] Loading bank from localStorage...');
   const stored = localStorage.getItem(BANK_KEY);
+  console.log('[v0] Stored data:', stored ? `${stored.substring(0, 100)}...` : 'null');
   if (stored) {
     bank = JSON.parse(stored);
+    console.log('[v0] Bank loaded successfully:', {
+      lecture: bank.lecture?.length || 0,
+      ecoute: bank.ecoute?.length || 0,
+      grammaire: bank.grammaire?.length || 0,
+      lexique: bank.lexique?.length || 0
+    });
+  } else {
+    console.log('[v0] No bank data found in localStorage');
+    bank = null;
   }
 }
 
