@@ -202,14 +202,26 @@ h1 {
           <div class="stat-value" id="avgScore">0%</div>
         </div>
       </div>
-      <!-- Added progress charts for admin dashboard -->
-      <div class="chart-container">
-        <div class="chart-title">Activité des étudiants (derniers 30 jours)</div>
-        <canvas id="adminActivityChart" class="chart-canvas"></canvas>
-      </div>
-      <div class="chart-container">
-        <div class="chart-title">Performance par niveau CECRL</div>
-        <canvas id="adminLevelChart" class="chart-canvas"></canvas>
+      <!-- ADDED: Chart section with student selector -->
+      <div class="charts-grid">
+        <!-- Added student selector dropdown above charts -->
+        <div style="grid-column: 1 / -1; margin-bottom: 16px;">
+          <label for="studentSelector" style="display: block; margin-bottom: 8px; font-weight: 600; color: #333;">
+            Sélectionner un étudiant pour afficher ses statistiques :
+          </label>
+          <select id="studentSelector" style="width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 8px; font-size: 14px;">
+            <option value="">-- Sélectionner un étudiant --</option>
+          </select>
+        </div>
+        
+        <div class="chart-container">
+          <div class="chart-title">Activité des étudiants (derniers 30 jours)</div>
+          <canvas id="adminActivityChart" class="chart-canvas"></canvas>
+        </div>
+        <div class="chart-container">
+          <div class="chart-title">Performance par niveau CECRL</div>
+          <canvas id="adminLevelChart" class="chart-canvas"></canvas>
+        </div>
       </div>
     </div>
 
@@ -590,7 +602,7 @@ window.addFormQcmOption = function(questionId) {
   
   optionDiv.innerHTML = `
     <label style="margin:0;font-weight:600;min-width:60px">Choix ${optionLetter.toUpperCase()}</label>
-    <input class="form-qcm-option" data-option-letter="${optionLetter}" placeholder="Réponse ${letter.toUpperCase()}" style="flex:1;padding:10px;border:1px solid #ddd;border-radius:8px;font-size:.95rem">
+    <input class="form-qcm-option" data-option-letter="${optionLetter}" placeholder="Réponse ${optionLetter.toUpperCase()}" style="flex:1;padding:10px;border:1px solid #ddd;border-radius:8px;font-size:.95rem">
     <button onclick="removeFormQcmOption(${questionId}, '${optionLetter}')" type="button" style="background:#e53e3e;color:#fff;border:none;padding:8px 12px;border-radius:6px;cursor:pointer;font-size:.85rem">✕</button>
   `;
   container.appendChild(optionDiv);
@@ -996,10 +1008,11 @@ function updateDashboard() {
   $('#totalAttempts').textContent = totalAttempts;
   $('#avgScore').textContent = attemptCount > 0 ? Math.round(totalScore / attemptCount) + '%' : '0%';
 
-  setTimeout(() => {
-    drawAdminActivityChart();
-    drawAdminLevelChart();
-  }, 100);
+  // setTimeout(() => {
+  //   drawAdminActivityChart();
+  //   drawAdminLevelChart();
+  // }, 100);
+  // The charts will be redrawn when initStudentCharts is called or when a student is selected.
 }
 
 function updateExercisesTable() {
@@ -1301,69 +1314,69 @@ function saveBank() {
 }
 
 // Placeholder for actual chart drawing logic
-function drawAdminActivityChart() {
-  const ctx = document.getElementById('adminActivityChart').getContext('2d');
-  new Chart(ctx, {
-    type: 'line',
-    data: {
-      labels: ['Jour 1', 'Jour 2', 'Jour 3', 'Jour 4', 'Jour 5', 'Jour 6', 'Jour 7'], // Example labels
-      datasets: [{
-        label: 'Nombre de tentatives',
-        data: [10, 15, 12, 20, 18, 25, 22], // Example data
-        borderColor: 'rgba(34, 187, 85, 1)',
-        backgroundColor: 'rgba(34, 187, 85, 0.2)',
-        fill: true,
-        tension: 0.3
-      }]
-    },
-    options: {
-      responsive: true,
-      scales: {
-        y: { beginAtZero: true }
-      }
-    }
-  });
-}
+// function drawAdminActivityChart() {
+//   const ctx = document.getElementById('adminActivityChart').getContext('2d');
+//   new Chart(ctx, {
+//     type: 'line',
+//     data: {
+//       labels: ['Jour 1', 'Jour 2', 'Jour 3', 'Jour 4', 'Jour 5', 'Jour 6', 'Jour 7'], // Example labels
+//       datasets: [{
+//         label: 'Nombre de tentatives',
+//         data: [10, 15, 12, 20, 18, 25, 22], // Example data
+//         borderColor: 'rgba(34, 187, 85, 1)',
+//         backgroundColor: 'rgba(34, 187, 85, 0.2)',
+//         fill: true,
+//         tension: 0.3
+//       }]
+//     },
+//     options: {
+//       responsive: true,
+//       scales: {
+//         y: { beginAtZero: true }
+//       }
+//     }
+//   });
+// }
 
-function drawAdminLevelChart() {
-  const ctx = document.getElementById('adminLevelChart').getContext('2d');
-  new Chart(ctx, {
-    type: 'bar',
-    data: {
-      labels: ['A1', 'A2', 'B1', 'B2', 'C1', 'C2'], // Example labels
-      datasets: [{
-        label: 'Score moyen',
-        data: [75, 80, 85, 90, 92, 95], // Example data
-        backgroundColor: [
-          'rgba(54, 162, 235, 0.6)',
-          'rgba(255, 206, 86, 0.6)',
-          'rgba(75, 192, 192, 0.6)',
-          'rgba(153, 102, 255, 0.6)',
-          'rgba(255, 159, 64, 0.6)',
-          'rgba(255, 99, 132, 0.6)'
-        ],
-        borderColor: [
-          'rgba(54, 162, 235, 1)',
-          'rgba(255, 206, 86, 1)',
-          'rgba(75, 192, 192, 1)',
-          'rgba(153, 102, 255, 1)',
-          'rgba(255, 159, 64, 1)',
-          'rgba(255, 99, 132, 1)'
-        ],
-        borderWidth: 1
-      }]
-    },
-    options: {
-      responsive: true,
-      scales: {
-        y: {
-          beginAtZero: true,
-          max: 100
-        }
-      }
-    }
-  });
-}
+// function drawAdminLevelChart() {
+//   const ctx = document.getElementById('adminLevelChart').getContext('2d');
+//   new Chart(ctx, {
+//     type: 'bar',
+//     data: {
+//       labels: ['A1', 'A2', 'B1', 'B2', 'C1', 'C2'], // Example labels
+//       datasets: [{
+//         label: 'Score moyen',
+//         data: [75, 80, 85, 90, 92, 95], // Example data
+//         backgroundColor: [
+//           'rgba(54, 162, 235, 0.6)',
+//           'rgba(255, 206, 86, 0.6)',
+//           'rgba(75, 192, 192, 0.6)',
+//           'rgba(153, 102, 255, 0.6)',
+//           'rgba(255, 159, 64, 0.6)',
+//           'rgba(255, 99, 132, 0.6)'
+//         ],
+//         borderColor: [
+//           'rgba(54, 162, 235, 1)',
+//           'rgba(255, 206, 86, 1)',
+//           'rgba(75, 192, 192, 1)',
+//           'rgba(153, 102, 255, 1)',
+//           'rgba(255, 159, 64, 1)',
+//           'rgba(255, 99, 132, 1)'
+//         ],
+//         borderWidth: 1
+//       }]
+//     },
+//     options: {
+//       responsive: true,
+//       scales: {
+//         y: {
+//           beginAtZero: true,
+//           max: 100
+//         }
+//       }
+//     }
+//   });
+// }
 
 function updateUsersTable() {
   const container = $('#usersGroupedContainer');
@@ -2064,6 +2077,9 @@ document.addEventListener('DOMContentLoaded', async function() {
       difficultyValue.textContent = `Niveau ${this.value}`;
     });
   }
+  
+  // CHANGE: Initialize student charts on page load
+  initStudentCharts(); 
 });
 
 // Helper function to reset the exercise form
@@ -2118,6 +2134,254 @@ function resetExerciseForm() {
 //     resetExerciseForm();
 //   }
 // }
+
+function loadStudentOptions() {
+  const allUsers = JSON.parse(localStorage.getItem(USERS_KEY) || '[]');
+  const students = allUsers.filter(u => u.role === 'student');
+  
+  const selector = $('#studentSelector');
+  if (!selector) return;
+  
+  selector.innerHTML = '<option value="">-- Sélectionner un étudiant --</option>';
+  
+  students.forEach(student => {
+    const option = document.createElement('option');
+    option.value = student.id;
+    option.textContent = `${student.name} (${student.email})`;
+    selector.appendChild(option);
+  });
+}
+
+function drawAdminActivityChart(userId) {
+  const canvas = $('#adminActivityChart');
+  if (!canvas) return;
+  const ctx = canvas.getContext('2d');
+  const width = canvas.offsetWidth;
+  const height = canvas.offsetHeight;
+  canvas.width = width;
+  canvas.height = height;
+
+  if (!userId) {
+    ctx.fillStyle = '#999';
+    ctx.font = '14px system-ui';
+    ctx.textAlign = 'center';
+    ctx.fillText('Veuillez sélectionner un étudiant', width/2, height/2);
+    return;
+  }
+
+  const statsDb = JSON.parse(localStorage.getItem('fr_stats_db') || '{}');
+  const userStats = statsDb[userId] || {};
+  const attempts = [];
+  
+  Object.values(userStats).forEach(lesson => {
+    if (lesson.attempts) {
+      lesson.attempts.forEach(att => {
+        attempts.push(att);
+      });
+    }
+  });
+
+  if (attempts.length === 0) {
+    ctx.fillStyle = '#999';
+    ctx.font = '14px system-ui';
+    ctx.textAlign = 'center';
+    ctx.fillText('Aucune donnée disponible', width/2, height/2);
+    return;
+  }
+
+  const byDate = {};
+  attempts.forEach(att => {
+    const date = new Date(att.timestamp).toLocaleDateString('fr-FR');
+    if (!byDate[date]) byDate[date] = [];
+    byDate[date].push(att.percentage);
+  });
+
+  const dates = Object.keys(byDate).sort();
+  const avgScores = dates.map(d => {
+    const scores = byDate[d];
+    return scores.reduce((a,b) => a+b, 0) / scores.length;
+  });
+
+  const padding = 40;
+  const chartWidth = width - padding * 2;
+  const chartHeight = height - padding * 2;
+  const maxScore = 100;
+  const step = chartWidth / (dates.length - 1 || 1);
+
+  ctx.clearRect(0, 0, width, height); // Clear canvas before drawing
+
+  ctx.strokeStyle = '#e0e0e0';
+  ctx.lineWidth = 1;
+  for (let i = 0; i <= 4; i++) {
+    const y = padding + (chartHeight / 4) * i;
+    ctx.beginPath();
+    ctx.moveTo(padding, y);
+    ctx.lineTo(width - padding, y);
+    ctx.stroke();
+    
+    ctx.fillStyle = '#999';
+    ctx.font = '11px system-ui';
+    ctx.textAlign = 'right';
+    ctx.fillText((100 - i * 25) + '%', padding - 8, y + 4);
+  }
+
+  ctx.strokeStyle = '#22bb55';
+  ctx.lineWidth = 3;
+  ctx.beginPath();
+  avgScores.forEach((score, i) => {
+    const x = padding + step * i;
+    const y = padding + chartHeight - (score / maxScore) * chartHeight;
+    if (i === 0) ctx.moveTo(x, y);
+    else ctx.lineTo(x, y);
+  });
+  ctx.stroke();
+
+  ctx.fillStyle = '#22bb55';
+  avgScores.forEach((score, i) => {
+    const x = padding + step * i;
+    const y = padding + chartHeight - (score / maxScore) * chartHeight;
+    ctx.beginPath();
+    ctx.arc(x, y, 4, 0, Math.PI * 2);
+    ctx.fill();
+  });
+
+  ctx.fillStyle = '#666';
+  ctx.font = '10px system-ui';
+  ctx.textAlign = 'center';
+  dates.forEach((date, i) => {
+    if (dates.length > 10 && i % 2 !== 0) return;
+    const x = padding + step * i;
+    ctx.fillText(date.split('/').slice(0,2).join('/'), x, height - 10);
+  });
+}
+
+function drawAdminLevelChart(userId) {
+  const canvas = $('#adminLevelChart');
+  if (!canvas) return;
+  const ctx = canvas.getContext('2d');
+  const width = canvas.offsetWidth;
+  const height = canvas.offsetHeight;
+  canvas.width = width;
+  canvas.height = height;
+
+  if (!userId) {
+    ctx.fillStyle = '#999';
+    ctx.font = '14px system-ui';
+    ctx.textAlign = 'center';
+    ctx.fillText('Veuillez sélectionner un étudiant', width/2, height/2);
+    return;
+  }
+
+  const statsDb = JSON.parse(localStorage.getItem('fr_stats_db') || '{}');
+  const userStats = statsDb[userId] || {};
+  const attempts = [];
+  
+  Object.entries(userStats).forEach(([lessonId, lesson]) => {
+    if (lesson.attempts) {
+      lesson.attempts.forEach(att => {
+        attempts.push({ ...att, lessonId });
+      });
+    }
+  });
+
+  if (attempts.length === 0) {
+    ctx.fillStyle = '#999';
+    ctx.font = '14px system-ui';
+    ctx.textAlign = 'center';
+    ctx.fillText('Aucune donnée disponible', width/2, height/2);
+    return;
+  }
+
+  const levels = ['A1', 'A2', 'B1', 'B2', 'C1', 'C2'];
+  const byLevel = {};
+  levels.forEach(l => byLevel[l] = []);
+  
+  const bank = JSON.parse(localStorage.getItem(BANK_KEY) || '{}');
+  
+  attempts.forEach(att => {
+    let lesson = null;
+    // Find the lesson from the bank to get its level
+    // This assumes lessonId corresponds to exercise ID and type/level can be inferred
+    // A more robust solution might store lesson type/level directly in statsDb
+    for (const type of ['lecture', 'ecoute', 'grammaire', 'lexique']) {
+      if (bank[type]) {
+        const found = bank[type].find(l => l.id === att.lessonId);
+        if (found) {
+          lesson = found;
+          break;
+        }
+      }
+    }
+    
+    if (lesson && lesson.niveau && byLevel[lesson.niveau]) {
+      byLevel[lesson.niveau].push(att.percentage);
+    }
+  });
+
+  const avgByLevel = levels.map(l => {
+    const scores = byLevel[l];
+    return scores.length > 0 ? scores.reduce((a,b) => a+b, 0) / scores.length : 0;
+  });
+
+  const padding = 40;
+  const chartWidth = width - padding * 2;
+  const chartHeight = height - padding * 2;
+  const barWidth = chartWidth / levels.length - 10;
+  const colors = ['#4caf50', '#8bc34a', '#ffc107', '#ff9800', '#ff5722', '#f44336'];
+
+  ctx.clearRect(0, 0, width, height); // Clear canvas before drawing
+
+  levels.forEach((level, i) => {
+    const avg = avgByLevel[i];
+    const x = padding + (chartWidth / levels.length) * i + 5;
+    const barHeight = (avg / 100) * chartHeight;
+    const y = padding + chartHeight - barHeight;
+
+    ctx.fillStyle = colors[i];
+    ctx.fillRect(x, y, barWidth, barHeight);
+
+    ctx.fillStyle = '#333';
+    ctx.font = '12px system-ui';
+    ctx.textAlign = 'center';
+    ctx.fillText(level, x + barWidth/2, height - 10);
+    
+    if (avg > 0) {
+      ctx.fillText(Math.round(avg) + '%', x + barWidth/2, y - 5);
+    }
+  });
+
+  ctx.strokeStyle = '#e0e0e0';
+  ctx.lineWidth = 1;
+  for (let i = 0; i <= 4; i++) {
+    const y = padding + (chartHeight / 4) * i;
+    ctx.beginPath();
+    ctx.moveTo(padding, y);
+    ctx.lineTo(width - padding, y);
+    ctx.stroke();
+    
+    ctx.fillStyle = '#999';
+    ctx.font = '11px system-ui';
+    ctx.textAlign = 'right';
+    ctx.fillText((100 - i * 25) + '%', padding - 8, y + 4);
+  }
+}
+
+function initStudentCharts() {
+  loadStudentOptions();
+  
+  const selector = $('#studentSelector');
+  if (selector) {
+    selector.addEventListener('change', function() {
+      const userId = this.value;
+      drawAdminActivityChart(userId);
+      drawAdminLevelChart(userId);
+    });
+  }
+  
+  // Draw initial empty charts
+  drawAdminActivityChart(null);
+  drawAdminLevelChart(null);
+}
 </script>
 </body>
 </html>
