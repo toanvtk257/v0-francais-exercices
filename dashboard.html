@@ -874,6 +874,8 @@ window.addEventListener('DOMContentLoaded', () => {
 
 window.startLesson = function(lessonId, lessonType) {
   console.log('[v0] startLesson called with:', lessonId, lessonType);
+  console.log('[v0] typeof lessonId:', typeof lessonId);
+  console.log('[v0] typeof lessonType:', typeof lessonType);
   
   if (!lessonId || !lessonType) {
     console.error('[v0] Missing lessonId or lessonType');
@@ -882,10 +884,12 @@ window.startLesson = function(lessonId, lessonType) {
   
   try {
     // Save current lesson to localStorage
-    localStorage.setItem('current_lesson', JSON.stringify({
+    const dataToSave = {
       lessonId: lessonId,
       type: lessonType
-    }));
+    };
+    console.log('[v0] Data to save:', dataToSave);
+    localStorage.setItem('current_lesson', JSON.stringify(dataToSave));
     console.log('[v0] Saved to localStorage:', localStorage.getItem('current_lesson'));
     
     // Redirect to exercise page

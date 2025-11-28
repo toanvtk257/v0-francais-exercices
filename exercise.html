@@ -212,13 +212,18 @@ function loadBank() {
 }
 
 function loadLesson() {
+  console.log('[v0] loadLesson called');
   const lessonData = localStorage.getItem('current_lesson');
+  console.log('[v0] lessonData from localStorage:', lessonData);
+  
   if (!lessonData) {
+    console.log('[v0] No lesson data found, redirecting to dashboard');
     window.location.href = 'dashboard.html';
     return;
   }
 
   const { lessonId, type } = JSON.parse(lessonData);
+  console.log('[v0] Parsed lesson:', { lessonId, type });
   currentType = type;
 
   let lessons = [];
@@ -227,9 +232,12 @@ function loadLesson() {
   else if (type === 'grammaire') lessons = bank.grammaire;
   else if (type === 'lexique') lessons = bank.lexique;
 
+  console.log('[v0] Available lessons for type', type, ':', lessons);
   currentLesson = lessons?.find(l => l.id === lessonId);
+  console.log('[v0] Found currentLesson:', currentLesson);
 
   if (!currentLesson) {
+    console.log('[v0] Lesson not found in bank, redirecting to dashboard');
     window.location.href = 'dashboard.html';
     return;
   }
