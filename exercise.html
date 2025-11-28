@@ -273,11 +273,17 @@ function loadLesson() {
 
   console.log('[v0] exercise.html: Available lessons for type', type, ':', lessons.length, 'lessons');
   console.log('[v0] exercise.html: Looking for lessonId:', lessonId, '(type:', typeof lessonId, ')');
-  console.log('[v0] exercise.html: Available lesson IDs:');
+  console.log('[v0] exercise.html: COMPLETE LIST OF AVAILABLE LESSON IDS:');
   lessons.forEach((l, i) => {
-    console.log(`  [${i}] ID: "${l.id}" (type: ${typeof l.id}), titre: "${l.titre}"`);
-    console.log(`      Match? ${l.id === lessonId}, Strict match? ${l.id === lessonId}`);
+    const idsMatch = l.id === lessonId;
+    const idsMatchStrict = l.id === String(lessonId);
+    const idsMatchTrim = String(l.id).trim() === String(lessonId).trim();
+    console.log(`  [${i}] ID: "${l.id}" (type: ${typeof l.id})`);
+    console.log(`      titre: "${l.titre}"`);
+    console.log(`      Match? ${idsMatch}, String match? ${idsMatchStrict}, Trim match? ${idsMatchTrim}`);
   });
+  
+  console.log('[v0] exercise.html: RAW bank data for type', type, ':', JSON.stringify(bank[type], null, 2));
   
   currentLesson = lessons.find(l => l.id === lessonId);
   console.log('[v0] exercise.html: Found currentLesson:', currentLesson);

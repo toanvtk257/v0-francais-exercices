@@ -252,6 +252,12 @@ function loadBank() {
     console.log('  - CO exercises:', bank.ecoute?.length || 0, bank.ecoute?.map(l => l.id));
     console.log('  - Grammaire exercises:', bank.grammaire?.length || 0, bank.grammaire?.map(l => l.id));
     console.log('  - Lexique exercises:', bank.lexique?.length || 0, bank.lexique?.map(l => l.id));
+    console.log('[v0] COMPLETE LIST OF CO EXERCISE IDS:');
+    if (bank.ecoute) {
+      bank.ecoute.forEach((ex, idx) => {
+        console.log(`  [${idx}] "${ex.id}" - ${ex.titre}`);
+      });
+    }
   } else {
     console.log('[v0] No bank data found in localStorage');
     bank = null;
