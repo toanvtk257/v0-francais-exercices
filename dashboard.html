@@ -223,31 +223,45 @@ select{padding:8px 12px;border:1px solid #ddd;border-radius:8px;font-size:.95rem
 <script>
 const $ = s => document.querySelector(s);
 const $$ = s => [...document.querySelectorAll(s)];
-const AUTH_KEY = 'fr_auth_user';
-const BANK_KEY = 'fr_bank_data';
+const AUTH_KEY = 'auth';
+const BANK_KEY = 'bank';
+const STATS_KEY = 'stats';
 const USERS_KEY = 'fr_users_db';
 
 let currentUser = null;
-let bank = null;
-let allLessons = [];
-let allUsers = [];
+let bank = { exercises: [] };
 
 function startLesson(lessonId, type) {
-  console.log('[v0] startLesson called with:', { lessonId, type });
+  console.log('[v0] ========== START LESSON CALLED ==========');
+  console.log('[v0] Arguments:', { lessonId, type });
+  console.log('[v0] typeof lessonId:', typeof lessonId);
+  console.log('[v0] typeof type:', typeof type);
   
   if (!lessonId || !type) {
-    console.error('[v0] Missing lessonId or type:', { lessonId, type });
+    console.error('[v0] ERROR: Missing lessonId or type:', { lessonId, type });
+    alert('Erreur: Impossible de démarrer l\'exercice. Paramètres manquants.');
     return;
   }
   
-  localStorage.setItem('current_lesson', JSON.stringify({ lessonId, type }));
-  console.log('[v0] Saved to localStorage:', localStorage.getItem('current_lesson'));
-  console.log('[v0] Redirecting to exercise.html');
-  window.location.href = 'exercise.html';
+  const lessonData = { lessonId, type };
+  localStorage.setItem('current_lesson', JSON.stringify(lessonData));
+  console.log('[v0] Data saved to localStorage:', localStorage.getItem('current_lesson'));
+  
+  console.log('[v0] About to redirect to exercise.html');
+  console.log('[v0] Current location:', window.location.href);
+  
+  try {
+    window.location.href = 'exercise.html';
+    console.log('[v0] Redirect initiated');
+  } catch (error) {
+    console.error('[v0] Redirect error:', error);
+    alert('Erreur lors de la redirection: ' + error.message);
+  }
 }
 
 // Make sure it's globally accessible
 window.startLesson = startLesson;
+console.log('[v0] window.startLesson defined:', typeof window.startLesson);
 
 function checkAuth() {
   const auth = localStorage.getItem(AUTH_KEY);
@@ -279,24 +293,25 @@ function updateProgressStats() {
 }
 
 function renderLessons(levelFilter, typeFilter) {
-  const allLessons = [];
-  if (!typeFilter || typeFilter === 'lecture') {
-    bank.lecture?.forEach(lesson => { allLessons.push({ ...lesson, type: 'lecture' }); });
+  console.log('[v0] renderLessons called');
+  const activeTab = document.querySelector('.filter-btn.active')?.dataset.filter || 'all';
+  console.log('[v0] Active tab:', activeTab);
+  
+  let filtered = bank.exercises || [];
+  console.log('[v0] Total exercises:', filtered.length);
+  
+  if (levelFilter) {
+    filtered = filtered.filter(ex => ex.niveau === levelFilter);
   }
-  if (!typeFilter || typeFilter === 'ecoute') {
-    bank.ecoute?.forEach(lesson => { allLessons.push({ ...lesson, type: 'ecoute' }); });
+  
+  if (typeFilter) {
+    filtered = filtered.filter(ex => ex.type === typeFilter);
   }
-  if (!typeFilter || typeFilter === 'grammaire') {
-    bank.grammaire?.forEach(lesson => { allLessons.push({ ...lesson, type: 'grammaire' }); });
-  }
-  if (!typeFilter || typeFilter === 'lexique') {
-    bank.lexique?.forEach(lesson => { allLessons.push({ ...lesson, type: 'lexique' }); });
-  }
-
-  const filtered = allLessons.filter(l => !levelFilter || l.niveau === levelFilter);
+  
+  console.log('[v0] Filtered exercises:', filtered.length);
 
   if (filtered.length === 0) {
-    $('#lessonsList').innerHTML = '<div class="empty-state"><div class="empty-state-icon">🔍</div><p>Aucun exercice ne correspond à vos filtres.</p></div>';
+    $('#lessonsList').innerHTML = '<div style="text-align:center; padding:40px; color:#999">Aucun exercice disponible</div>';
     return;
   }
 
@@ -330,13 +345,17 @@ function renderLessons(levelFilter, typeFilter) {
           <div class="lesson-meta" style="color:#999">Pas encore commencé</div>
         `}
         <div class="lesson-actions">
-          <button class="btn-primary start-lesson-btn" onclick="window.startLesson('${lesson.id}', '${lesson.type}'); return false;">Commencer</button>
+          <button class="btn-primary start-lesson-btn" 
+                  onclick="console.log('[v0] Button clicked for lesson:', '${lesson.id}', '${lesson.type}'); window.startLesson('${lesson.id}', '${lesson.type}'); return false;">
+            Commencer
+          </button>
         </div>
       </div>
     `;
   }).join('');
 
   $('#lessonsList').innerHTML = html;
+  console.log('[v0] Lessons rendered successfully');
 }
 
 function drawProgressChart() {
@@ -612,10 +631,7 @@ function drawTypeChart() {
 function findLessonById(lessonId) {
   if (!bank) return null;
   let found = null;
-  bank.lecture?.forEach(l => { if (l.id === lessonId) found = { ...l, type: 'lecture' }; });
-  bank.ecoute?.forEach(l => { if (l.id === lessonId) found = { ...l, type: 'ecoute' }; });
-  bank.grammaire?.forEach(l => { if (l.id === lessonId) found = { ...l, type: 'grammaire' }; });
-  bank.lexique?.forEach(l => { if (l.id === lessonId) found = { ...l, type: 'lexique' }; });
+  bank.exercises?.forEach(ex => { if (ex.id === lessonId) found = { ...ex }; });
   return found;
 }
 
@@ -874,8 +890,8 @@ function saveNewPin() {
 
 // CHANGE: Load admin recipients for student messaging
 function loadAdminRecipients() {
-  allUsers = JSON.parse(localStorage.getItem('fr_users') || '[]');
-  const admins = allUsers.filter(u => u.role === 'admin');
+  const users = JSON.parse(localStorage.getItem(USERS_KEY) || '[]');
+  const admins = users.filter(u => u.role === 'admin');
   
   const select = $('#adminRecipientSelect');
   select.innerHTML = '<option value="admin">Tous les administrateurs</option>';
