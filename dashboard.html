@@ -340,6 +340,42 @@ function renderLessons() {
   }).join('');
 
   $('#lessonsList').innerHTML = html;
+  
+  attachLessonListeners();
+}
+
+function attachLessonListeners() {
+  console.log('[v0] Attaching lesson listeners...');
+  
+  // Add listeners to all start buttons
+  $$('.start-btn').forEach(btn => {
+    btn.addEventListener('click', function(e) {
+      e.preventDefault();
+      e.stopPropagation();
+      
+      const lessonId = this.dataset.lessonId;
+      const lessonType = this.dataset.lessonType;
+      
+      console.log('[v0] Start button clicked:', lessonId, lessonType);
+      window.startLesson(lessonId, lessonType);
+    });
+  });
+  
+  // Add listeners to lesson cards (click anywhere except button)
+  $$('.lesson-card').forEach(card => {
+    card.addEventListener('click', function(e) {
+      // Don't trigger if clicking on button
+      if (e.target.closest('.start-btn')) return;
+      
+      const lessonId = this.dataset.lessonId;
+      const lessonType = this.dataset.lessonType;
+      
+      console.log('[v0] Lesson card clicked:', lessonId, lessonType);
+      window.startLesson(lessonId, lessonType);
+    });
+  });
+  
+  console.log('[v0] Attached listeners to', $$('.start-btn').length, 'buttons and', $$('.lesson-card').length, 'cards');
 }
 
 function drawProgressChart() {
@@ -868,7 +904,38 @@ function loadAdminRecipients() {
   });
 }
 
+window.startLesson = function(lessonId, lessonType) {
+  console.log('[v0] startLesson called with:', lessonId, lessonType);
+  
+  if (!lessonId || !lessonType) {
+    console.error('[v0] Missing lessonId or lessonType');
+    alert('Erreur: données de leçon manquantes');
+    return;
+  }
+  
+  try {
+    const dataToSave = {
+      lessonId: lessonId,
+      type: lessonType
+    };
+    console.log('[v0] Saving to localStorage:', dataToSave);
+    localStorage.setItem('current_lesson', JSON.stringify(dataToSave));
+    
+    const saved = localStorage.getItem('current_lesson');
+    console.log('[v0] Verified saved data:', saved);
+    
+    console.log('[v0] Redirecting to exercise.html...');
+    window.location.href = 'exercise.html';
+  } catch (error) {
+    console.error('[v0] Error in startLesson:', error);
+    alert('Erreur lors du démarrage de la leçon: ' + error.message);
+  }
+};
+
 window.addEventListener('DOMContentLoaded', () => {
+  console.log('[v0] DOMContentLoaded fired');
+  console.log('[v0] window.startLesson defined:', typeof window.startLesson);
+  
   checkAuth();
   loadBank();
   updateProgressStats();
@@ -876,6 +943,10 @@ window.addEventListener('DOMContentLoaded', () => {
   loadExternalResources();
   loadStudentChat();
   loadAdminRecipients();
+  
+  $('#levelFilter').addEventListener('change', renderLessons);
+  $('#typeFilter').addEventListener('change', renderLessons);
+  
   setTimeout(() => {
     drawProgressChart();
     drawLevelChart();
@@ -883,63 +954,7 @@ window.addEventListener('DOMContentLoaded', () => {
   }, 100);
 });
 
-window.startLesson = function(lessonId, lessonType) {
-  console.log('[v0] startLesson called with:', lessonId, lessonType);
-  console.log('[v0] typeof lessonId:', typeof lessonId);
-  console.log('[v0] typeof lessonType:', typeof lessonType);
-  
-  if (!lessonId || !lessonType) {
-    console.error('[v0] Missing lessonId or lessonType');
-    return;
-  }
-  
-  try {
-    // Save current lesson to localStorage
-    const dataToSave = {
-      lessonId: lessonId,
-      type: lessonType
-    };
-    console.log('[v0] Data to save:', dataToSave);
-    localStorage.setItem('current_lesson', JSON.stringify(dataToSave));
-    console.log('[v0] Saved to localStorage:', localStorage.getItem('current_lesson'));
-    
-    // Redirect to exercise page
-    console.log('[v0] Redirecting to exercise.html');
-    window.location.href = 'exercise.html';
-  } catch (error) {
-    console.error('[v0] Error in startLesson:', error);
-  }
-};
 
-console.log('[v0] window.startLesson defined:', typeof window.startLesson);
-
-document.getElementById('lessonsList').addEventListener('click', function(e) {
-  console.log('[v0] Click detected on:', e.target);
-  
-  const startBtn = e.target.closest('.start-btn');
-  if (startBtn) {
-    e.preventDefault();
-    e.stopPropagation();
-    console.log('[v0] Start button clicked');
-    
-    const lessonId = startBtn.dataset.lessonId;
-    const lessonType = startBtn.dataset.lessonType;
-    
-    console.log('[v0] Starting lesson:', lessonId, lessonType);
-    window.startLesson(lessonId, lessonType);
-    return false;
-  }
-  
-  const lessonCard = e.target.closest('.lesson-card');
-  if (lessonCard && !startBtn) {
-    e.preventDefault();
-    const lessonId = lessonCard.dataset.lessonId;
-    const lessonType = lessonCard.dataset.lessonType;
-    
-    console.log('[v0] Card clicked:', lessonId, lessonType);
-    window.startLesson(lessonId, lessonType);
-  }
-});
 </script>
 </body>
 </html>
