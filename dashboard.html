@@ -278,17 +278,8 @@ function updateProgressStats() {
   $('#totalTime').textContent = hours > 0 ? `${hours}h ${minutes}m` : `${minutes}m`;
 }
 
-function renderLessons() {
-  if (!bank) {
-    $('#lessonsList').innerHTML = '<div class="empty-state"><div class="empty-state-icon">📂</div><p>Aucune banque de questions chargée.</p></div>';
-    return;
-  }
-
-  const levelFilter = $('#levelFilter').value;
-  const typeFilter = $('#typeFilter').value;
-  
-  allLessons = [];
-  
+function renderLessons(levelFilter, typeFilter) {
+  const allLessons = [];
   if (!typeFilter || typeFilter === 'lecture') {
     bank.lecture?.forEach(lesson => { allLessons.push({ ...lesson, type: 'lecture' }); });
   }
@@ -339,41 +330,13 @@ function renderLessons() {
           <div class="lesson-meta" style="color:#999">Pas encore commencé</div>
         `}
         <div class="lesson-actions">
-          <button class="btn-primary start-lesson-btn">Commencer</button>
+          <button class="btn-primary start-lesson-btn" onclick="window.startLesson('${lesson.id}', '${lesson.type}'); return false;">Commencer</button>
         </div>
       </div>
     `;
   }).join('');
 
   $('#lessonsList').innerHTML = html;
-  
-  document.addEventListener('click', (e) => {
-    if (e.target.classList.contains('start-lesson-btn')) {
-      e.preventDefault();
-      e.stopPropagation();
-      const card = e.target.closest('.lesson-card');
-      if (!card) {
-        console.error('[v0] No lesson card found');
-        return;
-      }
-      const lessonId = card.getAttribute('data-lesson-id');
-      const type = card.getAttribute('data-lesson-type');
-      console.log('[v0] Button clicked, starting lesson:', { lessonId, type });
-      startLesson(lessonId, type);
-    }
-  });
-  
-  document.querySelectorAll('.lesson-card').forEach(card => {
-    card.style.cursor = 'pointer';
-    card.addEventListener('click', (e) => {
-      if (!e.target.classList.contains('start-lesson-btn')) {
-        const lessonId = card.getAttribute('data-lesson-id');
-        const type = card.getAttribute('data-lesson-type');
-        console.log('[v0] Card clicked, starting lesson:', { lessonId, type });
-        startLesson(lessonId, type);
-      }
-    });
-  });
 }
 
 function drawProgressChart() {
