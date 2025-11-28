@@ -322,50 +322,13 @@ function renderLessons() {
           <div class="lesson-meta" style="color:#999">Pas encore commencé</div>
         `}
         <div class="lesson-actions">
-          <button class="btn-primary start-lesson-btn" data-lesson-id="${lesson.id}" data-lesson-type="${lesson.type}">Commencer</button>
+          <button class="btn-primary start-btn" data-lesson-id="${lesson.id}" data-lesson-type="${lesson.type}">Commencer</button>
         </div>
       </div>
     `;
   }).join('');
 
   $('#lessonsList').innerHTML = html;
-  
-  attachLessonEventListeners();
-}
-
-function attachLessonEventListeners() {
-  $$('.lesson-card').forEach(card => {
-    card.addEventListener('click', function(e) {
-      if (e.target.classList.contains('start-lesson-btn')) return;
-      
-      const lessonId = this.getAttribute('data-lesson-id');
-      const lessonType = this.getAttribute('data-lesson-type');
-      window.startLesson(lessonId, lessonType);
-    });
-  });
-  
-  $$('.start-lesson-btn').forEach(btn => {
-    btn.addEventListener('click', function(e) {
-      e.stopPropagation();
-      const lessonId = this.getAttribute('data-lesson-id');
-      const lessonType = this.getAttribute('data-lesson-type');
-      window.startLesson(lessonId, lessonType);
-    });
-  });
-}
-
-window.startLesson = function(lessonId, type) {
-  console.log('[v0] startLesson called with:', lessonId, type);
-  
-  try {
-    const dataToSave = { lessonId, type };
-    localStorage.setItem('current_lesson', JSON.stringify(dataToSave));
-    console.log('[v0] Data saved, redirecting...');
-    window.location.href = 'exercise.html';
-  } catch (error) {
-    console.error('[v0] Error in startLesson:', error);
-    alert('Erreur lors du démarrage de l\'exercice: ' + error.message);
-  }
 }
 
 function drawProgressChart() {
@@ -907,6 +870,34 @@ window.addEventListener('DOMContentLoaded', () => {
     drawLevelChart();
     drawTypeChart();
   }, 100);
+});
+
+document.getElementById('lessonsList').addEventListener('click', function(e) {
+  console.log('[v0] Click detected on:', e.target);
+  
+  const startBtn = e.target.closest('.start-btn');
+  if (startBtn) {
+    e.preventDefault();
+    e.stopPropagation();
+    console.log('[v0] Start button clicked');
+    
+    const lessonId = startBtn.dataset.lessonId;
+    const lessonType = startBtn.dataset.lessonType;
+    
+    console.log('[v0] Starting lesson:', lessonId, lessonType);
+    window.startLesson(lessonId, lessonType);
+    return false;
+  }
+  
+  const lessonCard = e.target.closest('.lesson-card');
+  if (lessonCard && !startBtn) {
+    e.preventDefault();
+    const lessonId = lessonCard.dataset.lessonId;
+    const lessonType = lessonCard.dataset.lessonType;
+    
+    console.log('[v0] Card clicked:', lessonId, lessonType);
+    window.startLesson(lessonId, lessonType);
+  }
 });
 </script>
 </body>
