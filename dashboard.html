@@ -323,8 +323,11 @@ function renderLessons(levelFilter, typeFilter) {
     else if (lesson.type === 'grammaire') typeLabel = '📝 Grammaire';
     else if (lesson.type === 'lexique') typeLabel = '📚 Lexique';
     
+    const lessonId = lesson.id;
+    const lessonType = lesson.type;
+    
     return `
-      <div class="lesson-card" data-lesson-id="${lesson.id}" data-lesson-type="${lesson.type}">
+      <div class="lesson-card">
         <div class="lesson-header">
           <div class="lesson-title">${lesson.titre}</div>
           <div class="lesson-level">${lesson.niveau}</div>
@@ -345,8 +348,7 @@ function renderLessons(levelFilter, typeFilter) {
           <div class="lesson-meta" style="color:#999">Pas encore commencé</div>
         `}
         <div class="lesson-actions">
-          <button class="btn-primary start-lesson-btn" 
-                  onclick="console.log('[v0] Button clicked for lesson:', '${lesson.id}', '${lesson.type}'); window.startLesson('${lesson.id}', '${lesson.type}'); return false;">
+          <button class="btn-primary" onclick="window.startLesson('${lessonId}', '${lessonType}')">
             Commencer
           </button>
         </div>
