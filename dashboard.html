@@ -242,24 +242,10 @@ function checkAuth() {
 }
 
 function loadBank() {
-  console.log('[v0] Loading bank from localStorage...');
   const stored = localStorage.getItem(BANK_KEY);
-  console.log('[v0] Stored data:', stored ? `${stored.substring(0, 100)}...` : 'null');
   if (stored) {
     bank = JSON.parse(stored);
-    console.log('[v0] Bank loaded successfully:');
-    console.log('  - CE exercises:', bank.lecture?.length || 0, bank.lecture?.map(l => l.id));
-    console.log('  - CO exercises:', bank.ecoute?.length || 0, bank.ecoute?.map(l => l.id));
-    console.log('  - Grammaire exercises:', bank.grammaire?.length || 0, bank.grammaire?.map(l => l.id));
-    console.log('  - Lexique exercises:', bank.lexique?.length || 0, bank.lexique?.map(l => l.id));
-    console.log('[v0] COMPLETE LIST OF CO EXERCISE IDS:');
-    if (bank.ecoute) {
-      bank.ecoute.forEach((ex, idx) => {
-        console.log(`  [${idx}] "${ex.id}" - ${ex.titre}`);
-      });
-    }
   } else {
-    console.log('[v0] No bank data found in localStorage');
     bank = null;
   }
 }
@@ -350,9 +336,6 @@ function renderLessons() {
 }
 
 function attachLessonListeners() {
-  console.log('[v0] Attaching lesson listeners...');
-  
-  // Add listeners to all start buttons
   $$('.start-btn').forEach(btn => {
     btn.addEventListener('click', function(e) {
       e.preventDefault();
@@ -361,26 +344,20 @@ function attachLessonListeners() {
       const lessonId = this.dataset.lessonId;
       const lessonType = this.dataset.lessonType;
       
-      console.log('[v0] Start button clicked:', lessonId, lessonType);
       window.startLesson(lessonId, lessonType);
     });
   });
   
-  // Add listeners to lesson cards (click anywhere except button)
   $$('.lesson-card').forEach(card => {
     card.addEventListener('click', function(e) {
-      // Don't trigger if clicking on button
       if (e.target.closest('.start-btn')) return;
       
       const lessonId = this.dataset.lessonId;
       const lessonType = this.dataset.lessonType;
       
-      console.log('[v0] Lesson card clicked:', lessonId, lessonType);
       window.startLesson(lessonId, lessonType);
     });
   });
-  
-  console.log('[v0] Attached listeners to', $$('.start-btn').length, 'buttons and', $$('.lesson-card').length, 'cards');
 }
 
 function drawProgressChart() {
@@ -910,17 +887,7 @@ function loadAdminRecipients() {
 }
 
 window.startLesson = function(lessonId, lessonType) {
-  console.log('[v0] startLesson called with:', lessonId, lessonType);
-  console.log('[v0] Current bank state before starting lesson:');
-  if (bank) {
-    console.log('  - Bank has', bank[lessonType]?.length || 0, lessonType, 'exercises');
-    console.log('  - Looking for ID:', lessonId);
-    const found = bank[lessonType]?.find(l => l.id === lessonId);
-    console.log('  - Exercise found in bank?', !!found, found ? found.titre : 'N/A');
-  }
-  
   if (!lessonId || !lessonType) {
-    console.error('[v0] Missing lessonId or lessonType');
     alert('Erreur: données de leçon manquantes');
     return;
   }
@@ -930,24 +897,18 @@ window.startLesson = function(lessonId, lessonType) {
       lessonId: lessonId,
       type: lessonType
     };
-    console.log('[v0] Saving to localStorage:', dataToSave);
     localStorage.setItem('current_lesson', JSON.stringify(dataToSave));
     
     const saved = localStorage.getItem('current_lesson');
-    console.log('[v0] Verified saved data:', saved);
     
-    console.log('[v0] Redirecting to exercise.html...');
     window.location.href = 'exercise.html';
   } catch (error) {
-    console.error('[v0] Error in startLesson:', error);
+    console.error('Error in startLesson:', error);
     alert('Erreur lors du démarrage de la leçon: ' + error.message);
   }
 };
 
 window.addEventListener('DOMContentLoaded', () => {
-  console.log('[v0] DOMContentLoaded fired');
-  console.log('[v0] window.startLesson defined:', typeof window.startLesson);
-  
   checkAuth();
   loadBank();
   updateProgressStats();
@@ -965,8 +926,6 @@ window.addEventListener('DOMContentLoaded', () => {
     drawTypeChart();
   }, 100);
 });
-
-
 </script>
 </body>
 </html>

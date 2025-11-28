@@ -203,68 +203,44 @@ async function loadBankFromCloudinary() {
 }
 
 function loadBank() {
-  console.log('[v0] exercise.html: Loading bank from localStorage...');
   const stored = localStorage.getItem(BANK_KEY);
-  console.log('[v0] exercise.html: Stored bank exists:', !!stored);
-  
   if (stored) {
-    try {
-      bank = JSON.parse(stored);
-      console.log('[v0] exercise.html: Bank loaded successfully:', {
-        lecture: bank.lecture?.length || 0,
-        ecoute: bank.ecoute?.length || 0,
-        grammaire: bank.grammaire?.length || 0,
-        lexique: bank.lexique?.length || 0
-      });
-    } catch (error) {
-      console.error('[v0] exercise.html: Error parsing bank:', error);
-      bank = { lecture: [], ecoute: [], grammaire: [], lexique: [] };
-    }
+    bank = JSON.parse(stored);
+    console.log('[v0] Bank loaded from localStorage');
   } else {
-    console.log('[v0] exercise.html: No bank data found in localStorage');
     bank = { lecture: [], ecoute: [], grammaire: [], lexique: [] };
+    console.log('[v0] No bank found, initialized empty bank');
   }
 }
 
-function loadLesson(lessonId, type) {
-  console.log('[EXERCISE.HTML] ===== loadLesson called =====');
-  console.log('[EXERCISE.HTML] bank is:', bank);
-  
-  console.log('[EXERCISE.HTML] ===== DETAILED SEARCH INFO =====');
-  console.log('[EXERCISE.HTML] Type:', type);
-  console.log('[EXERCISE.HTML] Available lessons for type:', bank[type].length, 'lessons');
-  console.log('[EXERCISE.HTML] Looking for lessonId:', lessonId, '(type:', typeof lessonId, ')');
-  console.log('[EXERCISE.HTML] COMPLETE LIST OF AVAILABLE LESSON IDS:');
-  bank[type].forEach((l, i) => {
-    const idsMatch = l.id === lessonId;
-    const idsMatchStrict = l.id === String(lessonId);
-    const idsMatchTrim = String(l.id).trim() === String(lessonId).trim();
-    console.log(`[EXERCISE.HTML]   [${i}] ID: "${l.id}" (type: ${typeof l.id})`);
-    console.log(`[EXERCISE.HTML]       titre: "${l.titre}"`);
-    console.log(`[EXERCISE.HTML]       Match? ${idsMatch}, String match? ${idsMatchStrict}, Trim match? ${idsMatchTrim}`);
-  });
-  
-  currentLesson = bank[type].find(l => l.id === lessonId) || 
-                  bank[type].find(l => String(l.id) === String(lessonId)) ||
-                  bank[type].find(l => String(l.id).trim() === String(lessonId).trim());
-  
-  console.log('[EXERCISE.HTML] Found currentLesson:', currentLesson);
-
-  if (!currentLesson) {
-    console.error('[EXERCISE.HTML] ===== LESSON NOT FOUND =====');
-    console.error('[EXERCISE.HTML] Searched ID:', lessonId);
-    console.error('[EXERCISE.HTML] Available IDs:', bank[type].map(l => l.id));
-    console.error('[EXERCISE.HTML] Bank contents:', JSON.stringify(bank, null, 2));
-    
-    alert(`Exercice non trouvé (ID: ${lessonId}, Type: ${type}).\n\nOuvrez la console (F12) et consultez les logs détaillés.\n\nRedirection dans 5 secondes...`);
-    setTimeout(() => {
-      window.location.href = 'dashboard.html';
-    }, 5000);
+function loadLesson() {
+  const lessonData = localStorage.getItem('current_lesson');
+  if (!lessonData) {
+    alert('Aucune leçon sélectionnée. Redirection vers le tableau de bord.');
+    window.location.href = 'dashboard.html';
     return;
   }
 
-  console.log('[EXERCISE.HTML] ===== SUCCESS =====');
-  console.log('[EXERCISE.HTML] Successfully loaded lesson:', currentLesson.titre);
+  const { lessonId, type } = JSON.parse(lessonData);
+  currentType = type;
+
+  if (!bank || !bank[type] || !Array.isArray(bank[type])) {
+    alert(`Type d'exercice invalide: ${type}. Redirection vers le tableau de bord.`);
+    window.location.href = 'dashboard.html';
+    return;
+  }
+
+  currentLesson = bank[type].find(l => String(l.id) === String(lessonId));
+
+  if (!currentLesson) {
+    console.error('[v0] Lesson not found:', lessonId);
+    console.error('[v0] Available IDs:', bank[type].map(l => l.id));
+    alert(`Exercice non trouvé (ID: ${lessonId}, Type: ${type}). Redirection vers le tableau de bord.`);
+    window.location.href = 'dashboard.html';
+    return;
+  }
+
+  console.log('[v0] Lesson loaded successfully:', currentLesson.titre);
   $('#lessonTitle').textContent = currentLesson.titre;
   renderLesson();
   checkForDraft();
@@ -274,7 +250,6 @@ function loadLesson(lessonId, type) {
 function renderLesson() {
   if (currentType === 'lecture') {
     if (currentLesson.passage_image) {
-      // Display image instead of text
       $('#passageBox').style.display = 'block';
       $('#passageContent').innerHTML = `<img src="${currentLesson.passage_image}" style="max-width:100%;border-radius:8px;box-shadow:0 4px 12px rgba(0,0,0,.1)" alt="Document de lecture">`;
       $('#readingTimer').classList.add('show');
@@ -286,10 +261,28 @@ function renderLesson() {
       readingStartTime = Date.now();
     }
   } else if (currentType === 'ecoute') {
+    console.log('[v0] Loading CO exercise');
+    console.log('[v0] Audio URL:', currentLesson.audio);
+    console.log('[v0] Full lesson object:', currentLesson);
+    
     if (currentLesson.audio) {
+      console.log('[v0] Audio found, displaying player');
       $('#audioBox').style.display = 'block';
       $('#audioSrc').src = currentLesson.audio;
       $('#audioPlayer').load();
+      
+      // Add error handler to audio player
+      $('#audioPlayer').addEventListener('error', function(e) {
+        console.error('[v0] Audio loading error:', e);
+        alert('Erreur lors du chargement du fichier audio. Vérifiez que le fichier existe sur Cloudinary.');
+      });
+      
+      $('#audioPlayer').addEventListener('loadeddata', function() {
+        console.log('[v0] Audio loaded successfully');
+      });
+    } else {
+      console.error('[v0] No audio URL found in lesson object');
+      alert('Cet exercice de CO ne contient pas de fichier audio. Veuillez contacter l\'administrateur.');
     }
   }
 
