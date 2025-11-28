@@ -229,6 +229,25 @@ const USERS_KEY = 'fr_users_db';
 
 let currentUser = null;
 let bank = null;
+let allLessons = [];
+let allUsers = [];
+
+function startLesson(lessonId, type) {
+  console.log('[v0] startLesson called with:', { lessonId, type });
+  
+  if (!lessonId || !type) {
+    console.error('[v0] Missing lessonId or type:', { lessonId, type });
+    return;
+  }
+  
+  localStorage.setItem('current_lesson', JSON.stringify({ lessonId, type }));
+  console.log('[v0] Saved to localStorage:', localStorage.getItem('current_lesson'));
+  console.log('[v0] Redirecting to exercise.html');
+  window.location.href = 'exercise.html';
+}
+
+// Make sure it's globally accessible
+window.startLesson = startLesson;
 
 function checkAuth() {
   const auth = localStorage.getItem(AUTH_KEY);
@@ -268,7 +287,7 @@ function renderLessons() {
   const levelFilter = $('#levelFilter').value;
   const typeFilter = $('#typeFilter').value;
   
-  let allLessons = [];
+  allLessons = [];
   
   if (!typeFilter || typeFilter === 'lecture') {
     bank.lecture?.forEach(lesson => { allLessons.push({ ...lesson, type: 'lecture' }); });
@@ -328,34 +347,33 @@ function renderLessons() {
 
   $('#lessonsList').innerHTML = html;
   
-  $('#lessonsList').addEventListener('click', (e) => {
+  document.addEventListener('click', (e) => {
     if (e.target.classList.contains('start-lesson-btn')) {
+      e.preventDefault();
       e.stopPropagation();
       const card = e.target.closest('.lesson-card');
+      if (!card) {
+        console.error('[v0] No lesson card found');
+        return;
+      }
       const lessonId = card.getAttribute('data-lesson-id');
       const type = card.getAttribute('data-lesson-type');
-      console.log('[v0] Starting lesson:', lessonId, type);
+      console.log('[v0] Button clicked, starting lesson:', { lessonId, type });
       startLesson(lessonId, type);
     }
   });
   
-  $('#lessonsList').querySelectorAll('.lesson-card').forEach(card => {
+  document.querySelectorAll('.lesson-card').forEach(card => {
+    card.style.cursor = 'pointer';
     card.addEventListener('click', (e) => {
-      if (!e.target.classList.contains('btn-primary')) {
+      if (!e.target.classList.contains('start-lesson-btn')) {
         const lessonId = card.getAttribute('data-lesson-id');
         const type = card.getAttribute('data-lesson-type');
-        console.log('[v0] Card clicked, starting lesson:', lessonId, type);
+        console.log('[v0] Card clicked, starting lesson:', { lessonId, type });
         startLesson(lessonId, type);
       }
     });
   });
-}
-
-function startLesson(lessonId, type) {
-  console.log('[v0] startLesson called with:', { lessonId, type });
-  localStorage.setItem('current_lesson', JSON.stringify({ lessonId, type }));
-  console.log('[v0] Redirecting to exercise.html');
-  window.location.href = 'exercise.html';
 }
 
 function drawProgressChart() {
@@ -893,7 +911,7 @@ function saveNewPin() {
 
 // CHANGE: Load admin recipients for student messaging
 function loadAdminRecipients() {
-  const allUsers = JSON.parse(localStorage.getItem('fr_users') || '[]');
+  allUsers = JSON.parse(localStorage.getItem('fr_users') || '[]');
   const admins = allUsers.filter(u => u.role === 'admin');
   
   const select = $('#adminRecipientSelect');
