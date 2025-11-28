@@ -229,55 +229,6 @@ function loadBank() {
   loadBankFromCloudinary();
 }
 
-async function loadBankFromCloudinary() {
-  try {
-    const cacheTimestamp = localStorage.getItem(CACHE_TIMESTAMP_KEY);
-    const now = Date.now();
-    
-    if (cacheTimestamp && (now - parseInt(cacheTimestamp)) < CACHE_DURATION_MS) {
-      const cachedData = localStorage.getItem(CACHE_KEY_PREFIX + 'merged');
-      if (cachedData) {
-        bank = JSON.parse(cachedData);
-        return;
-      }
-    }
-    
-    const filesIndex = JSON.parse(localStorage.getItem(FILES_INDEX_KEY) || '[]');
-    if (filesIndex.length === 0) return;
-    
-    const mergedBank = {lecture: [], ecoute: [], grammaire: [], lexique: []};
-    
-    const loadPromises = filesIndex.map(async (fileInfo) => {
-      try {
-        const response = await fetch(fileInfo.cloudinaryUrl);
-        if (!response.ok) return null;
-        return await response.json();
-      } catch (err) {
-        return null;
-      }
-    });
-    
-    const results = await Promise.all(loadPromises);
-    
-    results.forEach(data => {
-      if (data) {
-        if (data.lecture) mergedBank.lecture.push(...data.lecture);
-        if (data.ecoute) mergedBank.ecoute.push(...data.ecoute);
-        if (data.grammaire) mergedBank.grammaire.push(...data.grammaire);
-        if (data.lexique) mergedBank.lexique.push(...data.lexique);
-      }
-    });
-    
-    bank = mergedBank;
-    localStorage.setItem(BANK_KEY, JSON.stringify(bank));
-    localStorage.setItem(CACHE_KEY_PREFIX + 'merged', JSON.stringify(bank));
-    localStorage.setItem(CACHE_TIMESTAMP_KEY, now.toString());
-    
-  } catch(e) {
-    console.error('[v0] Error loading from Cloudinary:', e);
-  }
-}
-
 function loadLesson() {
   console.log('[v0] exercise.html: loadLesson called');
   console.log('[v0] exercise.html: bank is:', bank);
@@ -321,14 +272,18 @@ function loadLesson() {
   else if (type === 'lexique') lessons = bank.lexique || [];
 
   console.log('[v0] exercise.html: Available lessons for type', type, ':', lessons.length, 'lessons');
-  console.log('[v0] exercise.html: Looking for lessonId:', lessonId);
+  console.log('[v0] exercise.html: Looking for lessonId:', lessonId, '(type:', typeof lessonId, ')');
+  console.log('[v0] exercise.html: Available lesson IDs:');
+  lessons.forEach((l, i) => {
+    console.log(`  [${i}] ID: "${l.id}" (type: ${typeof l.id}), titre: "${l.titre}"`);
+    console.log(`      Match? ${l.id === lessonId}, Strict match? ${l.id === lessonId}`);
+  });
   
   currentLesson = lessons.find(l => l.id === lessonId);
   console.log('[v0] exercise.html: Found currentLesson:', currentLesson);
 
   if (!currentLesson) {
     console.error('[v0] exercise.html: Lesson not found in bank');
-    console.log('[v0] exercise.html: Available lesson IDs:', lessons.map(l => l.id));
     alert(`Exercice non trouvé (ID: ${lessonId}, Type: ${type}). Redirection vers le tableau de bord.`);
     window.location.href = 'dashboard.html';
     return;

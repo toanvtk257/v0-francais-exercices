@@ -247,12 +247,11 @@ function loadBank() {
   console.log('[v0] Stored data:', stored ? `${stored.substring(0, 100)}...` : 'null');
   if (stored) {
     bank = JSON.parse(stored);
-    console.log('[v0] Bank loaded successfully:', {
-      lecture: bank.lecture?.length || 0,
-      ecoute: bank.ecoute?.length || 0,
-      grammaire: bank.grammaire?.length || 0,
-      lexique: bank.lexique?.length || 0
-    });
+    console.log('[v0] Bank loaded successfully:');
+    console.log('  - CE exercises:', bank.lecture?.length || 0, bank.lecture?.map(l => l.id));
+    console.log('  - CO exercises:', bank.ecoute?.length || 0, bank.ecoute?.map(l => l.id));
+    console.log('  - Grammaire exercises:', bank.grammaire?.length || 0, bank.grammaire?.map(l => l.id));
+    console.log('  - Lexique exercises:', bank.lexique?.length || 0, bank.lexique?.map(l => l.id));
   } else {
     console.log('[v0] No bank data found in localStorage');
     bank = null;
@@ -906,6 +905,13 @@ function loadAdminRecipients() {
 
 window.startLesson = function(lessonId, lessonType) {
   console.log('[v0] startLesson called with:', lessonId, lessonType);
+  console.log('[v0] Current bank state before starting lesson:');
+  if (bank) {
+    console.log('  - Bank has', bank[lessonType]?.length || 0, lessonType, 'exercises');
+    console.log('  - Looking for ID:', lessonId);
+    const found = bank[lessonType]?.find(l => l.id === lessonId);
+    console.log('  - Exercise found in bank?', !!found, found ? found.titre : 'N/A');
+  }
   
   if (!lessonId || !lessonType) {
     console.error('[v0] Missing lessonId or lessonType');
