@@ -301,7 +301,7 @@ function renderLessons() {
     else if (lesson.type === 'lexique') typeLabel = '📚 Lexique';
     
     return `
-      <div class="lesson-card" onclick="startLesson('${lesson.id}', '${lesson.type}')">
+      <div class="lesson-card" data-lesson-id="${lesson.id}" data-lesson-type="${lesson.type}">
         <div class="lesson-header">
           <div class="lesson-title">${lesson.titre}</div>
           <div class="lesson-level">${lesson.niveau}</div>
@@ -322,42 +322,51 @@ function renderLessons() {
           <div class="lesson-meta" style="color:#999">Pas encore commencé</div>
         `}
         <div class="lesson-actions">
-          <button class="btn-primary" onclick="event.stopPropagation(); startLesson('${lesson.id}', '${lesson.type}')">Commencer</button>
+          <button class="btn-primary start-lesson-btn" data-lesson-id="${lesson.id}" data-lesson-type="${lesson.type}">Commencer</button>
         </div>
       </div>
     `;
   }).join('');
 
   $('#lessonsList').innerHTML = html;
+  
+  attachLessonEventListeners();
+}
+
+function attachLessonEventListeners() {
+  $$('.lesson-card').forEach(card => {
+    card.addEventListener('click', function(e) {
+      if (e.target.classList.contains('start-lesson-btn')) return;
+      
+      const lessonId = this.getAttribute('data-lesson-id');
+      const lessonType = this.getAttribute('data-lesson-type');
+      window.startLesson(lessonId, lessonType);
+    });
+  });
+  
+  $$('.start-lesson-btn').forEach(btn => {
+    btn.addEventListener('click', function(e) {
+      e.stopPropagation();
+      const lessonId = this.getAttribute('data-lesson-id');
+      const lessonType = this.getAttribute('data-lesson-type');
+      window.startLesson(lessonId, lessonType);
+    });
+  });
 }
 
 window.startLesson = function(lessonId, type) {
-  console.log('[v0] ========== startLesson DEBUG ==========');
-  console.log('[v0] Function called:', typeof window.startLesson);
-  console.log('[v0] lessonId:', lessonId, 'type:', type);
-  console.log('[v0] lessonId type:', typeof lessonId);
-  console.log('[v0] type type:', typeof type);
+  console.log('[v0] startLesson called with:', lessonId, type);
   
   try {
     const dataToSave = { lessonId, type };
-    console.log('[v0] Data to save:', JSON.stringify(dataToSave));
-    
     localStorage.setItem('current_lesson', JSON.stringify(dataToSave));
-    console.log('[v0] Data saved to localStorage');
-    
-    const savedData = localStorage.getItem('current_lesson');
-    console.log('[v0] Verification - saved data:', savedData);
-    
-    console.log('[v0] Redirecting to exercise.html...');
+    console.log('[v0] Data saved, redirecting...');
     window.location.href = 'exercise.html';
   } catch (error) {
     console.error('[v0] Error in startLesson:', error);
-    console.error('[v0] Error stack:', error.stack);
     alert('Erreur lors du démarrage de l\'exercice: ' + error.message);
   }
 }
-
-console.log('[v0] window.startLesson defined:', typeof window.startLesson);
 
 function drawProgressChart() {
   const canvas = $('#progressChart');
@@ -377,7 +386,6 @@ function drawProgressChart() {
     return;
   }
 
-  // Group by date
   const byDate = {};
   attempts.forEach(att => {
     const date = new Date(att.timestamp).toLocaleDateString('fr-FR');
@@ -391,14 +399,12 @@ function drawProgressChart() {
     return scores.reduce((a,b) => a+b, 0) / scores.length;
   });
 
-  // Draw chart
   const padding = 40;
   const chartWidth = width - padding * 2;
   const chartHeight = height - padding * 2;
   const maxScore = 100;
   const step = chartWidth / (dates.length - 1 || 1);
 
-  // Grid lines
   ctx.strokeStyle = '#e0e0e0';
   ctx.lineWidth = 1;
   for (let i = 0; i <= 4; i++) {
@@ -414,7 +420,6 @@ function drawProgressChart() {
     ctx.fillText((100 - i * 25) + '%', padding - 8, y + 4);
   }
 
-  // Line
   ctx.strokeStyle = '#22bb55';
   ctx.lineWidth = 3;
   ctx.beginPath();
@@ -426,7 +431,6 @@ function drawProgressChart() {
   });
   ctx.stroke();
 
-  // Points
   ctx.fillStyle = '#22bb55';
   avgScores.forEach((score, i) => {
     const x = padding + step * i;
@@ -436,12 +440,11 @@ function drawProgressChart() {
     ctx.fill();
   });
 
-  // X-axis labels
   ctx.fillStyle = '#666';
   ctx.font = '10px system-ui';
   ctx.textAlign = 'center';
   dates.forEach((date, i) => {
-    if (dates.length > 10 && i % 2 !== 0) return; // Skip some labels if too many
+    if (dates.length > 10 && i % 2 !== 0) return;
     const x = padding + step * i;
     ctx.fillText(date.split('/').slice(0,2).join('/'), x, height - 10);
   });
@@ -465,7 +468,6 @@ function drawLevelChart() {
     return;
   }
 
-  // Group by level
   const levels = ['A1', 'A2', 'B1', 'B2', 'C1', 'C2'];
   const byLevel = {};
   levels.forEach(l => byLevel[l] = []);
@@ -482,7 +484,6 @@ function drawLevelChart() {
     return scores.length > 0 ? scores.reduce((a,b) => a+b, 0) / scores.length : 0;
   });
 
-  // Draw bars
   const padding = 40;
   const chartWidth = width - padding * 2;
   const chartHeight = height - padding * 2;
@@ -498,7 +499,6 @@ function drawLevelChart() {
     ctx.fillStyle = colors[i];
     ctx.fillRect(x, y, barWidth, barHeight);
 
-    // Label
     ctx.fillStyle = '#333';
     ctx.font = '12px system-ui';
     ctx.textAlign = 'center';
@@ -509,7 +509,6 @@ function drawLevelChart() {
     }
   });
 
-  // Y-axis
   ctx.strokeStyle = '#e0e0e0';
   ctx.lineWidth = 1;
   for (let i = 0; i <= 4; i++) {
@@ -544,7 +543,6 @@ function drawTypeChart() {
     return;
   }
 
-  // Count by type
   let lectureCount = 0, ecouteCount = 0, grammaireCount = 0, lexiqueCount = 0;
   attempts.forEach(att => {
     const lesson = findLessonById(att.lessonId);
@@ -565,7 +563,6 @@ function drawTypeChart() {
     return;
   }
 
-  // Draw pie chart
   const centerX = width / 2;
   const centerY = height / 2 - 20;
   const radius = Math.min(width, height) / 3;
@@ -575,7 +572,6 @@ function drawTypeChart() {
   const grammaireAngle = (grammaireCount / total) * Math.PI * 2;
   const lexiqueAngle = (lexiqueCount / total) * Math.PI * 2;
 
-  // Lecture slice
   ctx.fillStyle = '#4caf50';
   ctx.beginPath();
   ctx.moveTo(centerX, centerY);
@@ -583,7 +579,6 @@ function drawTypeChart() {
   ctx.closePath();
   ctx.fill();
 
-  // Ecoute slice
   ctx.fillStyle = '#2196f3';
   ctx.beginPath();
   ctx.moveTo(centerX, centerY);
@@ -591,7 +586,6 @@ function drawTypeChart() {
   ctx.closePath();
   ctx.fill();
 
-  // Grammaire slice
   ctx.fillStyle = '#ff5722';
   ctx.beginPath();
   ctx.moveTo(centerX, centerY);
@@ -599,7 +593,6 @@ function drawTypeChart() {
   ctx.closePath();
   ctx.fill();
 
-  // Lexique slice
   ctx.fillStyle = '#8bc34a';
   ctx.beginPath();
   ctx.moveTo(centerX, centerY);
@@ -607,7 +600,6 @@ function drawTypeChart() {
   ctx.closePath();
   ctx.fill();
 
-  // Legend
   const legendY = height - 30;
   ctx.fillStyle = '#4caf50';
   ctx.fillRect(width/2 - 100, legendY, 12, 12);
@@ -769,7 +761,6 @@ function loadStudentChat() {
     return;
   }
 
-  // Mark admin messages as read
   userMessages.forEach(m => {
     if (m.from === 'admin') m.read = true;
   });
@@ -832,7 +823,6 @@ function deleteStudentChatHistory() {
   alert('Historique de conversation supprimé avec succès');
 }
 
-// CHANGE: Added PIN change functions for students
 function openChangePinModal() {
   $('#changePinModal').style.display = 'flex';
   $('#currentPin').value = '';
@@ -867,7 +857,6 @@ function saveNewPin() {
     return;
   }
 
-  // Retrieve user data from localStorage
   const users = JSON.parse(localStorage.getItem(USERS_KEY) || '[]');
   const userIndex = users.findIndex(u => u.id === currentUser.id);
 
@@ -877,14 +866,12 @@ function saveNewPin() {
     return;
   }
 
-  // Check current PIN
   if (users[userIndex].pin !== currentPin) {
     errorEl.textContent = 'Le code PIN actuel est incorrect.';
     errorEl.style.display = 'block';
     return;
   }
 
-  // Update PIN
   users[userIndex].pin = newPin;
   localStorage.setItem(USERS_KEY, JSON.stringify(users));
 
@@ -892,7 +879,6 @@ function saveNewPin() {
   closeChangePinModal();
 }
 
-// CHANGE: Load admin recipients for student messaging
 function loadAdminRecipients() {
   const allUsers = JSON.parse(localStorage.getItem('fr_users') || '[]');
   const admins = allUsers.filter(u => u.role === 'admin');
