@@ -10,6 +10,8 @@
 <script>
     console.log('[v0] Supabase CDN loaded:', typeof window.supabase);
 </script>
+<!-- Load config.js before supabase-client.js -->
+<script src="lib/config.js"></script>
 <script src="lib/supabase-client.js"></script>
 <style>
 :root{--brand:#2b5;--ink:#222;--muted:#666;--bg:#f7f7f7;--card:#fff}
