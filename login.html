@@ -192,7 +192,18 @@ async function handleLogin(event) {
         }
     } catch (error) {
         console.error('[v0] Login error:', error);
-        errorEl.textContent = error.message || 'Email ou PIN incorrect';
+        
+        if (error.message === 'REJECTED_REGISTRATION') {
+            errorEl.innerHTML = `
+                <strong>Inscription refusée</strong><br>
+                Votre demande d'inscription a été refusée. Pour accéder à la plateforme, vous devez fournir plus d'informations permettant à l'administrateur de vous identifier.<br>
+                <br>
+                Veuillez soumettre une nouvelle demande d'inscription avec des informations plus détaillées dans la section "Expliquer votre demande".
+            `;
+        } else {
+            errorEl.textContent = error.message || 'Email ou PIN incorrect';
+        }
+        
         errorEl.style.display = 'block';
         btn.disabled = false;
         btn.textContent = 'Se connecter';
@@ -280,12 +291,36 @@ async function handleSignup(event) {
     }
     
     btn.disabled = true;
-    btn.textContent = 'Envoi en cours...';
+    btn.textContent = 'Vérification en cours...';
     
     try {
         if (!window.SupabaseDB || !window.SupabaseDB.isAvailable()) {
             throw new Error('Base de données non disponible. Veuillez réessayer.');
         }
+        
+        const emailCheck = await window.SupabaseDB.checkEmailExists(email);
+        
+        if (emailCheck.existsInUsers || emailCheck.existsInRequests) {
+            let message = 'Cet email est déjà utilisé dans le système. ';
+            
+            if (emailCheck.existsInRequests && emailCheck.requestStatus === 'pending') {
+                message += 'Une demande d\'inscription est déjà en attente de traitement pour cet email.';
+            } else if (emailCheck.existsInRequests && emailCheck.requestStatus === 'rejected') {
+                message += 'Une demande d\'inscription a été refusée pour cet email. Veuillez utiliser un autre email ou contacter l\'administrateur.';
+            } else if (emailCheck.existsInUsers) {
+                message += 'Un compte existe déjà avec cet email.';
+            } else {
+                message += 'Veuillez utiliser un autre email.';
+            }
+            
+            errorEl.textContent = message;
+            errorEl.style.display = 'block';
+            btn.disabled = false;
+            btn.textContent = 'Soumettre la demande';
+            return;
+        }
+        
+        btn.textContent = 'Envoi en cours...';
         
         await window.SupabaseDB.createRegistrationRequest({
             name,
@@ -305,7 +340,7 @@ async function handleSignup(event) {
     } catch (error) {
         console.error('[v0] Signup error:', error);
         if (error.message.includes('duplicate') || error.message.includes('unique')) {
-            errorEl.textContent = 'Cet email est déjà utilisé ou une demande est déjà en cours.';
+            errorEl.textContent = 'Cet email est déjà utilisé. Veuillez utiliser un autre email.';
         } else {
             errorEl.textContent = error.message || 'Erreur lors de la soumission. Veuillez réessayer.';
         }
