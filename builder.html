@@ -955,23 +955,26 @@ async function saveExercise(e) {
         return;
     }
     
-    const exercise = {
-        type: typeMap[kind],
-        niveau,
-        theme,
-        titre,
-        texte,
-        texte_image: texteImage,
-        audio,
-        transcription,
-        questions
+    const exerciseType = typeMap[kind];
+    const exerciseId = $('#titre').value; // Assuming titre is unique and serves as ID
+    
+    const exerciseData = {
+        id: exerciseId,
+        titre: $('#titre').value,
+        discipline: $('#kind').value,
+        niveau: $('#niveau').value,
+        theme: $('#theme').value,
+        type: exerciseType,
+        texte: exerciseType === 'ecoute' ? ($('#transcription').value.trim() || null) : (textImageBlob || $('#texte').value.trim() || null),
+        audio: exerciseType === 'ecoute' ? audioBlob : null,
+        questions: questions
     };
     
     try {
         $('#saveBtn').disabled = true;
         $('#saveBtn').textContent = 'Sauvegarde...';
         
-        await window.SupabaseDB.saveExercise(exercise);
+        await window.SupabaseDB.saveExercise(exerciseData);
         
         $('#saveStatus').innerHTML = '<div style="color:green;padding:10px;background:#e8f5e9;border-radius:6px">✅ Exercice sauvegardé avec succès!</div>';
         

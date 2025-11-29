@@ -96,29 +96,22 @@ button{border:0;padding:10px 16px;border-radius:8px;cursor:pointer;font-weight:6
       <div class="cloze-text" id="clozeHost"></div>
     </form>
 
-    <!-- Transcription for CO exercises -->
-    <div id="transcriptionSection" style="display:none;margin-top:20px" class="card">
-      <h2>Transcription</h2>
-      <button type="button" class="btn-secondary" id="toggleTranscriptionBtn" onclick="toggleTranscription()">Voir la transcription</button>
-      <div id="transcriptionContent" class="passage" style="display:none;margin-top:12px"></div>
-    </div>
-
     <!-- Buttons -->
     <div class="btns" id="exerciseButtons" style="display:none">
       <button type="button" class="btn-primary" id="submitBtn" onclick="submitExercise()">Soumettre</button>
       <button type="button" class="btn-primary" id="correctionBtn" onclick="showCorrection()" style="display:none">Voir le corrigé</button>
       <button type="button" class="btn-secondary" id="resetBtn" onclick="resetForm()">Réinitialiser</button>
       <button type="button" class="btn-primary" id="redoBtn" onclick="redoExercise()" style="display:none">Refaire l'exercice</button>
-      <button type="button" class="btn-primary" id="transcriptionBtn" onclick="toggleTranscription()" style="display:none">Voir la transcription</button>
     </div>
 
     <!-- Feedback -->
     <div id="resultBox" class="result-box" style="display:none"></div>
 
-    <!-- Transcription display section after results -->
-    <div id="transcriptionBox" style="display:none; margin-top: 20px; padding: 20px; background-color: #f9f9f9; border-radius: 8px; border: 1px solid #ddd;">
-      <h3 style="margin-top: 0; color: #2d5016;">Transcription</h3>
-      <div id="transcriptionTextContent" style="white-space: pre-wrap; line-height: 1.6;"></div>
+    <!-- Single clean transcription section that shows after submission for ecoute exercises -->
+    <div id="transcriptionBox" style="display:none; margin-top: 20px; padding: 20px; background-color: #e8f5e9; border-radius: 10px; border-left: 4px solid var(--brand);">
+      <h3 style="margin-top: 0; color: var(--brand);">Transcription</h3>
+      <button type="button" class="btn-primary" id="transcriptionToggleBtn" onclick="toggleTranscription()" style="margin-bottom: 12px;">Afficher la transcription</button>
+      <div id="transcriptionTextContent" style="display:none; white-space: pre-wrap; line-height: 1.6; margin-top: 12px; padding: 12px; background: white; border-radius: 6px;"></div>
     </div>
   </div>
 </main>
@@ -214,17 +207,10 @@ function renderExercise() {
         $('#passageContent').innerHTML = currentExercise.texte;
     }
     
-    // Show audio for ecoute exercises
     if (currentExercise.type === 'ecoute' && currentExercise.audio) {
         $('#audioSection').style.display = 'block';
         $('#audioSource').src = currentExercise.audio;
         $('#audioPlayer').load();
-    }
-    
-    // Show transcription for CO exercises
-    if (currentExercise.type === 'ecoute' && currentExercise.texte) {
-        $('#transcriptionSection').style.display = 'block';
-        $('#transcriptionContent').textContent = currentExercise.texte;
     }
     
     // Render questions
@@ -439,14 +425,19 @@ async function submitExercise() {
     $('#submitBtn').style.display = 'none';
     $('#correctionBtn').style.display = 'inline-block';
     $('#redoBtn').style.display = 'inline-block';
-    
-    console.log('[v0] Exercise type:', currentExercise.type, 'Has texte:', !!currentExercise.texte);
-    if (currentExercise.type === 'ecoute' && currentExercise.texte) {
-        console.log('[v0] Showing transcription button');
-        $('#transcriptionBtn').style.display = 'inline-block';
-    }
-    
     $('#resetBtn').style.display = 'none';
+    
+    console.log('[v0] Exercise type:', currentExercise.type);
+    console.log('[v0] Exercise texte:', currentExercise.texte);
+    console.log('[v0] Has texte:', !!currentExercise.texte);
+    
+    if (currentExercise.type === 'ecoute' && currentExercise.texte && currentExercise.texte.trim() !== '') {
+        console.log('[v0] Showing transcription box');
+        $('#transcriptionTextContent').textContent = currentExercise.texte;
+        $('#transcriptionBox').style.display = 'block';
+    } else {
+        console.log('[v0] Not showing transcription - type:', currentExercise.type, ', has texte:', !!currentExercise.texte);
+    }
 
     if (timerInterval) clearInterval(timerInterval);
 }
@@ -542,62 +533,52 @@ function goBack() {
 }
 
 function toggleTranscription() {
-    const content = $('#transcriptionContent');
-    const btn = $('#transcriptionBtn');
-    
-    console.log('[v0] Toggling transcription, current display:', content.style.display);
-    console.log('[v0] Transcription text:', currentExercise.texte);
+    const content = $('#transcriptionTextContent');
+    const btn = $('#transcriptionToggleBtn');
     
     if (content.style.display === 'none') {
         content.style.display = 'block';
-        content.innerHTML = `<div class="transcription-text">${currentExercise.texte || 'Transcription non disponible'}</div>`;
         btn.textContent = 'Masquer la transcription';
     } else {
         content.style.display = 'none';
-        btn.textContent = 'Voir la transcription';
+        btn.textContent = 'Afficher la transcription';
     }
 }
 
 function redoExercise() {
-    // Reset submission state
+    // Reset state
     submitted = false;
-    startTime = Date.now();
     
-    // Hide results and transcription
-    $('#resultBox').style.display = 'none';
-    $('#transcriptionBox').style.display = 'none';
-    
-    // Reset all form inputs
+    // Clear all radio buttons
     $$('input[type="radio"]').forEach(input => {
         input.checked = false;
         input.disabled = false;
     });
-    $$('.cloze-input').forEach(input => {
+    
+    // Clear all text inputs
+    $$('.cloze-input, .justif-input').forEach(input => {
         input.value = '';
         input.disabled = false;
         input.classList.remove('text-green-600', 'text-red-600');
     });
     
-    $$('.correction-check, .correction-x').forEach(el => el.remove());
+    // Remove correction marks
+    $$('.correction-check, .correction-x, .correct-answer-display, .explanation-box').forEach(el => el.remove());
     $$('.text-green-600, .text-red-600').forEach(el => {
         el.classList.remove('text-green-600', 'text-red-600');
     });
-    $$('.explanation-box').forEach(el => el.remove());
     
     // Reset buttons
     $('#submitBtn').style.display = 'inline-block';
     $('#correctionBtn').style.display = 'none';
     $('#redoBtn').style.display = 'none';
-    $('#transcriptionBtn').style.display = 'none';
     $('#resetBtn').style.display = 'inline-block';
     
-    // Restart audio if available
-    const audioPlayer = $('#audioPlayer');
-    if (audioPlayer) {
-        audioPlayer.currentTime = 0;
-    }
+    // Hide results and transcription
+    $('#resultBox').style.display = 'none';
+    $('#transcriptionBox').style.display = 'none';
     
-    // Restart timer
+    // Reset and restart timer
     if (timerInterval) clearInterval(timerInterval);
     startTimer();
     
