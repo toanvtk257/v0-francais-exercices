@@ -212,6 +212,11 @@ hr{border:none;border-top:1px solid #e8e8e8;margin:16px 0}
     font-size: 0.8rem;
     color: #666;
 }
+
+.text-small {
+    font-size: 0.875rem;
+    margin: 0.25rem 0;
+}
 </style>
 </head>
 <body>
@@ -348,6 +353,7 @@ hr{border:none;border-top:1px solid #e8e8e8;margin:16px 0}
           </div>
           <div id="audioPreview" class="preview-box hidden">
             <p><strong>Fichier:</strong> <span id="audioFileName"></span></p>
+            <p id="audioUploadStatus" class="text-small"></p>
             <audio id="audioPreviewPlayer" class="preview-audio" controls></audio>
             <button type="button" class="secondary" onclick="clearAudio()">Supprimer</button>
           </div>
@@ -606,16 +612,52 @@ function handleAudioUpload(event) {
     }
 }
 
-function processAudioFile(file) {
+async function processAudioFile(file) {
     audioBlob = file;
     $('#audioFileName').textContent = file.name;
+    $('#audioUploadStatus').textContent = '⏳ Upload vers Cloudinary en cours...';
+    $('#audioUploadStatus').style.color = '#666';
     
+    // Show preview immediately with local URL
     const reader = new FileReader();
     reader.onload = (e) => {
         $('#audioPreviewPlayer').src = e.target.result;
         $('#audioPreview').classList.remove('hidden');
     };
     reader.readAsDataURL(file);
+
+    // Upload to Cloudinary in background
+    try {
+        const formData = new FormData();
+        formData.append('file', file);
+        
+        console.log('[v0] Uploading audio to Cloudinary:', file.name);
+        
+        const response = await fetch('/api/upload', {
+            method: 'POST',
+            body: formData
+        });
+        
+        if (!response.ok) {
+            const error = await response.json();
+            throw new Error(error.error || 'Upload failed');
+        }
+        
+        const data = await response.json();
+        const audioUrl = data.url;
+        
+        console.log('[v0] Audio uploaded successfully:', audioUrl);
+        $('#audioUploadStatus').textContent = '✅ Fichier uploadé sur Cloudinary';
+        $('#audioUploadStatus').style.color = '#10b981';
+        
+        // Update player to use Cloudinary URL
+        $('#audioPreviewPlayer').src = audioUrl;
+        
+    } catch (error) {
+        console.error('[v0] Audio upload error:', error);
+        $('#audioUploadStatus').textContent = '❌ Erreur: ' + error.message + ' - Vérifiez CLOUDINARY_CLOUD_NAME dans les variables';
+        $('#audioUploadStatus').style.color = '#ef4444';
+    }
 }
 
 function clearAudio() {
@@ -880,17 +922,10 @@ async function saveExercise(event) {
     
     // Handle CO audio and transcription
     if (kind === 'ecoute') {
-        if (audioBlob) {
-            statusEl.innerHTML = '<span style="color:#f59e0b">Upload de l\'audio sur Cloudinary...</span>';
-            try {
-                const audioUrl = await uploadToCloudinary(audioBlob, 'audio');
-                exercise.audio = audioUrl;
-                console.log('[v0] Audio uploaded:', audioUrl);
-            } catch (err) {
-                console.error('[v0] Audio upload error:', err);
-                statusEl.innerHTML = '<span style="color:#ef4444">Erreur upload audio: ' + err.message + '</span>';
-                return;
-            }
+        const audioUrl = $('#audioPreviewPlayer').src;
+        if (audioUrl) {
+            exercise.audio = audioUrl;
+            console.log('[v0] Audio uploaded:', audioUrl);
         }
         
         const transcription = $('#transcription')?.value.trim();
