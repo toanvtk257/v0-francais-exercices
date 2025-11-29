@@ -96,6 +96,13 @@ button{border:0;padding:10px 16px;border-radius:8px;cursor:pointer;font-weight:6
       <div class="cloze-text" id="clozeHost"></div>
     </form>
 
+    <!-- Transcription for CO exercises -->
+    <div id="transcriptionSection" style="display:none;margin-top:20px" class="card">
+      <h2>Transcription</h2>
+      <button type="button" class="btn-secondary" id="toggleTranscriptionBtn" onclick="toggleTranscription()">Voir la transcription</button>
+      <div id="transcriptionContent" class="passage" style="display:none;margin-top:12px"></div>
+    </div>
+
     <!-- Buttons -->
     <div class="btns" id="exerciseButtons" style="display:none">
       <button type="button" class="btn-primary" id="submitBtn" onclick="submitExercise()">Soumettre</button>
@@ -200,11 +207,31 @@ function renderExercise() {
         $('#audioPlayer').load();
     }
     
+    // Show transcription for CO exercises
+    if (currentExercise.type === 'ecoute' && currentExercise.transcription) {
+        $('#transcriptionSection').style.display = 'block';
+        $('#transcriptionContent').textContent = currentExercise.transcription;
+    }
+    
     // Render questions
     const questions = currentExercise.questions || [];
-    if (questions.length > 0) {
-        renderQCM(questions);
+    const qcmQuestions = questions.filter(q => !q.type || q.type === 'qcm');
+    const vfQuestions = questions.filter(q => q.type === 'vf');
+    const clozeQuestions = questions.filter(q => q.type === 'cloze');
+    
+    if (qcmQuestions.length > 0) {
+        renderQCM(qcmQuestions);
         $('#qcmForm').style.display = 'block';
+    }
+    
+    if (vfQuestions.length > 0) {
+        renderVF(vfQuestions);
+        $('#vfForm').style.display = 'block';
+    }
+    
+    if (clozeQuestions.length > 0) {
+        renderCloze(clozeQuestions);
+        $('#clozeForm').style.display = 'block';
     }
 }
 
@@ -231,6 +258,53 @@ function renderQCM(questions) {
             <div class="question-title">${idx + 1}. ${q.question || q.texte || ''} <span style="color:#666;font-size:.9rem">(${q.points || 1} pts)</span></div>
             <div class="options">${optionsHTML}</div>
         `;
+        host.appendChild(div);
+    });
+}
+
+function renderVF(questions) {
+    const host = $('#vfHost');
+    host.innerHTML = '';
+    
+    questions.forEach((q, idx) => {
+        const div = document.createElement('div');
+        div.className = 'question-section';
+        div.dataset.answer = (q.answer || q.correcte || 'vrai').toLowerCase();
+        div.dataset.points = q.points || 1;
+        if (q.explanation) div.dataset.explanation = q.explanation;
+        
+        const name = 'vf_' + idx;
+        
+        div.innerHTML = `
+            <div class="question-title">${idx + 1}. ${q.question || q.texte || ''} <span style="color:#666;font-size:.9rem">(${q.points || 1} pts)</span></div>
+            <div class="options">
+                <label class="option" data-val="vrai"><input type="radio" name="${name}" value="vrai"> <span>Vrai</span></label>
+                <label class="option" data-val="faux"><input type="radio" name="${name}" value="faux"> <span>Faux</span></label>
+            </div>
+        `;
+        host.appendChild(div);
+    });
+}
+
+function renderCloze(questions) {
+    const host = $('#clozeHost');
+    host.innerHTML = '';
+    
+    questions.forEach((q, idx) => {
+        const div = document.createElement('div');
+        div.className = 'question-section';
+        div.dataset.points = q.points || 1;
+        
+        // Parse cloze text: "Je {suis} étudiant" -> "Je [input] étudiant"
+        const clozeText = q.clozeText || '';
+        const answers = [];
+        let html = clozeText.replace(/\{([^}]+)\}/g, (match, answer) => {
+            answers.push(answer.trim().toLowerCase());
+            return `<input type="text" class="cloze-input" data-answer="${answer.trim().toLowerCase()}">`;
+        });
+        
+        div.dataset.answers = JSON.stringify(answers);
+        div.innerHTML = `<div class="question-title">Texte ${idx + 1} <span style="color:#666;font-size:.9rem">(${q.points || 1} pts)</span></div>${html}`;
         host.appendChild(div);
     });
 }
@@ -267,11 +341,50 @@ async function submitExercise() {
         const picked = q.querySelector('input[type="radio"]:checked');
         const userAnswer = picked ? picked.value.toLowerCase() : null;
         
-        answers[`q${idx}`] = userAnswer;
+        answers[`qcm_${idx}`] = userAnswer;
         
         if (userAnswer === expected) {
             earnedPoints += points;
         }
+    });
+
+    // Grade VF
+    const vfQuestions = $$('#vfForm .question-section');
+    vfQuestions.forEach((q, idx) => {
+        const points = parseInt(q.dataset.points) || 1;
+        totalPoints += points;
+        const expected = (q.dataset.answer || '').toLowerCase();
+        const picked = q.querySelector('input[type="radio"]:checked');
+        const userAnswer = picked ? picked.value.toLowerCase() : null;
+        
+        answers[`vf_${idx}`] = userAnswer;
+        
+        if (userAnswer === expected) {
+            earnedPoints += points;
+        }
+    });
+    
+    // Grade Cloze
+    const clozeQuestions = $$('#clozeForm .question-section');
+    clozeQuestions.forEach((q, idx) => {
+        const points = parseInt(q.dataset.points) || 1;
+        totalPoints += points;
+        
+        const inputs = q.querySelectorAll('.cloze-input');
+        let correctCount = 0;
+        
+        inputs.forEach(input => {
+            const expected = input.dataset.answer.toLowerCase();
+            const userAnswer = input.value.trim().toLowerCase();
+            
+            if (userAnswer === expected) {
+                correctCount++;
+            }
+        });
+        
+        // Award partial points
+        const partialPoints = inputs.length > 0 ? Math.round((correctCount / inputs.length) * points) : 0;
+        earnedPoints += partialPoints;
     });
 
     const percentage = totalPoints > 0 ? Math.round((earnedPoints / totalPoints) * 100) : 0;
@@ -339,6 +452,54 @@ function showCorrection() {
             q.appendChild(expDiv);
         }
     });
+    
+    $$('#vfForm .question-section').forEach(q => {
+        const expected = (q.dataset.answer || '').toLowerCase();
+        const explanation = q.dataset.explanation;
+        const options = q.querySelectorAll('.option');
+        
+        options.forEach(opt => {
+            const val = opt.dataset.val;
+            const input = opt.querySelector('input');
+            const span = opt.querySelector('span');
+            
+            if (val === expected) {
+                span.classList.add('text-green-600');
+                span.innerHTML += ' <span class="correction-check">✓</span>';
+            } else if (input.checked) {
+                span.classList.add('text-red-600');
+                span.innerHTML += ' <span class="correction-x">✗</span>';
+            }
+            input.disabled = true;
+        });
+
+        if (explanation) {
+            const expDiv = document.createElement('div');
+            expDiv.className = 'explanation-box';
+            expDiv.innerHTML = `<strong>Explication :</strong> ${explanation}`;
+            q.appendChild(expDiv);
+        }
+    });
+    
+    $$('#clozeForm .question-section').forEach(q => {
+        const points = parseInt(q.dataset.points) || 1;
+        const expectedAnswers = JSON.parse(q.dataset.answers);
+        const inputs = q.querySelectorAll('.cloze-input');
+        
+        inputs.forEach((input, idx) => {
+            const expected = expectedAnswers[idx];
+            const userAnswer = input.value.trim().toLowerCase();
+            
+            if (userAnswer === expected) {
+                input.classList.add('text-green-600');
+                input.innerHTML += ' <span class="correction-check">✓</span>';
+            } else {
+                input.classList.add('text-red-600');
+                input.innerHTML += ' <span class="correction-x">✗</span>';
+            }
+            input.disabled = true;
+        });
+    });
 }
 
 function resetForm() {
@@ -349,6 +510,19 @@ function resetForm() {
 function goBack() {
     if (timerInterval) clearInterval(timerInterval);
     window.location.href = 'dashboard.html';
+}
+
+function toggleTranscription() {
+    const content = $('#transcriptionContent');
+    const btn = $('#toggleTranscriptionBtn');
+    
+    if (content.style.display === 'none') {
+        content.style.display = 'block';
+        btn.textContent = 'Masquer la transcription';
+    } else {
+        content.style.display = 'none';
+        btn.textContent = 'Voir la transcription';
+    }
 }
 
 function formatTime(seconds) {

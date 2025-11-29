@@ -3,10 +3,8 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<!-- Updated CSP to allow Supabase connections -->
-<meta http-equiv="Content-Security-Policy" content="connect-src 'self' https://*.supabase.co https://res.cloudinary.com https://api.cloudinary.com ws: wss:; default-src 'self'; script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net; style-src 'self' 'unsafe-inline'; img-src 'self' data: https:; font-src 'self' data:; media-src 'self' https: blob:;">
-<title>fr_exercices_pack_v2 — Générateur JSON (hors‑ligne)</title>
-<!-- Add Supabase CDN -->
+<meta http-equiv="Content-Security-Policy" content="connect-src 'self' https://*.supabase.co https://res.cloudinary.com https://api.cloudinary.com ws: wss:; default-src 'self'; script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net; style-src 'self' 'unsafe-inline'; img-src 'self' data: https: blob:; font-src 'self' data:; media-src 'self' https: blob:;">
+<title>Créateur d'exercices — Version améliorée</title>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <style>
 :root{--brand:#2b5;--ink:#222;--muted:#666;--bg:#f7f7f7;--card:#fff}
@@ -109,6 +107,25 @@ hr{border:none;border-top:1px solid #e8e8e8;margin:16px 0}
 .supabase-status{padding:.75rem 1.5rem;border-radius:.5rem;font-weight:500;margin-left:1rem}
 .supabase-status.connected{background:#10b981;color:#fff}
 .supabase-status.disconnected{background:#ef4444;color:#fff}
+
+/* Added new styles for improved builder UI */
+.upload-zone{border:2px dashed #ddd;border-radius:10px;padding:24px;text-align:center;cursor:pointer;transition:all .2s;background:#fafafa}
+.upload-zone:hover{border-color:var(--brand);background:#f0f9f4}
+.upload-zone.active{border-color:var(--brand);background:#e8f5e9}
+.preview-box{margin-top:12px;padding:12px;background:#f5f5f5;border-radius:8px}
+.preview-audio{width:100%;margin-top:8px}
+.preview-image{max-width:100%;max-height:300px;border-radius:8px;margin-top:8px}
+.option-list{display:flex;flex-direction:column;gap:8px;margin-top:8px}
+.option-item{display:flex;gap:8px;align-items:center;padding:8px;background:#f9f9f9;border-radius:6px;border:1px solid #e0e0e0}
+.option-item input{flex:1;border:none;background:transparent;padding:6px}
+.option-item button{padding:4px 8px;font-size:.8rem}
+.option-item.correct{border-color:var(--brand);background:#e8f5e9}
+.question-type-selector{display:flex;gap:8px;margin:12px 0}
+.type-btn{padding:8px 16px;border:1px solid #ddd;background:#fff;border-radius:6px;cursor:pointer;font-size:.9rem}
+.type-btn.active{background:var(--brand);color:#fff;border-color:var(--brand)}
+.cloze-editor{background:#f9f9f9;padding:12px;border-radius:8px;margin-top:8px}
+.cloze-hint{font-size:.85rem;color:var(--muted);margin-bottom:8px}
+.paste-btn{margin-left:8px;padding:6px 12px;font-size:.85rem;background:#e0e0e0;color:#111}
 </style>
 </head>
 <body>
@@ -117,9 +134,8 @@ hr{border:none;border-top:1px solid #e8e8e8;margin:16px 0}
     <div>
       <a href="admin.html" class="back-link">← Panneau d'administration</a>
       <h1>Entraînement au français - <em>espace numérique</em></h1>
-      <p class="subtitle">Créateur d'exercices interactifs</p>
+      <p class="subtitle">Créateur d'exercices interactifs (Version améliorée)</p>
     </div>
-    <!-- Add Supabase status indicator -->
     <div id="supabaseStatus" class="supabase-status disconnected">Supabase: Connexion...</div>
   </div>
 </header>
@@ -129,8 +145,8 @@ hr{border:none;border-top:1px solid #e8e8e8;margin:16px 0}
     <h2>Comment créer un exercice</h2>
     <p>1. <strong>Sélectionnez la Discipline</strong> (CE, CO, Grammaire, Lexique).</p>
     <p>2. Remplissez les informations de base : <strong>Niveau</strong>, <strong>Thème</strong>, et <strong>Titre</strong>.</p>
-    <p>3. Pour la compréhension écrite (CE) : Saisissez le texte principal.</p>
-    <p>4. Pour la compréhension orale (CO) : Ajoutez l'URL du fichier audio.</p>
+    <p>3. Pour la compréhension écrite (CE) : Saisissez le texte principal, chargez une image ou collez depuis le presse-papier.</p>
+    <p>4. Pour la compréhension orale (CO) : Ajoutez le fichier audio local et éventuellement la transcription.</p>
     <p>5. Ajoutez les questions avec leurs options et réponses correctes.</p>
     <p>6. Cliquez sur <strong>"Sauvegarder l'exercice"</strong> pour l'enregistrer dans la base de données.</p>
   </div>
@@ -197,25 +213,77 @@ hr{border:none;border-top:1px solid #e8e8e8;margin:16px 0}
       <!-- Passage Box for CE -->
       <div id="passageBox" class="hidden">
         <h3>Texte de lecture (CE)</h3>
+        
         <div class="form-group">
+          <label>Mode d'entrée du texte</label>
+          <div style="display:flex;gap:8px;margin-bottom:12px">
+            <button type="button" class="type-btn active" onclick="switchTextMode('type')" id="textModeType">Taper</button>
+            <button type="button" class="type-btn" onclick="switchTextMode('image')" id="textModeImage">Image</button>
+            <button type="button" class="type-btn" onclick="switchTextMode('paste')" id="textModePaste">Coller</button>
+          </div>
+        </div>
+
+        <div id="textTypeMode" class="form-group">
           <label for="texte">Texte principal</label>
           <textarea id="texte" placeholder="Entrez le texte à lire..."></textarea>
+        </div>
+
+        <div id="textImageMode" class="form-group hidden">
+          <label>Charger une image du texte</label>
+          <div class="upload-zone" onclick="$('#textImageInput').click()" ondragover="handleDragOver(event)" ondrop="handleTextImageDrop(event)">
+            <p>📷 Cliquez pour sélectionner ou glissez une image ici</p>
+            <input type="file" id="textImageInput" accept="image/*" style="display:none" onchange="handleTextImageUpload(event)">
+          </div>
+          <div id="textImagePreview" class="preview-box hidden">
+            <img id="textImagePreviewImg" class="preview-image">
+            <button type="button" class="secondary" onclick="clearTextImage()">Supprimer</button>
+          </div>
+        </div>
+
+        <div id="textPasteMode" class="form-group hidden">
+          <label>Coller le texte depuis le presse-papier</label>
+          <button type="button" class="secondary paste-btn" onclick="pasteFromClipboard()">📋 Coller depuis le presse-papier</button>
+          <textarea id="textePaste" placeholder="Le texte collé apparaîtra ici..." style="margin-top:8px"></textarea>
         </div>
       </div>
 
       <!-- Audio Box for CO -->
       <div id="audioBox" class="hidden">
         <h3>Audio (CO)</h3>
+        
         <div class="form-group">
-          <label for="audio">URL du fichier audio</label>
-          <input type="url" id="audio" placeholder="https://exemple.com/audio.mp3">
+          <label>Fichier audio local</label>
+          <div class="upload-zone" onclick="$('#audioFileInput').click()" ondragover="handleDragOver(event)" ondrop="handleAudioDrop(event)">
+            <p>🎵 Cliquez pour sélectionner ou glissez un fichier audio ici</p>
+            <p class="small">Formats acceptés: MP3, WAV, OGG</p>
+            <input type="file" id="audioFileInput" accept="audio/*" style="display:none" onchange="handleAudioUpload(event)">
+          </div>
+          <div id="audioPreview" class="preview-box hidden">
+            <p><strong>Fichier:</strong> <span id="audioFileName"></span></p>
+            <audio id="audioPreviewPlayer" class="preview-audio" controls></audio>
+            <button type="button" class="secondary" onclick="clearAudio()">Supprimer</button>
+          </div>
+        </div>
+
+        <!-- Added transcription field for CO exercises -->
+        <div class="form-group">
+          <label for="transcription">Transcription (optionnel)</label>
+          <textarea id="transcription" placeholder="Entrez la transcription de l'audio... Les étudiants pourront la voir après avoir terminé l'exercice." style="min-height:100px"></textarea>
+          <p class="subtitle">La transcription sera affichée aux étudiants à la fin de l'exercice</p>
         </div>
       </div>
 
-      <!-- Questions Section -->
+      <!-- Completely redesigned questions section with flexible question types -->
       <div id="questionsSection">
         <h3>Questions</h3>
-        <p class="small">Ajoutez les questions avec leurs options de réponse.</p>
+        <p class="small">Ajoutez des questions de différents types</p>
+        
+        <div class="question-type-selector">
+          <button type="button" class="type-btn active" onclick="setQuestionType('qcm')" id="typeQCM">QCM</button>
+          <button type="button" class="type-btn" onclick="setQuestionType('vf')" id="typeVF">Vrai/Faux</button>
+          <button type="button" class="type-btn" id="typeCloze" onclick="setQuestionType('cloze')" style="display:none">Cloze (Texte à trous)</button>
+        </div>
+
         <div id="questionsContainer"></div>
         <button type="button" class="secondary" onclick="addQuestion()">+ Ajouter une question</button>
       </div>
@@ -232,7 +300,6 @@ hr{border:none;border-top:1px solid #e8e8e8;margin:16px 0}
   </section>
 </div>
 
-<!-- Load Supabase client library -->
 <script src="lib/supabase-client.js"></script>
 
 <script>
@@ -241,6 +308,9 @@ const $$ = s => [...document.querySelectorAll(s)];
 
 let currentUser = null;
 let questionCounter = 0;
+let currentQuestionType = 'qcm';
+let audioBlob = null;
+let textImageBlob = null;
 
 // =============================================
 // Authentication
@@ -357,11 +427,114 @@ async function deleteExercise(id) {
 // Form Management
 // =============================================
 
+function switchTextMode(mode) {
+    // Update buttons
+    $$('[id^="textMode"]').forEach(btn => btn.classList.remove('active'));
+    $(`#textMode${mode.charAt(0).toUpperCase() + mode.slice(1)}`).classList.add('active');
+    
+    // Show/hide modes
+    $('#textTypeMode').classList.toggle('hidden', mode !== 'type');
+    $('#textImageMode').classList.toggle('hidden', mode !== 'image');
+    $('#textPasteMode').classList.toggle('hidden', mode !== 'paste');
+}
+
+function handleDragOver(event) {
+    event.preventDefault();
+    event.target.closest('.upload-zone').classList.add('active');
+}
+
+function handleTextImageDrop(event) {
+    event.preventDefault();
+    event.target.closest('.upload-zone').classList.remove('active');
+    const files = event.dataTransfer.files;
+    if (files.length > 0 && files[0].type.startsWith('image/')) {
+        processTextImage(files[0]);
+    }
+}
+
+function handleTextImageUpload(event) {
+    const files = event.target.files;
+    if (files.length > 0) {
+        processTextImage(files[0]);
+    }
+}
+
+function processTextImage(file) {
+    textImageBlob = file;
+    const reader = new FileReader();
+    reader.onload = (e) => {
+        $('#textImagePreviewImg').src = e.target.result;
+        $('#textImagePreview').classList.remove('hidden');
+    };
+    reader.readAsDataURL(file);
+}
+
+function clearTextImage() {
+    textImageBlob = null;
+    $('#textImagePreview').classList.add('hidden');
+    $('#textImageInput').value = '';
+}
+
+async function pasteFromClipboard() {
+    try {
+        const text = await navigator.clipboard.readText();
+        $('#textePaste').value = text;
+    } catch (err) {
+        alert('Impossible de lire le presse-papier. Veuillez coller manuellement (Ctrl+V).');
+        $('#textePaste').focus();
+    }
+}
+
+function handleAudioDrop(event) {
+    event.preventDefault();
+    event.target.closest('.upload-zone').classList.remove('active');
+    const files = event.dataTransfer.files;
+    if (files.length > 0 && files[0].type.startsWith('audio/')) {
+        processAudioFile(files[0]);
+    }
+}
+
+function handleAudioUpload(event) {
+    const files = event.target.files;
+    if (files.length > 0) {
+        processAudioFile(files[0]);
+    }
+}
+
+function processAudioFile(file) {
+    audioBlob = file;
+    $('#audioFileName').textContent = file.name;
+    
+    const reader = new FileReader();
+    reader.onload = (e) => {
+        $('#audioPreviewPlayer').src = e.target.result;
+        $('#audioPreview').classList.remove('hidden');
+    };
+    reader.readAsDataURL(file);
+}
+
+function clearAudio() {
+    audioBlob = null;
+    $('#audioPreview').classList.add('hidden');
+    $('#audioFileInput').value = '';
+}
+
+function setQuestionType(type) {
+    currentQuestionType = type;
+    $$('[id^="type"]').forEach(btn => btn.classList.remove('active'));
+    $(`#type${type.toUpperCase()}`).classList.add('active');
+}
+
 function toggleBoxes() {
     const kind = $('#kind').value;
     
     $('#passageBox').classList.toggle('hidden', kind !== 'lecture');
     $('#audioBox').classList.toggle('hidden', kind !== 'ecoute');
+    
+    $('#typeCloze').style.display = kind === 'ecoute' ? 'inline-block' : 'none';
+    if (kind !== 'ecoute' && currentQuestionType === 'cloze') {
+        setQuestionType('qcm');
+    }
 }
 
 function addQuestion() {
@@ -371,36 +544,126 @@ function addQuestion() {
     const div = document.createElement('div');
     div.className = 'question-item';
     div.id = `question_${questionCounter}`;
+    div.dataset.type = currentQuestionType;
     
-    div.innerHTML = `
-        <div class="question-header">
-            <span class="question-number">Question ${questionCounter}</span>
-            <button type="button" class="danger" style="padding:4px 8px;font-size:.8rem" onclick="removeQuestion(${questionCounter})">Supprimer</button>
-        </div>
-        <div class="form-group">
-            <label>Texte de la question</label>
-            <input type="text" class="q-text" placeholder="Ex: Quel est le sens du mot...">
-        </div>
-        <div class="form-group">
-            <label>Options (séparées par des virgules)</label>
-            <input type="text" class="q-options" placeholder="Ex: Option A, Option B, Option C, Option D">
-            <p class="subtitle">Saisissez les options séparées par des virgules</p>
-        </div>
-        <div class="form-group">
-            <label>Réponse correcte (a, b, c, d...)</label>
-            <input type="text" class="q-answer" placeholder="Ex: a" maxlength="1">
-        </div>
-        <div class="form-group">
-            <label>Points</label>
-            <input type="number" class="q-points" value="1" min="1" max="10">
-        </div>
-        <div class="form-group">
-            <label>Explication (optionnel)</label>
-            <input type="text" class="q-explanation" placeholder="Explication de la réponse correcte">
-        </div>
+    if (currentQuestionType === 'qcm') {
+        div.innerHTML = `
+            <div class="question-header">
+                <span class="question-number">Question ${questionCounter} (QCM)</span>
+                <button type="button" class="danger" style="padding:4px 8px;font-size:.8rem" onclick="removeQuestion(${questionCounter})">Supprimer</button>
+            </div>
+            <div class="form-group">
+                <label>Texte de la question</label>
+                <input type="text" class="q-text" placeholder="Ex: Quel est le sens du mot...">
+            </div>
+            <div class="form-group">
+                <label>Options de réponse</label>
+                <div class="option-list" id="options_${questionCounter}"></div>
+                <button type="button" class="secondary" onclick="addOption(${questionCounter})">+ Ajouter une option</button>
+            </div>
+            <div class="form-group">
+                <label>Points</label>
+                <input type="number" class="q-points" value="1" min="1" max="10">
+            </div>
+            <div class="form-group">
+                <label>Explication (optionnel)</label>
+                <input type="text" class="q-explanation" placeholder="Explication de la réponse correcte">
+            </div>
+        `;
+        
+        // Add 4 default options
+        container.appendChild(div);
+        for (let i = 0; i < 4; i++) {
+            addOption(questionCounter);
+        }
+        
+    } else if (currentQuestionType === 'vf') {
+        div.innerHTML = `
+            <div class="question-header">
+                <span class="question-number">Question ${questionCounter} (Vrai/Faux)</span>
+                <button type="button" class="danger" style="padding:4px 8px;font-size:.8rem" onclick="removeQuestion(${questionCounter})">Supprimer</button>
+            </div>
+            <div class="form-group">
+                <label>Affirmation</label>
+                <input type="text" class="q-text" placeholder="Ex: La tour Eiffel est à Paris">
+            </div>
+            <div class="form-group">
+                <label>Réponse correcte</label>
+                <select class="q-answer">
+                    <option value="vrai">Vrai</option>
+                    <option value="faux">Faux</option>
+                </select>
+            </div>
+            <div class="form-group">
+                <label>Points</label>
+                <input type="number" class="q-points" value="1" min="1" max="10">
+            </div>
+            <div class="form-group">
+                <label>Explication (optionnel)</label>
+                <input type="text" class="q-explanation" placeholder="Explication de la réponse">
+            </div>
+        `;
+        container.appendChild(div);
+        
+    } else if (currentQuestionType === 'cloze') {
+        div.innerHTML = `
+            <div class="question-header">
+                <span class="question-number">Texte à trous ${questionCounter}</span>
+                <button type="button" class="danger" style="padding:4px 8px;font-size:.8rem" onclick="removeQuestion(${questionCounter})">Supprimer</button>
+            </div>
+            <div class="cloze-editor">
+                <div class="cloze-hint">💡 Utilisez {mot} pour indiquer les blancs. Ex: "Je {suis} étudiant."</div>
+                <div class="form-group">
+                    <label>Texte avec blancs</label>
+                    <textarea class="q-cloze-text" placeholder="Ex: La France est {un} pays européen. Sa capitale est {Paris}." style="min-height:80px"></textarea>
+                </div>
+            </div>
+            <div class="form-group">
+                <label>Points</label>
+                <input type="number" class="q-points" value="1" min="1" max="10">
+            </div>
+        `;
+        container.appendChild(div);
+    }
+}
+
+function addOption(questionId) {
+    const optionList = $(`#options_${questionId}`);
+    const optionCount = optionList.children.length;
+    const letter = String.fromCharCode(97 + optionCount); // a, b, c, d...
+    
+    const optionDiv = document.createElement('div');
+    optionDiv.className = 'option-item';
+    optionDiv.dataset.letter = letter;
+    
+    optionDiv.innerHTML = `
+        <input type="text" placeholder="Option ${letter.toUpperCase()}" class="option-text" value="">
+        <label style="margin:0;display:flex;align-items:center;gap:4px;white-space:nowrap">
+            <input type="radio" name="correct_${questionId}" onchange="markCorrect(${questionId}, '${letter}')">
+            Correcte
+        </label>
+        <button type="button" class="danger" onclick="removeOption(this)">✕</button>
     `;
     
-    container.appendChild(div);
+    optionList.appendChild(optionDiv);
+    
+    // Mark first option as correct by default
+    if (optionCount === 0) {
+        optionDiv.querySelector('input[type="radio"]').checked = true;
+        optionDiv.classList.add('correct');
+    }
+}
+
+function removeOption(btn) {
+    const optionItem = btn.closest('.option-item');
+    optionItem.remove();
+}
+
+function markCorrect(questionId, letter) {
+    const optionList = $(`#options_${questionId}`);
+    $$(`#options_${questionId} .option-item`).forEach(item => {
+        item.classList.toggle('correct', item.dataset.letter === letter);
+    });
 }
 
 function removeQuestion(id) {
@@ -412,24 +675,64 @@ function getQuestions() {
     const questions = [];
     
     $$('.question-item').forEach(item => {
-        const text = item.querySelector('.q-text').value.trim();
-        const optionsStr = item.querySelector('.q-options').value.trim();
-        const answer = item.querySelector('.q-answer').value.trim().toLowerCase();
-        const points = parseInt(item.querySelector('.q-points').value) || 1;
-        const explanation = item.querySelector('.q-explanation').value.trim();
+        const type = item.dataset.type;
+        const text = item.querySelector('.q-text')?.value.trim();
+        const points = parseInt(item.querySelector('.q-points')?.value) || 1;
+        const explanation = item.querySelector('.q-explanation')?.value.trim();
         
-        if (text && optionsStr && answer) {
-            const options = optionsStr.split(',').map(o => o.trim()).filter(Boolean);
+        if (type === 'qcm') {
+            const options = [];
+            let correctAnswer = 'a';
             
-            questions.push({
-                question: text,
-                texte: text,
-                options: options,
-                answer: answer,
-                correcte: answer,
-                points: points,
-                explanation: explanation || undefined
+            item.querySelectorAll('.option-item').forEach(opt => {
+                const optText = opt.querySelector('.option-text').value.trim();
+                const letter = opt.dataset.letter;
+                if (optText) {
+                    options.push(optText);
+                    if (opt.querySelector('input[type="radio"]').checked) {
+                        correctAnswer = letter;
+                    }
+                }
             });
+            
+            if (text && options.length >= 2) {
+                questions.push({
+                    type: 'qcm',
+                    question: text,
+                    texte: text,
+                    options: options,
+                    answer: correctAnswer,
+                    correcte: correctAnswer,
+                    points: points,
+                    explanation: explanation || undefined
+                });
+            }
+            
+        } else if (type === 'vf') {
+            const answer = item.querySelector('.q-answer').value;
+            
+            if (text) {
+                questions.push({
+                    type: 'vf',
+                    question: text,
+                    texte: text,
+                    answer: answer,
+                    correcte: answer,
+                    points: points,
+                    explanation: explanation || undefined
+                });
+            }
+            
+        } else if (type === 'cloze') {
+            const clozeText = item.querySelector('.q-cloze-text')?.value.trim();
+            
+            if (clozeText) {
+                questions.push({
+                    type: 'cloze',
+                    clozeText: clozeText,
+                    points: points
+                });
+            }
         }
     });
     
@@ -446,8 +749,6 @@ async function saveExercise(event) {
     const niveau = $('#niveau').value;
     const theme = $('#theme').value.trim();
     const titre = $('#titre').value.trim();
-    const texte = $('#texte')?.value.trim() || '';
-    const audio = $('#audio')?.value.trim() || '';
     const questions = getQuestions();
     
     if (!kind || !titre) {
@@ -460,7 +761,7 @@ async function saveExercise(event) {
         return;
     }
     
-    // Generate ID
+    // Prepare exercise data
     const typePrefix = { lecture: 'ce', ecoute: 'co', grammaire: 'gr', lexique: 'lx' };
     const id = `${typePrefix[kind] || 'ex'}_${niveau.toLowerCase()}_${Date.now()}`;
     
@@ -470,20 +771,53 @@ async function saveExercise(event) {
         niveau,
         theme,
         titre,
-        texte: kind === 'lecture' ? texte : null,
-        audio: kind === 'ecoute' ? audio : null,
         questions
     };
+    
+    // Handle CE text (typed, image, or pasted)
+    if (kind === 'lecture') {
+        if (!$('#textTypeMode').classList.contains('hidden')) {
+            exercise.texte = $('#texte').value.trim();
+        } else if (!$('#textPasteMode').classList.contains('hidden')) {
+            exercise.texte = $('#textePaste').value.trim();
+        } else if (textImageBlob) {
+            // TODO: Upload image to storage and get URL
+            statusEl.innerHTML = '<span style="color:#f59e0b">Upload d\'image en cours...</span>';
+            try {
+                const imageUrl = await uploadToStorage(textImageBlob, 'text-images');
+                exercise.texteImage = imageUrl;
+            } catch (err) {
+                statusEl.innerHTML = '<span style="color:#ef4444">Erreur upload image</span>';
+                return;
+            }
+        }
+    }
+    
+    // Handle CO audio and transcription
+    if (kind === 'ecoute') {
+        if (audioBlob) {
+            statusEl.innerHTML = '<span style="color:#f59e0b">Upload audio en cours...</span>';
+            try {
+                const audioUrl = await uploadToStorage(audioBlob, 'audio-files');
+                exercise.audio = audioUrl;
+            } catch (err) {
+                statusEl.innerHTML = '<span style="color:#ef4444">Erreur upload audio</span>';
+                return;
+            }
+        }
+        
+        const transcription = $('#transcription')?.value.trim();
+        if (transcription) {
+            exercise.transcription = transcription;
+        }
+    }
     
     try {
         await window.SupabaseDB.createExercise(exercise);
         
         statusEl.innerHTML = '<span style="color:#10b981">✓ Exercice sauvegardé avec succès!</span>';
         
-        // Reset form
         resetForm();
-        
-        // Reload list
         await loadExercises();
         
         setTimeout(() => {
@@ -496,10 +830,32 @@ async function saveExercise(event) {
     }
 }
 
+async function uploadToStorage(blob, folder) {
+    const formData = new FormData();
+    formData.append('file', blob);
+    
+    const response = await fetch(`/api/upload?folder=${folder}`, {
+        method: 'POST',
+        body: formData
+    });
+    
+    if (!response.ok) {
+        throw new Error('Upload failed');
+    }
+    
+    const data = await response.json();
+    return data.url;
+}
+
 function resetForm() {
     $('#exerciseForm').reset();
     $('#questionsContainer').innerHTML = '';
     questionCounter = 0;
+    audioBlob = null;
+    textImageBlob = null;
+    clearAudio();
+    clearTextImage();
+    switchTextMode('type');
     toggleBoxes();
 }
 
