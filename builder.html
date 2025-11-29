@@ -615,6 +615,9 @@ function handleAudioUpload(event) {
 async function processAudioFile(file) {
     console.log('[v0] Starting audio upload process for:', file.name);
     
+    $('#audioFileName').textContent = file.name;
+    $('#audioPreview').classList.remove('hidden');
+    
     $('#audioUploadStatus').textContent = '⏳ Upload en cours...';
     $('#audioUploadStatus').style.color = '#f59e0b';
     $('#audioUploadStatus').classList.remove('hidden');
@@ -641,7 +644,7 @@ async function processAudioFile(file) {
         $('#audioUploadStatus').style.color = '#10b981';
         
         $('#audioPreviewPlayer').src = audioUrl;
-        $('#audioPreviewPlayer').load(); // Force reload
+        $('#audioPreviewPlayer').load();
         
     } catch (error) {
         console.error('[v0] Audio upload error:', error);
@@ -651,6 +654,7 @@ async function processAudioFile(file) {
         }
         $('#audioUploadStatus').textContent = '❌ Erreur: ' + errorMsg;
         $('#audioUploadStatus').style.color = '#ef4444';
+        $('#audioPreview').classList.add('hidden');
     }
 }
 
