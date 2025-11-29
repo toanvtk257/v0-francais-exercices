@@ -165,9 +165,12 @@ async function checkAuth() {
 
 async function loadExercise(exerciseId) {
     try {
+        console.log('[v0] loadExercise: Starting to load exercise with id:', exerciseId);
         currentExercise = await window.SupabaseDB.getExerciseById(exerciseId);
+        console.log('[v0] loadExercise: Received exercise:', currentExercise);
         
         if (!currentExercise) {
+            console.error('[v0] loadExercise: Exercise is null or undefined');
             alert('Exercice non trouvé');
             window.location.href = 'dashboard.html';
             return;
@@ -187,7 +190,9 @@ async function loadExercise(exerciseId) {
         startTimer();
         
     } catch (error) {
-        console.error('Error loading exercise:', error);
+        console.error('[v0] loadExercise: Error caught:', error);
+        console.error('[v0] loadExercise: Error message:', error.message);
+        console.error('[v0] loadExercise: Error stack:', error.stack);
         alert('Erreur lors du chargement de l\'exercice');
         window.location.href = 'dashboard.html';
     }
