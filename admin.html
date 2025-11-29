@@ -1641,24 +1641,61 @@ function loadChatUsers() {
   const allUsers = JSON.parse(localStorage.getItem(USERS_STORAGE_KEY) || '[]');
   const messagesDb = JSON.parse(localStorage.getItem(MESSAGES_KEY) || '{}');
   
+  // Collect all group messages
+  const groupMessages = {};
+  const processedGroups = new Set();
+  
+  Object.keys(messagesDb).forEach(userId => {
+    messagesDb[userId].forEach(msg => {
+      if (msg.groupId && !processedGroups.has(msg.groupId)) {
+        groupMessages[msg.groupId] = {
+          ...msg,
+          userIds: msg.recipients.map(r => r.id)
+        };
+        processedGroups.add(msg.groupId);
+      }
+    });
+  });
+  
+  // Get individual users with messages
   const usersWithMessages = Object.keys(messagesDb).map(userId => {
     const user = allUsers.find(u => u.id === userId);
     if (user) {
-      return { ...user, hasUnread: messagesDb[userId].some(msg => !msg.read && msg.sender !== 'admin') };
+      return { 
+        ...user, 
+        hasUnread: messagesDb[userId].some(msg => !msg.read && msg.sender !== 'admin') 
+      };
     }
     return null; 
-  }).filter(Boolean); 
+  }).filter(Boolean);
 
   const chatUsersList = $('#chatUsersList');
   chatUsersList.innerHTML = '';
 
-  if (usersWithMessages.length === 0) {
+  // Display group messages first
+  Object.values(groupMessages).forEach(groupMsg => {
+    const div = document.createElement('div');
+    div.classList.add('user-item'); 
+    div.style.cssText = 'padding:12px;border-bottom:1px solid #e0e0e0;cursor:pointer;transition:all .2s;background:#f8f9fa';
+    const recipientNames = groupMsg.recipients.map(r => r.name).join(', ');
+    div.innerHTML = `
+      <div style="display:flex;justify-content:space-between;align-items:center">
+        <span style="font-weight:600">📢 Groupe (${groupMsg.recipients.length})</span>
+      </div>
+      <small style="color:#666">${recipientNames}</small>
+    `;
+    div.onclick = () => selectGroupChat(groupMsg.groupId, groupMsg.recipients);
+    chatUsersList.appendChild(div);
+  });
+
+  if (usersWithMessages.length === 0 && Object.keys(groupMessages).length === 0) {
     chatUsersList.innerHTML = '<div class="empty-state">Aucun message</div>';
     return;
   }
   
   chatUsers = usersWithMessages; 
   
+  // Display individual users
   chatUsers.forEach(user => {
     const div = document.createElement('div');
     div.classList.add('user-item'); 
@@ -1728,6 +1765,7 @@ function loadChatMessages(userId) {
   chatMessagesArea.scrollTop = chatMessagesArea.scrollHeight;
 }
 
+// CHANGE: Modified sendAdminMessage to add groupId for messages sent to multiple recipients
 function sendAdminMessage() {
   if (selectedRecipients.length > 0) {
     const messageInput = $('#adminMessageInput');
@@ -1739,6 +1777,8 @@ function sendAdminMessage() {
     }
     
     const messagesDb = JSON.parse(localStorage.getItem(MESSAGES_KEY) || '{}');
+    const groupId = selectedRecipients.length > 1 ? `group_${Date.now()}` : null;
+    const timestamp = Date.now();
     
     selectedRecipients.forEach(recipient => {
       if (!messagesDb[recipient.id]) messagesDb[recipient.id] = [];
@@ -1746,8 +1786,10 @@ function sendAdminMessage() {
       const newMessage = {
         sender: 'admin',
         text: text,
-        timestamp: Date.now(),
-        read: true 
+        timestamp: timestamp,
+        read: true,
+        groupId: groupId,
+        recipients: selectedRecipients.length > 1 ? selectedRecipients.map(r => ({ id: r.id, name: r.name, email: r.email })) : null
       };
       
       messagesDb[recipient.id].push(newMessage);
@@ -1756,12 +1798,11 @@ function sendAdminMessage() {
     localStorage.setItem(MESSAGES_KEY, JSON.stringify(messagesDb));
     
     messageInput.value = '';
-    if (selectedRecipients.length > 1) { 
-      selectedRecipients = []; 
-      updateSelectedRecipientsUI(); 
-    }
+    const sentCount = selectedRecipients.length;
+    selectedRecipients = []; 
+    updateSelectedRecipientsUI(); 
     
-    alert(`Message envoyé à ${selectedRecipients.length} étudiant(s)`); 
+    alert(`Message envoyé à ${sentCount} étudiant(s)`); 
     loadChatUsers(); 
     return;
   }
@@ -2525,6 +2566,56 @@ function switchTab(tabName) {
     loadRecipientOptions(); 
     loadChatUsers(); 
   }
+}
+
+// CHANGE: Added function to view group messages
+function selectGroupChat(groupId, recipients) {
+  selectedChatUserId = null;
+  $('#chatMessagesArea').innerHTML = ''; 
+  $('#adminMessageInput').disabled = true;
+  $('#sendMessageBtn').disabled = true;
+  $('#deleteChatBtn').disabled = true;
+  
+  $$('#chatUsersList .user-item').forEach(item => item.style.background = '');
+  event.target.closest('.user-item').style.background = '#f0f0f0';
+  
+  const messagesDb = JSON.parse(localStorage.getItem(MESSAGES_KEY) || '{}');
+  const groupMessages = [];
+  
+  // Find all messages with this groupId
+  Object.keys(messagesDb).forEach(userId => {
+    messagesDb[userId].forEach(msg => {
+      if (msg.groupId === groupId && !groupMessages.find(m => m.groupId === groupId)) {
+        groupMessages.push(msg);
+      }
+    });
+  });
+  
+  const chatMessagesArea = $('#chatMessagesArea');
+  chatMessagesArea.style.cssText = 'flex:1;overflow-y:auto;padding:20px;display:flex;flex-direction:column;background:#fafafa';
+  
+  if (groupMessages.length === 0) {
+    chatMessagesArea.innerHTML = '<div class="empty-state">Aucun message</div>';
+    return;
+  }
+  
+  groupMessages.forEach(msg => {
+    const msgDiv = document.createElement('div');
+    msgDiv.style.cssText = `
+      margin-bottom:12px;padding:10px 14px;border-radius:8px;max-width:70%;
+      align-self:flex-end;background:var(--brand);color:#fff;
+      word-wrap: break-word;
+    `;
+    const recipientNames = msg.recipients.map(r => r.name).join(', ');
+    msgDiv.innerHTML = `
+      <div style="font-size:.8rem;opacity:.8;margin-bottom:4px">${new Date(msg.timestamp).toLocaleString()}</div>
+      <div style="font-size:.85rem;opacity:.9;margin-bottom:6px">À: ${recipientNames}</div>
+      <div>${msg.text}</div>
+    `;
+    chatMessagesArea.appendChild(msgDiv);
+  });
+  
+  chatMessagesArea.scrollTop = chatMessagesArea.scrollHeight;
 }
 </script>
 </body>
