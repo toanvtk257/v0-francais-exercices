@@ -682,4 +682,16 @@ async function uploadToCloudinary(file, customFilename = null) {
             throw new Error(error.error || 'Upload échoué');
         }
         
-        const data = await response.json
+        const data = await response.json();
+        console.log('[v0] Cloudinary upload success:', data);
+        
+        return data.url;
+    } catch (error) {
+        console.error('[v0] Cloudinary upload error:', error);
+        throw error;
+    }
+}
+
+</script>
+</body>
+</html>
