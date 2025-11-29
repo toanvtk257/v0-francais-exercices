@@ -877,20 +877,16 @@ function updateExerciseTitleDropdown(currentCount) {
     const dropdown = $('#titre');
     const searchInput = $('#exerciseSearch');
     const startNum = currentCount + 1;
-    const endNum = startNum + 49; // Show 50 exercises instead of 10
+    const maxNum = startNum + 999; // Support up to 1000 future exercises
     
     dropdown.innerHTML = '<option value="">-- Sélectionnez un numéro --</option>';
     
-    // Show search input if there are many exercises
-    if (endNum - startNum > 15) {
-        searchInput.style.display = 'block';
-    } else {
-        searchInput.style.display = 'none';
-    }
+    // Always show search input for easy filtering
+    searchInput.style.display = 'block';
     
-    // Populate dropdown
+    // Populate dropdown with all available exercise numbers
     const exerciseOptions = [];
-    for (let i = startNum; i <= endNum; i++) {
+    for (let i = startNum; i <= maxNum; i++) {
         exerciseOptions.push(i);
     }
     
@@ -900,20 +896,33 @@ function updateExerciseTitleDropdown(currentCount) {
         dropdown.innerHTML = '';
         dropdown.appendChild(defaultOption);
         
+        let count = 0;
         exerciseOptions.forEach(i => {
             const optionText = `Exo ${i}`;
             if (filter === '' || optionText.toLowerCase().includes(filter.toLowerCase())) {
-                const option = document.createElement('option');
-                option.value = optionText;
-                option.textContent = optionText;
-                dropdown.appendChild(option);
+                // Limit display to 100 results for performance, but search can narrow it down
+                if (count < 100) {
+                    const option = document.createElement('option');
+                    option.value = optionText;
+                    option.textContent = optionText;
+                    dropdown.appendChild(option);
+                    count++;
+                }
             }
         });
+        
+        // Show message if results were limited
+        if (count === 100 && filter === '') {
+            const infoOption = document.createElement('option');
+            infoOption.disabled = true;
+            infoOption.textContent = '... utilisez la recherche pour plus d\'options';
+            dropdown.appendChild(infoOption);
+        }
     }
     
     populateDropdown();
     
-    // Add search functionality
+    // Add search functionality with real-time filtering
     searchInput.oninput = (e) => {
         populateDropdown(e.target.value);
     };
