@@ -3,9 +3,14 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>fr_exercices_pack_v2 — Connexion</title>
-<!-- Add Supabase CDN -->
+<title>Connexion - Entraînement au français</title>
+<link rel="stylesheet" href="css/style.css">
+<!-- Load Supabase from CDN before our client library -->
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script>
+    console.log('[v0] Supabase CDN loaded:', typeof window.supabase);
+</script>
+<script src="lib/supabase-client.js"></script>
 <style>
 :root{--brand:#2b5;--ink:#222;--muted:#666;--bg:#f7f7f7;--card:#fff}
 html,body{margin:0;padding:0;background:var(--bg);color:var(--ink);font-family:system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif;display:flex;align-items:center;justify-content:center;min-height:100vh}
@@ -112,9 +117,6 @@ button:disabled{background:#ccc;cursor:not-allowed}
   </div>
 </div>
 
-<!-- Load Supabase client library -->
-<script src="lib/supabase-client.js"></script>
-
 <script>
 // Tab switching
 function switchTab(tab) {
@@ -144,6 +146,8 @@ async function handleLogin(event) {
     const errorEl = document.getElementById('loginError');
     const btn = document.getElementById('loginBtn');
     
+    console.log('[v0] Login form submitted:', { email, pinLength: pin.length });
+    
     errorEl.style.display = 'none';
     btn.disabled = true;
     btn.textContent = 'Connexion en cours...';
@@ -151,10 +155,13 @@ async function handleLogin(event) {
     try {
         // Check if Supabase is available
         if (!window.SupabaseDB || !window.SupabaseDB.isAvailable()) {
+            console.error('[v0] SupabaseDB not available');
             throw new Error('Base de données non disponible. Veuillez réessayer.');
         }
         
+        console.log('[v0] Calling SupabaseDB.login...');
         const user = await window.SupabaseDB.login(email, pin);
+        console.log('[v0] Login successful, user role:', user.role);
         
         // Redirect based on role
         if (user.role === 'admin') {
@@ -163,7 +170,7 @@ async function handleLogin(event) {
             window.location.href = 'dashboard.html';
         }
     } catch (error) {
-        console.error('Login error:', error);
+        console.error('[v0] Login error:', error);
         errorEl.textContent = error.message || 'Email ou PIN incorrect';
         errorEl.style.display = 'block';
         btn.disabled = false;
