@@ -859,10 +859,15 @@ window.removeFormQcmQuestion = function(id) {
 
 function loadRecipientOptions() {
   const allUsers = JSON.parse(localStorage.getItem(USERS_STORAGE_KEY) || '[]');
-  const students = allUsers.filter(u => u.role === 'student' && u.status === 'approved');
+  const students = allUsers.filter(u => u.role === 'student' && (!u.status || u.status === 'approved'));
+  
+  console.log('[v0] loadRecipientOptions called');
+  console.log('[v0] All users:', allUsers);
+  console.log('[v0] Filtered students:', students);
   
   const recipientSelect = $('#recipientSelect');
   if (!recipientSelect) {
+    console.log('[v0] recipientSelect not found');
     return;
   }
   
@@ -874,6 +879,8 @@ function loadRecipientOptions() {
     option.textContent = `${student.name} (${student.email})`;
     recipientSelect.appendChild(option);
   });
+  
+  console.log('[v0] Recipients loaded:', students.length);
 }
 
 async function loadBank() {
@@ -1953,7 +1960,7 @@ function resetExerciseForm() {
 
 function loadStudentOptions() {
   const allUsers = JSON.parse(localStorage.getItem(USERS_STORAGE_KEY) || '[]');
-  const students = allUsers.filter(u => u.role === 'student' && u.status === 'approved');
+  const students = allUsers.filter(u => u.role === 'student' && (!u.status || u.status === 'approved'));
   
   const selector = $('#studentSelector');
   if (!selector) return;
@@ -2368,8 +2375,8 @@ function loadMessages() {
 }
 
 function selectAllStudents() {
-  const users = JSON.parse(localStorage.getItem(USERS_STORAGE_KEY) || '[]');
-  const students = users.filter(u => u.role === 'student' && u.status === 'approved');
+  const allUsers = JSON.parse(localStorage.getItem(USERS_STORAGE_KEY) || '[]');
+  const students = allUsers.filter(u => u.role === 'student' && (!u.status || u.status === 'approved'));
   if (students.length === 0) {
     alert('Aucun étudiant approuvé trouvé.');
     return;
@@ -2380,14 +2387,14 @@ function selectAllStudents() {
 }
 
 function selectGroupStudents() {
-  const users = JSON.parse(localStorage.getItem(USERS_STORAGE_KEY) || '[]');
-  const students = users.filter(u => u.role === 'student' && u.status === 'approved');
+  const allUsers = JSON.parse(localStorage.getItem(USERS_STORAGE_KEY) || '[]');
+  const students = allUsers.filter(u => u.role === 'student' && (!u.status || u.status === 'approved'));
   
   if (students.length === 0) {
-    alert('Aucun étudiant approuvé trouvé.');
+    alert('Aucun étudiant disponible');
     return;
   }
-  
+
   const modal = $('#groupSelectModal');
   const container = $('#groupStudentCheckboxes');
   container.innerHTML = '';
