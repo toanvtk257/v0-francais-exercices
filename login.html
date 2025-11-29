@@ -92,26 +92,45 @@ button:disabled{background:#ccc;cursor:not-allowed}
         <label for="signupPin">Code PIN (6 chiffres) <span class="required">*</span></label>
         <input type="password" id="signupPin" class="pin-input" maxlength="6" pattern="[0-9]{6}" placeholder="••••••" required>
       </div>
+      
+      <!-- Adding admin account creation option -->
       <div class="form-group">
-        <label for="signupFiliere">Filière <span class="required">*</span></label>
-        <select id="signupFiliere" required>
-          <option value="">-- Sélectionner --</option>
-          <option value="L1">L1 - Première année</option>
-          <option value="L2">L2 - Deuxième année</option>
-          <option value="L3">L3 - Troisième année</option>
-          <option value="M1">M1 - Master 1</option>
-          <option value="M2">M2 - Master 2</option>
-          <option value="Autre">Autre</option>
+        <label for="accountType">Type de compte</label>
+        <select id="accountType" onchange="toggleAdminFields()">
+          <option value="student">Étudiant (avec approbation)</option>
+          <option value="admin">Administrateur (code secret requis)</option>
         </select>
       </div>
-      <div class="form-group">
-        <label for="signupZalo">Numéro Zalo <span class="required">*</span></label>
-        <input type="tel" id="signupZalo" placeholder="Votre numéro Zalo" required>
+      
+      <div id="adminSecretField" class="form-group" style="display:none;">
+        <label for="adminSecret">Code secret administrateur <span class="required">*</span></label>
+        <input type="password" id="adminSecret" placeholder="Code secret admin">
+        <small style="color: var(--muted); font-size: 0.85rem;">Contactez un administrateur pour obtenir le code secret</small>
       </div>
-      <div class="form-group">
-        <label for="signupExplanation">Expliquer votre demande <span class="required">*</span></label>
-        <textarea id="signupExplanation" rows="3" placeholder="Pourquoi souhaitez-vous accéder à cette plateforme? (minimum 20 caractères)" minlength="20" required></textarea>
+      
+      <div id="studentFields">
+        <div class="form-group">
+          <label for="signupFiliere">Filière <span class="required">*</span></label>
+          <select id="signupFiliere" required>
+            <option value="">-- Sélectionner --</option>
+            <option value="L1">L1 - Première année</option>
+            <option value="L2">L2 - Deuxième année</option>
+            <option value="L3">L3 - Troisième année</option>
+            <option value="M1">M1 - Master 1</option>
+            <option value="M2">M2 - Master 2</option>
+            <option value="Autre">Autre</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label for="signupZalo">Numéro Zalo <span class="required">*</span></label>
+          <input type="tel" id="signupZalo" placeholder="Votre numéro Zalo" required>
+        </div>
+        <div class="form-group">
+          <label for="signupExplanation">Expliquer votre demande <span class="required">*</span></label>
+          <textarea id="signupExplanation" rows="3" placeholder="Pourquoi souhaitez-vous accéder à cette plateforme? (minimum 20 caractères)" minlength="20" required></textarea>
+        </div>
       </div>
+      
       <div id="signupError" class="error"></div>
       <div id="signupSuccess" class="success"></div>
       <button type="submit" id="signupBtn">Soumettre la demande</button>
@@ -186,6 +205,8 @@ async function handleSignup(event) {
     const name = document.getElementById('signupName').value.trim();
     const email = document.getElementById('signupEmail').value.trim();
     const pin = document.getElementById('signupPin').value;
+    const accountType = document.getElementById('accountType').value;
+    const adminSecret = document.getElementById('adminSecret').value;
     const filiere = document.getElementById('signupFiliere').value;
     const zalo = document.getElementById('signupZalo').value.trim();
     const explanation = document.getElementById('signupExplanation').value.trim();
@@ -197,13 +218,61 @@ async function handleSignup(event) {
     errorEl.style.display = 'none';
     successEl.style.display = 'none';
     
-    // Validate
+    // Validate PIN
     if (pin.length !== 6 || !/^\d{6}$/.test(pin)) {
         errorEl.textContent = 'Le code PIN doit contenir exactement 6 chiffres';
         errorEl.style.display = 'block';
         return;
     }
     
+    if (accountType === 'admin') {
+        // Validate admin secret (hardcoded for now, should be in environment variable in production)
+        const ADMIN_SECRET = 'ADMIN2025';
+        
+        if (adminSecret !== ADMIN_SECRET) {
+            errorEl.textContent = 'Code secret administrateur incorrect';
+            errorEl.style.display = 'block';
+            return;
+        }
+        
+        btn.disabled = true;
+        btn.textContent = 'Création du compte...';
+        
+        try {
+            if (!window.SupabaseDB || !window.SupabaseDB.isAvailable()) {
+                throw new Error('Base de données non disponible. Veuillez réessayer.');
+            }
+            
+            // Create admin account directly
+            await window.SupabaseDB.createAdminAccount({
+                name,
+                email,
+                pin
+            });
+            
+            successEl.textContent = 'Compte administrateur créé avec succès! Vous pouvez maintenant vous connecter.';
+            successEl.style.display = 'block';
+            
+            // Reset form and switch to login tab after 2 seconds
+            document.getElementById('signupForm').reset();
+            setTimeout(() => switchTab('login'), 2000);
+            
+        } catch (error) {
+            console.error('[v0] Admin signup error:', error);
+            if (error.message.includes('duplicate') || error.message.includes('unique')) {
+                errorEl.textContent = 'Cet email est déjà utilisé.';
+            } else {
+                errorEl.textContent = error.message || 'Erreur lors de la création du compte. Veuillez réessayer.';
+            }
+            errorEl.style.display = 'block';
+        }
+        
+        btn.disabled = false;
+        btn.textContent = 'Créer le compte admin';
+        return;
+    }
+    
+    // Validate student fields
     if (explanation.length < 20) {
         errorEl.textContent = 'L\'explication doit contenir au moins 20 caractères';
         errorEl.style.display = 'block';
@@ -234,7 +303,7 @@ async function handleSignup(event) {
         document.getElementById('signupForm').reset();
         
     } catch (error) {
-        console.error('Signup error:', error);
+        console.error('[v0] Signup error:', error);
         if (error.message.includes('duplicate') || error.message.includes('unique')) {
             errorEl.textContent = 'Cet email est déjà utilisé ou une demande est déjà en cours.';
         } else {
@@ -245,6 +314,41 @@ async function handleSignup(event) {
     
     btn.disabled = false;
     btn.textContent = 'Soumettre la demande';
+}
+
+function toggleAdminFields() {
+    const accountType = document.getElementById('accountType').value;
+    const adminSecretField = document.getElementById('adminSecretField');
+    const studentFields = document.getElementById('studentFields');
+    const adminSecret = document.getElementById('adminSecret');
+    const signupBtn = document.getElementById('signupBtn');
+    const infoBox = document.querySelector('.info-box');
+    
+    if (accountType === 'admin') {
+        adminSecretField.style.display = 'block';
+        studentFields.style.display = 'none';
+        adminSecret.required = true;
+        
+        // Make student fields not required
+        document.getElementById('signupFiliere').required = false;
+        document.getElementById('signupZalo').required = false;
+        document.getElementById('signupExplanation').required = false;
+        
+        signupBtn.textContent = 'Créer le compte admin';
+        infoBox.style.display = 'none';
+    } else {
+        adminSecretField.style.display = 'none';
+        studentFields.style.display = 'block';
+        adminSecret.required = false;
+        
+        // Make student fields required
+        document.getElementById('signupFiliere').required = true;
+        document.getElementById('signupZalo').required = true;
+        document.getElementById('signupExplanation').required = true;
+        
+        signupBtn.textContent = 'Soumettre la demande';
+        infoBox.style.display = 'block';
+    }
 }
 
 // Check if already logged in
