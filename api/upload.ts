@@ -69,7 +69,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
     console.log("[v0] File extracted:", originalFilename, "Size:", fileBuffer.length)
     if (customFilename) {
-      console.log("[v0] Using custom filename:", customFilename)
+      console.log("[v0] Custom filename provided (not used with unsigned upload):", customFilename)
     }
 
     // Determine resource type
@@ -88,14 +88,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       upload_preset: uploadPreset,
     }
 
-    if (customFilename) {
-      // Remove extension and any path components
-      const publicId = customFilename.replace(/\.[^/.]+$/, "").replace(/\//g, "_")
-      uploadData.public_id = publicId
-      console.log("[v0] Setting public_id:", publicId)
-    }
-
-    console.log("[v0] Uploading to Cloudinary:", resourceType)
+    console.log("[v0] Uploading to Cloudinary with resource type:", resourceType)
 
     const cloudinaryUrl = `https://api.cloudinary.com/v1_1/${cloudName}/${resourceType}/upload`
     const response = await fetch(cloudinaryUrl, {
