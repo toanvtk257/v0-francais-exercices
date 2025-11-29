@@ -21,7 +21,10 @@ export default async function handler(req: any, res: any) {
     // Prepare Cloudinary upload
     const cloudinaryFormData = new FormData()
     cloudinaryFormData.append("file", file)
-    cloudinaryFormData.append("upload_preset", process.env.CLOUDINARY_UPLOAD_PRESET || "unsigned_preset")
+    cloudinaryFormData.append("upload_preset", process.env.CLOUDINARY_UPLOAD_PRESET || "francais_exercices")
+
+    const folder = process.env.CLOUDINARY_FOLDER || "entrainement-francais"
+    cloudinaryFormData.append("folder", folder)
 
     // Determine resource type (image, video, or raw for audio)
     const fileName = file.name.toLowerCase()
