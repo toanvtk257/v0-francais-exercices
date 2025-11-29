@@ -136,8 +136,14 @@ let currentUser = null;
 
 async function checkAuth() {
     try {
+        let retries = 0;
+        while ((!window.SupabaseDB || !window.SupabaseDB.isAvailable()) && retries < 50) {
+            await new Promise(resolve => setTimeout(resolve, 100));
+            retries++;
+        }
+        
         if (!window.SupabaseDB || !window.SupabaseDB.isAvailable()) {
-            throw new Error('Base de données non disponible');
+            throw new Error('Base de données non disponible après 5 secondes');
         }
         
         currentUser = await window.SupabaseDB.getCurrentUser();
