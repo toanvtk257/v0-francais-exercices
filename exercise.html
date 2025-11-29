@@ -118,7 +118,7 @@ button{border:0;padding:10px 16px;border-radius:8px;cursor:pointer;font-weight:6
     <!-- Transcription display section after results -->
     <div id="transcriptionBox" style="display:none; margin-top: 20px; padding: 20px; background-color: #f9f9f9; border-radius: 8px; border: 1px solid #ddd;">
       <h3 style="margin-top: 0; color: #2d5016;">Transcription</h3>
-      <div id="transcriptionContent" style="white-space: pre-wrap; line-height: 1.6;"></div>
+      <div id="transcriptionTextContent" style="white-space: pre-wrap; line-height: 1.6;"></div>
     </div>
   </div>
 </main>
@@ -351,13 +351,15 @@ async function submitExercise() {
     qcmQuestions.forEach((q, idx) => {
         const points = parseInt(q.dataset.points) || 1;
         totalPoints += points;
-        const expected = (q.dataset.answer || '').toLowerCase();
+        const expected = (q.dataset.answer || '').trim().toLowerCase();
         const picked = q.querySelector('input[type="radio"]:checked');
-        const userAnswer = picked ? picked.value.toLowerCase() : null;
+        const userAnswer = picked ? picked.value.trim().toLowerCase() : null;
         
         answers[`qcm_${idx}`] = userAnswer;
         
-        if (userAnswer === expected) {
+        console.log('[v0] QCM question', idx, '- Expected:', expected, 'Got:', userAnswer, 'Match:', userAnswer === expected);
+        
+        if (userAnswer && userAnswer === expected) {
             earnedPoints += points;
         }
     });
@@ -367,13 +369,15 @@ async function submitExercise() {
     vfQuestions.forEach((q, idx) => {
         const points = parseInt(q.dataset.points) || 1;
         totalPoints += points;
-        const expected = (q.dataset.answer || '').toLowerCase();
+        const expected = (q.dataset.answer || '').trim().toLowerCase();
         const picked = q.querySelector('input[type="radio"]:checked');
-        const userAnswer = picked ? picked.value.toLowerCase() : null;
+        const userAnswer = picked ? picked.value.trim().toLowerCase() : null;
         
         answers[`vf_${idx}`] = userAnswer;
         
-        if (userAnswer === expected) {
+        console.log('[v0] VF question', idx, '- Expected:', expected, 'Got:', userAnswer, 'Match:', userAnswer === expected);
+        
+        if (userAnswer && userAnswer === expected) {
             earnedPoints += points;
         }
     });
@@ -388,7 +392,7 @@ async function submitExercise() {
         let correctCount = 0;
         
         inputs.forEach(input => {
-            const expected = input.dataset.answer.toLowerCase();
+            const expected = input.dataset.answer.trim().toLowerCase();
             const userAnswer = input.value.trim().toLowerCase();
             
             if (userAnswer === expected) {
@@ -402,6 +406,8 @@ async function submitExercise() {
     });
 
     const percentage = totalPoints > 0 ? Math.round((earnedPoints / totalPoints) * 100) : 0;
+
+    console.log('[v0] Final score:', earnedPoints, '/', totalPoints, '=', percentage, '%');
 
     // Save attempt to Supabase
     try {
@@ -431,9 +437,11 @@ async function submitExercise() {
     $('#submitBtn').style.display = 'none';
     $('#correctionBtn').style.display = 'inline-block';
     $('#redoBtn').style.display = 'inline-block';
-    if (currentExercise.texte) {
+    
+    if (currentExercise.type === 'ecoute' && currentExercise.transcription) {
         $('#transcriptionBtn').style.display = 'inline-block';
     }
+    
     $('#resetBtn').style.display = 'none';
 
     if (timerInterval) clearInterval(timerInterval);
@@ -534,7 +542,8 @@ function toggleTranscription() {
     const btn = $('#transcriptionBtn');
     
     if (transcriptionBox.style.display === 'none') {
-        $('#transcriptionContent').textContent = currentExercise.texte || 'Aucune transcription disponible.';
+        const transcriptionText = currentExercise.transcription || currentExercise.texte || 'Aucune transcription disponible.';
+        $('#transcriptionTextContent').textContent = transcriptionText;
         transcriptionBox.style.display = 'block';
         btn.textContent = 'Masquer la transcription';
     } else {
@@ -553,13 +562,21 @@ function redoExercise() {
     $('#transcriptionBox').style.display = 'none';
     
     // Reset all form inputs
-    $$('input[type="radio"]').forEach(input => input.checked = false);
-    $$('.cloze-input').forEach(input => input.value = '');
-    
-    // Remove correction highlights
-    $$('.correct, .incorrect').forEach(el => {
-        el.classList.remove('correct', 'incorrect');
+    $$('input[type="radio"]').forEach(input => {
+        input.checked = false;
+        input.disabled = false;
     });
+    $$('.cloze-input').forEach(input => {
+        input.value = '';
+        input.disabled = false;
+        input.classList.remove('text-green-600', 'text-red-600');
+    });
+    
+    $$('.correction-check, .correction-x').forEach(el => el.remove());
+    $$('.text-green-600, .text-red-600').forEach(el => {
+        el.classList.remove('text-green-600', 'text-red-600');
+    });
+    $$('.explanation-box').forEach(el => el.remove());
     
     // Reset buttons
     $('#submitBtn').style.display = 'inline-block';
@@ -567,8 +584,6 @@ function redoExercise() {
     $('#redoBtn').style.display = 'none';
     $('#transcriptionBtn').style.display = 'none';
     $('#resetBtn').style.display = 'inline-block';
-    $('#resetBtn').textContent = 'Réinitialiser';
-    $('#resetBtn').onclick = resetForm;
     
     // Restart audio if available
     const audioPlayer = $('#audioPlayer');
@@ -578,7 +593,7 @@ function redoExercise() {
     
     // Restart timer
     if (timerInterval) clearInterval(timerInterval);
-    timerInterval = setInterval(updateTimer, 1000);
+    startTimer();
     
     // Scroll to top
     window.scrollTo({ top: 0, behavior: 'smooth' });
