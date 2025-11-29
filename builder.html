@@ -231,11 +231,6 @@ hr{border:none;border-top:1px solid #e8e8e8;margin:16px 0}
     font-size: 14px;
 }
 
-#titre {
-    max-height: 300px;
-    overflow-y: auto;
-}
-
 .exercise-dropdown-container {
     position: relative;
 }
@@ -257,7 +252,7 @@ hr{border:none;border-top:1px solid #e8e8e8;margin:16px 0}
   <div class="info-box">
     <h2>Comment créer un exercice</h2>
     <p>1. <strong>Sélectionnez la Discipline</strong> (CE, CO, Grammaire, Lexique).</p>
-    <p>2. Remplissez les informations de base : <strong>Niveau</strong>, <strong>Thème</strong>, et <strong>Titre</strong>.</p>
+    <p>2. Remplissez les informations de base : <strong>Niveau</strong>, <strong>Thème</strong>, et <strong>Exercice</strong>.</p>
     <p>3. Pour la compréhension écrite (CE) : Saisissez le texte principal, chargez une image ou collez depuis le presse-papier.</p>
     <p>4. Pour la compréhension orale (CO) : Ajoutez le fichier audio local et éventuellement la transcription.</p>
     <p>5. Ajoutez les questions avec leurs options et réponses correctes.</p>
@@ -315,17 +310,17 @@ hr{border:none;border-top:1px solid #e8e8e8;margin:16px 0}
           <label for="theme">Thème</label>
           <input type="text" id="theme" placeholder="ex. Salutations / Voyage">
         </div>
-        <div class="form-group">
-          <label for="titre">Titre de l'exercice</label>
-          <div class="exercise-dropdown-container">
+        <div class="form-row">
+          <div class="form-group flex-1">
+            <label for="titre">Exercice</label>
             <input 
-                type="text" 
-                id="exerciseSearch" 
-                placeholder="Rechercher un exercice..." 
+              type="number" 
+              id="titre" 
+              min="1" 
+              step="1" 
+              placeholder="Numéro de l'exercice" 
+              required
             />
-            <select id="titre" required>
-                <option value="">-- Sélectionnez un numéro --</option>
-            </select>
           </div>
         </div>
       </div>
@@ -624,7 +619,7 @@ async function uploadImageToCloudinary(file) {
         const discipline = $('#kind').value || 'image';
         const level = $('#niveau').value || 'unknown';
         const theme = $('#theme').value || 'theme';
-        const title = $('#titre').options[$('#titre').selectedIndex]?.text || 'exercice';
+        const title = $('#titre').value || 'exercice';
         
         const sanitize = (str) => str.replace(/[^a-z0-9]/gi, '_');
         const extension = file.name.split('.').pop();
@@ -874,58 +869,12 @@ function removeOption(btn) {
 }
 
 function updateExerciseTitleDropdown(currentCount) {
-    const dropdown = $('#titre');
-    const searchInput = $('#exerciseSearch');
-    const startNum = currentCount + 1;
-    const maxNum = startNum + 999; // Support up to 1000 future exercises
+    const input = $('#titre');
+    const nextNum = currentCount + 1;
     
-    dropdown.innerHTML = '<option value="">-- Sélectionnez un numéro --</option>';
-    
-    // Always show search input for easy filtering
-    searchInput.style.display = 'block';
-    
-    // Populate dropdown with all available exercise numbers
-    const exerciseOptions = [];
-    for (let i = startNum; i <= maxNum; i++) {
-        exerciseOptions.push(i);
-    }
-    
-    function populateDropdown(filter = '') {
-        // Keep the default option
-        const defaultOption = dropdown.querySelector('option[value=""]');
-        dropdown.innerHTML = '';
-        dropdown.appendChild(defaultOption);
-        
-        let count = 0;
-        exerciseOptions.forEach(i => {
-            const optionText = `Exo ${i}`;
-            if (filter === '' || optionText.toLowerCase().includes(filter.toLowerCase())) {
-                // Limit display to 100 results for performance, but search can narrow it down
-                if (count < 100) {
-                    const option = document.createElement('option');
-                    option.value = optionText;
-                    option.textContent = optionText;
-                    dropdown.appendChild(option);
-                    count++;
-                }
-            }
-        });
-        
-        // Show message if results were limited
-        if (count === 100 && filter === '') {
-            const infoOption = document.createElement('option');
-            infoOption.disabled = true;
-            infoOption.textContent = '... utilisez la recherche pour plus d\'options';
-            dropdown.appendChild(infoOption);
-        }
-    }
-    
-    populateDropdown();
-    
-    // Add search functionality with real-time filtering
-    searchInput.oninput = (e) => {
-        populateDropdown(e.target.value);
-    };
+    // Set the next available number as default value
+    input.value = nextNum;
+    input.min = nextNum; // Prevent selecting lower numbers than existing exercises
 }
 
 async function saveExercise(e) {
