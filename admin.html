@@ -8,7 +8,7 @@
 <meta http-equiv="Pragma" content="no-cache">
 <meta http-equiv="Expires" content="0">
 <!-- Updated CSP with connect-src explicitly at the beginning to ensure it's parsed -->
-<meta http-equiv="Content-Security-Policy" content="connect-src 'self' https://res.cloudinary.com https://api.cloudinary.com ws: wss:; default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data: https:; font-src 'self' data:;">
+<meta http-equiv="Content-Security-Policy" content="connect-src 'self' https://res.cloudinary.com https://api.cloudinary.com ws: wss:; default-2src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data: https:; font-src 'self' data:;">
 <title>Panneau d'administration</title>
 <style>
 :root{--brand:#2b5;--ink:#222;--muted:#666;--bg:#f7f7f7;--card:#fff;--success:#4caf50;--warning:#ff9800;--error:#d32f2f}
@@ -752,7 +752,7 @@ window.addFormQcmOption = function(questionId) {
   
   optionDiv.innerHTML = `
     <label style="margin:0;font-weight:600;min-width:60px">Choix ${optionLetter.toUpperCase()}</label>
-    <input class="form-qcm-option" data-option-letter="${optionLetter}" placeholder="Réponse ${letter.toUpperCase()}" style="flex:1;padding:10px;border:1px solid #ddd;border-radius:8px;font-size:.95rem">
+    <input class="form-qcm-option" data-option-letter="${optionLetter}" placeholder="Réponse ${optionLetter.toUpperCase()}" style="flex:1;padding:10px;border:1px solid #ddd;border-radius:8px;font-size:.95rem">
     <button onclick="removeFormQcmOption(${questionId}, '${optionLetter}')" type="button" style="background:#e53e3e;color:#fff;border:none;padding:8px 12px;border-radius:6px;cursor:pointer;font-size:.85rem">✕</button>
   `;
   container.appendChild(optionDiv);
@@ -1263,7 +1263,7 @@ function editExercise(id) {
   // Show appropriate containers after form is updated
   $('#qcmFormBox').style.display = 'block'; // Always show QCM box if present or not empty
   $('#vfFormBox').style.display = 'block'; // Always show V/F box if present or not empty
-  $('#clozeFormBox').style.display =($('#kind').value === 'ecoute') ? 'block' : 'none'; // Show Cloze only for 'ecoute'
+  $('#clozeFormBox').style.display = ($('#kind').value === 'ecoute') ? 'block' : 'none'; // Show Cloze only for 'ecoute'
   
   $('#addItem').textContent = 'Mettre à jour l\'exercice'; // Change button text for editing
 }
@@ -1798,7 +1798,7 @@ function sendAdminMessage() {
         read: true // Admin messages are implicitly read
       };
       
-      messagesDb[recipient.id].push(newMessag  e);
+      messagesDb[recipient.id].push(newMessage);
     });
     
     localStorage.setItem(MESSAGES_KEY, JSON.stringify(messagesDb));
@@ -2489,21 +2489,26 @@ function selectGroupStudents() {
 function updateSelectedRecipientsUI() {
   const container = $('#selectedRecipients');
   container.innerHTML = '';
-  selectedRecipients.forEach(r => {
+  selectedRecipients.forEach((r) => { // Removed index as it's not used
     const span = document.createElement('span');
     span.style.cssText = 'background:#e0e0e0;padding:4px 8px;border-radius:4px;font-size:.85rem;display:flex;align-items:center;gap:4px';
-    span.innerHTML = `
-      ${r.name} 
-      <button onclick="removeRecipient(${JSON.stringify(r)})" style="background:none;border:none;color:red;cursor:pointer;font-weight:bold;padding:0;font-size:1rem">✕</button>
-    `;
+    
+    const removeBtn = document.createElement('button');
+    removeBtn.textContent = '✕';
+    removeBtn.style.cssText = 'background:none;border:none;color:red;cursor:pointer;font-weight:bold;padding:0;font-size:1rem';
+    removeBtn.dataset.recipientId = r.id;
+    removeBtn.addEventListener('click', function() {
+      selectedRecipients = selectedRecipients.filter(recipient => recipient.id !== r.id);
+      updateSelectedRecipientsUI();
+    });
+    
+    const nameText = document.createTextNode(r.name + ' ');
+    span.appendChild(nameText);
+    span.appendChild(removeBtn);
     container.appendChild(span);
   });
 }
 
-function removeRecipient(recipient) {
-  selectedRecipients = selectedRecipients.filter(r => r.id !== recipient.id);
-  updateSelectedRecipientsUI();
-}
 
 function switchTab(tabName) {
   const tabs = document.querySelectorAll('.tab-btn');
