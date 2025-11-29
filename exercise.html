@@ -73,7 +73,7 @@ button{border:0;padding:10px 16px;border-radius:8px;cursor:pointer;font-weight:6
     <!-- Audio for ecoute -->
     <div id="audioSection" style="display:none">
       <h2>Écoutez l'audio</h2>
-      <audio class="audio-player" id="audioPlayer" controls preload="metadata">
+      <audio class="audio-player" id="audioPlayer" controls preload="metadata" controlsList="nodownload" oncontextmenu="return false;">
         <source id="audioSource" src="" type="audio/mpeg">
       </audio>
     </div>
@@ -109,7 +109,7 @@ button{border:0;padding:10px 16px;border-radius:8px;cursor:pointer;font-weight:6
       <button type="button" class="btn-primary" id="correctionBtn" onclick="showCorrection()" style="display:none">Voir le corrigé</button>
       <button type="button" class="btn-secondary" id="resetBtn" onclick="resetForm()">Réinitialiser</button>
       <button type="button" class="btn-primary" id="redoBtn" onclick="redoExercise()" style="display:none">Refaire l'exercice</button>
-      <button type="button" class="btn-secondary" id="transcriptionBtn" onclick="toggleTranscription()" style="display:none">Voir la transcription</button>
+      <button type="button" class="btn-primary" id="transcriptionBtn" onclick="toggleTranscription()" style="display:none">Voir la transcription</button>
     </div>
 
     <!-- Feedback -->
@@ -440,7 +440,9 @@ async function submitExercise() {
     $('#correctionBtn').style.display = 'inline-block';
     $('#redoBtn').style.display = 'inline-block';
     
+    console.log('[v0] Exercise type:', currentExercise.type, 'Has texte:', !!currentExercise.texte);
     if (currentExercise.type === 'ecoute' && currentExercise.texte) {
+        console.log('[v0] Showing transcription button');
         $('#transcriptionBtn').style.display = 'inline-block';
     }
     
@@ -540,16 +542,18 @@ function goBack() {
 }
 
 function toggleTranscription() {
-    const transcriptionBox = $('#transcriptionBox');
+    const content = $('#transcriptionContent');
     const btn = $('#transcriptionBtn');
     
-    if (transcriptionBox.style.display === 'none') {
-        const transcriptionText = currentExercise.texte || 'Aucune transcription disponible.';
-        $('#transcriptionTextContent').textContent = transcriptionText;
-        transcriptionBox.style.display = 'block';
+    console.log('[v0] Toggling transcription, current display:', content.style.display);
+    console.log('[v0] Transcription text:', currentExercise.texte);
+    
+    if (content.style.display === 'none') {
+        content.style.display = 'block';
+        content.innerHTML = `<div class="transcription-text">${currentExercise.texte || 'Transcription non disponible'}</div>`;
         btn.textContent = 'Masquer la transcription';
     } else {
-        transcriptionBox.style.display = 'none';
+        content.style.display = 'none';
         btn.textContent = 'Voir la transcription';
     }
 }
