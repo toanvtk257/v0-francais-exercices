@@ -275,6 +275,96 @@ h1 {
   color: var(--muted);
   font-style: italic;
 }
+
+/* New styles for exercise categories */
+.exercise-category {
+    margin-bottom: 30px;
+    padding: 20px;
+    background: var(--card);
+    border-radius: 14px;
+    box-shadow: 0 6px 18px rgba(0,0,0,.05);
+}
+.category-title {
+    margin-top: 0;
+    margin-bottom: 16px;
+    font-size: 1.2rem;
+    color: var(--brand);
+    border-bottom: 2px solid var(--brand);
+    padding-bottom: 8px;
+}
+.exercise-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 0.95rem;
+}
+.exercise-table th, .exercise-table td {
+    text-align: left;
+    padding: 12px 10px;
+    border-bottom: 1px solid var(--border);
+}
+.exercise-table th {
+    background: var(--bg);
+    font-weight: 600;
+    color: var(--muted);
+}
+.exercise-table tbody tr:hover {
+    background: #f9f9f9;
+}
+.exercise-table .badge-info {
+    background: var(--info);
+    color: #fff;
+    padding: 4px 8px;
+    border-radius: 8px;
+    font-size: 0.75rem;
+    font-weight: 600;
+}
+/* </CHANGE> Adding styles for grouped exercise categories */
+.exercise-category {
+    margin-bottom: 32px;
+}
+
+.category-title {
+    font-size: 1.3rem;
+    font-weight: 700;
+    color: var(--brand);
+    margin: 0 0 16px 0;
+    padding-bottom: 8px;
+    border-bottom: 3px solid var(--brand);
+}
+
+.exercise-table {
+    width: 100%;
+    border-collapse: collapse;
+    background: white;
+    border-radius: 8px;
+    overflow: hidden;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+}
+
+.exercise-table thead {
+    background: #f5f5f5;
+}
+
+.exercise-table th {
+    text-align: left;
+    padding: 14px;
+    font-weight: 600;
+    color: var(--ink);
+    border-bottom: 2px solid #e0e0e0;
+}
+
+.exercise-table td {
+    padding: 14px;
+    border-bottom: 1px solid #f0f0f0;
+}
+
+.exercise-table tbody tr:hover {
+    background: #f9f9f9;
+}
+
+.exercise-table tbody tr:last-child td {
+    border-bottom: none;
+}
 </style>
 </head>
 <body>
@@ -628,32 +718,42 @@ async function loadExercises() {
         
         // Group by type
         const grouped = {
-            lecture: exercises.filter(e => e.type === 'lecture'),
-            ecoute: exercises.filter(e => e.type === 'ecoute'),
             grammaire: exercises.filter(e => e.type === 'grammaire'),
-            lexique: exercises.filter(e => e.type === 'lexique')
+            lexique: exercises.filter(e => e.type === 'lexique'),
+            lecture: exercises.filter(e => e.type === 'lecture'),
+            ecoute: exercises.filter(e => e.type === 'ecoute')
         };
         
         const typeLabels = {
-            lecture: '📖 Compréhension Écrite (CE)',
-            ecoute: '🎧 Compréhension Orale (CO)',
             grammaire: '📝 Grammaire',
-            lexique: '💬 Lexique'
+            lexique: '💬 Lexique (Vocabulaire)',
+            lecture: '📖 Compréhension Écrite (CE)',
+            ecoute: '🎧 Compréhension Orale (CO)'
         };
         
         let html = '';
         for (const [type, exs] of Object.entries(grouped)) {
-            html += `<h3>${typeLabels[type]}</h3>`;
+            html += `<div class="exercise-category">
+                <h3 class="category-title">${typeLabels[type]}</h3>`;
+            
             if (exs.length === 0) {
                 html += '<p class="empty-state">Aucun exercice de ce type</p>';
             } else {
-                html += `<table>
-                    <thead><tr><th>Titre</th><th>Niveau</th><th>Thème</th><th>Questions</th><th>Actions</th></tr></thead>
+                html += `<table class="exercise-table">
+                    <thead>
+                        <tr>
+                            <th>Numéro</th>
+                            <th>Niveau</th>
+                            <th>Thème</th>
+                            <th>Questions</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
                     <tbody>
                         ${exs.map(e => `
                             <tr>
-                                <td>${e.titre}</td>
-                                <td>${e.niveau}</td>
+                                <td><strong>${e.titre}</strong></td>
+                                <td><span class="badge badge-info">${e.niveau}</span></td>
                                 <td>${e.theme || '-'}</td>
                                 <td>${e.questions?.length || 0}</td>
                                 <td>
@@ -664,6 +764,7 @@ async function loadExercises() {
                     </tbody>
                 </table>`;
             }
+            html += '</div>';
         }
         
         container.innerHTML = html;
