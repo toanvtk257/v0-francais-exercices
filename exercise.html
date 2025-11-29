@@ -108,10 +108,18 @@ button{border:0;padding:10px 16px;border-radius:8px;cursor:pointer;font-weight:6
       <button type="button" class="btn-primary" id="submitBtn" onclick="submitExercise()">Soumettre</button>
       <button type="button" class="btn-primary" id="correctionBtn" onclick="showCorrection()" style="display:none">Voir le corrigé</button>
       <button type="button" class="btn-secondary" id="resetBtn" onclick="resetForm()">Réinitialiser</button>
+      <button type="button" class="btn-primary" id="redoBtn" onclick="redoExercise()" style="display:none">Refaire l'exercice</button>
+      <button type="button" class="btn-secondary" id="transcriptionBtn" onclick="toggleTranscription()" style="display:none">Voir la transcription</button>
     </div>
 
     <!-- Feedback -->
     <div id="resultBox" class="result-box" style="display:none"></div>
+
+    <!-- Transcription display section after results -->
+    <div id="transcriptionBox" style="display:none; margin-top: 20px; padding: 20px; background-color: #f9f9f9; border-radius: 8px; border: 1px solid #ddd;">
+      <h3 style="margin-top: 0; color: #2d5016;">Transcription</h3>
+      <div id="transcriptionContent" style="white-space: pre-wrap; line-height: 1.6;"></div>
+    </div>
   </div>
 </main>
 
@@ -422,8 +430,11 @@ async function submitExercise() {
     $('#resultBox').style.display = 'block';
     $('#submitBtn').style.display = 'none';
     $('#correctionBtn').style.display = 'inline-block';
-    $('#resetBtn').textContent = 'Retour au tableau de bord';
-    $('#resetBtn').onclick = () => window.location.href = 'dashboard.html';
+    $('#redoBtn').style.display = 'inline-block';
+    if (currentExercise.texte) {
+        $('#transcriptionBtn').style.display = 'inline-block';
+    }
+    $('#resetBtn').style.display = 'none';
 
     if (timerInterval) clearInterval(timerInterval);
 }
@@ -519,16 +530,58 @@ function goBack() {
 }
 
 function toggleTranscription() {
-    const content = $('#transcriptionContent');
-    const btn = $('#toggleTranscriptionBtn');
+    const transcriptionBox = $('#transcriptionBox');
+    const btn = $('#transcriptionBtn');
     
-    if (content.style.display === 'none') {
-        content.style.display = 'block';
+    if (transcriptionBox.style.display === 'none') {
+        $('#transcriptionContent').textContent = currentExercise.texte || 'Aucune transcription disponible.';
+        transcriptionBox.style.display = 'block';
         btn.textContent = 'Masquer la transcription';
     } else {
-        content.style.display = 'none';
+        transcriptionBox.style.display = 'none';
         btn.textContent = 'Voir la transcription';
     }
+}
+
+function redoExercise() {
+    // Reset submission state
+    submitted = false;
+    startTime = Date.now();
+    
+    // Hide results and transcription
+    $('#resultBox').style.display = 'none';
+    $('#transcriptionBox').style.display = 'none';
+    
+    // Reset all form inputs
+    $$('input[type="radio"]').forEach(input => input.checked = false);
+    $$('.cloze-input').forEach(input => input.value = '');
+    
+    // Remove correction highlights
+    $$('.correct, .incorrect').forEach(el => {
+        el.classList.remove('correct', 'incorrect');
+    });
+    
+    // Reset buttons
+    $('#submitBtn').style.display = 'inline-block';
+    $('#correctionBtn').style.display = 'none';
+    $('#redoBtn').style.display = 'none';
+    $('#transcriptionBtn').style.display = 'none';
+    $('#resetBtn').style.display = 'inline-block';
+    $('#resetBtn').textContent = 'Réinitialiser';
+    $('#resetBtn').onclick = resetForm;
+    
+    // Restart audio if available
+    const audioPlayer = $('#audioPlayer');
+    if (audioPlayer) {
+        audioPlayer.currentTime = 0;
+    }
+    
+    // Restart timer
+    if (timerInterval) clearInterval(timerInterval);
+    timerInterval = setInterval(updateTimer, 1000);
+    
+    // Scroll to top
+    window.scrollTo({ top: 0, behavior: 'smooth' });
 }
 
 function formatTime(seconds) {
