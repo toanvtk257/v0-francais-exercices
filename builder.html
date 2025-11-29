@@ -881,13 +881,23 @@ function removeOption(btn) {
     btn.closest('.option-item').remove();
 }
 
-function updateExerciseTitleDropdown(currentCount) {
+function updateExerciseTitleDropdown(currentCount, discipline = null) {
     const input = $('#titre');
-    const nextNum = currentCount + 1;
     
-    // Set the next available number as default value
-    input.value = nextNum;
-    input.min = nextNum; // Prevent selecting lower numbers than existing exercises
+    // If no discipline provided, get it from the form
+    if (!discipline) {
+        discipline = $('#kind').value;
+    }
+    
+    // Count only exercises of the selected discipline
+    window.SupabaseDB.getExercises().then(allExercises => {
+        const exercisesInCategory = allExercises.filter(e => e.type === discipline);
+        const nextNum = exercisesInCategory.length + 1;
+        
+        // Set the next available number as default value
+        input.value = nextNum;
+        input.min = 1;
+    });
 }
 
 async function saveExercise(e) {
@@ -1037,6 +1047,19 @@ if (document.readyState === 'loading') {
     initAuth();
 }
 
+// Update dropdown when discipline changes
+$('#kind').addEventListener('change', function() {
+    updateExerciseTitleDropdown(0, this.value);
+    
+    // Show/hide explanation field based on discipline
+    const explanationSection = document.getElementById('questionsContainer')?.closest('.questions-section');
+    if (explanationSection) {
+        const isGrammaire = this.value === 'grammaire';
+        explanationSection.querySelectorAll('.explanation-field').forEach(field => {
+            field.style.display = isGrammaire ? 'block' : 'none';
+        });
+    }
+});
 </script>
 </body>
 </html>
