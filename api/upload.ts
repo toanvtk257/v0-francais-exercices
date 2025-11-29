@@ -94,8 +94,6 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       // Remove extension and any path components
       const publicId = customFilename.replace(/\.[^/.]+$/, "").replace(/\//g, "_")
       uploadData.public_id = publicId
-      uploadData.use_filename = true
-      uploadData.unique_filename = false
       console.log("[v0] Setting public_id:", publicId, "in folder:", folder)
     }
 
