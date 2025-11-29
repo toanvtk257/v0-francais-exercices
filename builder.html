@@ -117,6 +117,7 @@ hr{border:none;border-top:1px solid #e8e8e8;margin:16px 0}
 .preview-box{margin-top:12px;padding:12px;background:#f5f5f5;border-radius:8px}
 .preview-audio{width:100%;margin-top:8px}
 .preview-image{max-width:100%;max-height:300px;border-radius:8px;margin-top:8px}
+.upload-status{font-size:.9rem;margin-top:8px;font-weight:500;padding:8px 12px;border-radius:6px;background:#f0f9ff;display:inline-block}
 .option-list{display:flex;flex-direction:column;gap:8px;margin-top:8px}
 .option-item{
     display:flex;
@@ -146,11 +147,13 @@ hr{border:none;border-top:1px solid #e8e8e8;margin:16px 0}
 .option-item button{padding:6px 12px;font-size:.9rem}
 .option-item.correct{border-color:var(--brand);background:#e8f5e9}
 .question-type-selector{display:flex;gap:8px;margin:12px 0}
-.type-btn{padding:8px 16px;border:1px solid #ddd;background:#fff;border-radius:6px;cursor:pointer;font-size:.9rem}
+.type-btn{padding:8px 16px;border:1px solid #ddd;background:#f3f4f6;border-radius:6px;cursor:pointer;font-size:.9rem;font-weight:500;transition:all .2s}
+.type-btn:hover{background:#e5e7eb}
 .type-btn.active{background:var(--brand);color:#fff;border-color:var(--brand)}
 .cloze-editor{background:#f9f9f9;padding:12px;border-radius:8px;margin-top:8px}
 .cloze-hint{font-size:.85rem;color:var(--muted);margin-bottom:8px}
-.paste-btn{margin-left:8px;padding:6px 12px;font-size:.85rem;background:#e0e0e0;color:#111}
+.paste-btn{margin-left:8px;padding:6px 12px;font-size:.85rem;background:#f3f4f6;color:#111;border:1px solid #d1d5db;border-radius:6px;font-weight:500}
+.paste-btn:hover{background:#e5e7eb}
 
 /* Added modal styles for type selection */
 .modal {
@@ -327,6 +330,7 @@ hr{border:none;border-top:1px solid #e8e8e8;margin:16px 0}
             <p>📷 Cliquez pour sélectionner ou glissez une image ici</p>
             <input type="file" id="textImageInput" accept="image/*" style="display:none" onchange="handleTextImageUpload(event)">
           </div>
+          <div id="textImageUploadStatus" class="upload-status hidden"></div>
           <div id="textImagePreview" class="preview-box hidden">
             <img id="textImagePreviewImg" class="preview-image">
             <button type="button" class="secondary" onclick="clearTextImage()">Supprimer</button>
@@ -573,6 +577,10 @@ function handleTextImageUpload(event) {
 function processTextImage(file) {
     console.log('[v0] Starting image upload process for:', file.name);
     
+    $('#textImageUploadStatus').textContent = '⏳ Upload en cours...';
+    $('#textImageUploadStatus').style.color = '#f59e0b';
+    $('#textImageUploadStatus').classList.remove('hidden');
+    
     // Show preview immediately
     const reader = new FileReader();
     reader.onload = (e) => {
@@ -605,11 +613,16 @@ async function uploadImageToCloudinary(file) {
         
         console.log('[v0] Image uploaded successfully to Cloudinary:', imageUrl);
         
+        $('#textImageUploadStatus').textContent = '✅ Image synchronisée sur Cloudinary';
+        $('#textImageUploadStatus').style.color = '#10b981';
+        
         // Update preview to use Cloudinary URL
         $('#textImagePreviewImg').src = imageUrl;
         
     } catch (error) {
         console.error('[v0] Image upload error:', error);
+        $('#textImageUploadStatus').textContent = '❌ Erreur upload: ' + error.message;
+        $('#textImageUploadStatus').style.color = '#ef4444';
         // Keep the local preview but store the file object for fallback
         textImageBlob = file;
     }
@@ -618,17 +631,8 @@ async function uploadImageToCloudinary(file) {
 function clearTextImage() {
     textImageBlob = null;
     $('#textImagePreview').classList.add('hidden');
+    $('#textImageUploadStatus').classList.add('hidden');
     $('#textImageInput').value = '';
-}
-
-async function pasteFromClipboard() {
-    try {
-        const text = await navigator.clipboard.readText();
-        $('#textePaste').value = text;
-    } catch (err) {
-        alert('Impossible de lire le presse-papier. Veuillez coller manuellement (Ctrl+V).');
-        $('#textePaste').focus();
-    }
 }
 
 function handleAudioDrop(event) {
