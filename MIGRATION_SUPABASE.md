@@ -47,6 +47,7 @@ Toutes les tables utilisent Row Level Security (RLS) avec des politiques appropr
 - `scripts/002_insert_default_admin.sql` - Compte admin par défaut
 - `scripts/migrate-localstorage-to-supabase.js` - Script de migration des données
 - `test-supabase.html` - Page de test de l'intégration
+- `migrate.html` - Page de migration des données
 
 ### Fichiers mis à jour
 - `login.html` - Authentification avec Supabase
@@ -57,20 +58,26 @@ Toutes les tables utilisent Row Level Security (RLS) avec des politiques appropr
 
 ## 📝 Comptes par défaut
 
-Un compte admin par défaut a été créé:
-- **Email**: admin@francais.app
-- **PIN**: 1234
+Deux comptes admin ont été créés:
 
-⚠️ **Important**: Changez ce PIN après la première connexion!
+### Compte administrateur principal
+- **Email**: toanvtk@hcmue.edu.vn
+- **PIN**: 257000 (6 chiffres)
+
+### Compte administrateur secondaire
+- **Email**: admin@francais.app
+- **PIN**: 123456 (6 chiffres)
+
+⚠️ **Important**: Les PINs doivent contenir exactement **6 chiffres**. Vous pouvez changer votre PIN après connexion dans l'interface admin.
 
 ## 🔄 Migration des données existantes
 
-Si vous avez des données existantes dans localStorage, utilisez le script de migration:
+Si vous avez des données existantes dans localStorage, utilisez la page de migration:
 
-1. Ouvrez l'ancienne version du site (avec localStorage)
-2. Ouvrez la console du navigateur (F12)
-3. Copiez et exécutez le contenu de `scripts/migrate-localstorage-to-supabase.js`
-4. Exécutez: `migrateToSupabase()`
+1. Ouvrez `migrate.html` dans votre navigateur
+2. Cliquez sur "Scanner localStorage" pour voir vos données locales
+3. Cliquez sur "Lancer la migration" pour transférer tout vers Supabase
+4. Attendez la fin de la migration (suivez les logs en temps réel)
 
 Le script va automatiquement:
 - Migrer tous les utilisateurs
