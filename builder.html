@@ -615,7 +615,7 @@ function handleAudioUpload(event) {
 async function processAudioFile(file) {
     audioBlob = file;
     $('#audioFileName').textContent = file.name;
-    $('#audioUploadStatus').textContent = '⏳ Upload vers Cloudinary en cours...';
+    $('#audioUploadStatus').textContent = 'Upload vers Cloudinary en cours...';
     $('#audioUploadStatus').style.color = '#666';
     
     // Show preview immediately with local URL
@@ -628,10 +628,21 @@ async function processAudioFile(file) {
 
     // Upload to Cloudinary in background
     try {
+        // Generate smart filename based on form data
+        const exerciseData = {
+            discipline: $('#kind').value,
+            niveau: $('#niveau').value,
+            theme: $('#theme').value.trim(),
+            titre: $('#titre').value.trim()
+        };
+        
+        const smartFilename = generateSmartFilename(file.name, exerciseData);
+        
         const formData = new FormData();
         formData.append('file', file);
+        formData.append('filename', smartFilename); // Send custom filename
         
-        console.log('[v0] Uploading audio to Cloudinary:', file.name);
+        console.log('[v0] Uploading audio to Cloudinary with name:', smartFilename);
         
         const response = await fetch('/api/upload', {
             method: 'POST',
@@ -647,7 +658,7 @@ async function processAudioFile(file) {
         const audioUrl = data.url;
         
         console.log('[v0] Audio uploaded successfully:', audioUrl);
-        $('#audioUploadStatus').textContent = '✅ Fichier uploadé sur Cloudinary';
+        $('#audioUploadStatus').textContent = 'Fichier uploaded sur Cloudinary';
         $('#audioUploadStatus').style.color = '#10b981';
         
         // Update player to use Cloudinary URL
@@ -655,7 +666,7 @@ async function processAudioFile(file) {
         
     } catch (error) {
         console.error('[v0] Audio upload error:', error);
-        $('#audioUploadStatus').textContent = '❌ Erreur: ' + error.message + ' - Vérifiez CLOUDINARY_CLOUD_NAME dans les variables';
+        $('#audioUploadStatus').textContent = 'Erreur: ' + error.message + ' - Verifiez CLOUDINARY_CLOUD_NAME dans les variables';
         $('#audioUploadStatus').style.color = '#ef4444';
     }
 }
@@ -952,8 +963,19 @@ async function saveExercise(event) {
 async function uploadToCloudinary(file, type) {
     console.log('[v0] Uploading to Cloudinary:', file.name, 'Type:', type);
     
+    // Generate smart filename based on current form data
+    const exerciseData = {
+        discipline: $('#kind').value,
+        niveau: $('#niveau').value,
+        theme: $('#theme').value.trim(),
+        titre: $('#titre').value.trim()
+    };
+    
+    const smartFilename = generateSmartFilename(file.name, exerciseData);
+    
     const formData = new FormData();
     formData.append('file', file);
+    formData.append('filename', smartFilename); // Send custom filename
     
     try {
         const response = await fetch('/api/upload', {
@@ -1060,6 +1082,33 @@ function updateExerciseTitleDropdown(currentCount) {
     if (selectedValue) {
         titleSelect.value = selectedValue;
     }
+}
+
+function generateSmartFilename(originalFilename, exerciseData) {
+    // Get file extension
+    const ext = originalFilename.split('.').pop().toLowerCase();
+    
+    // Sanitize text for filename (remove special chars, replace spaces)
+    const sanitize = (text) => {
+        return text
+            .normalize('NFD')
+            .replace(/[\u0300-\u036f]/g, '') // Remove accents
+            .replace(/[^a-zA-Z0-9]/g, '_')   // Replace special chars with underscore
+            .replace(/_+/g, '_')              // Replace multiple underscores with single
+            .replace(/^_|_$/g, '');           // Remove leading/trailing underscores
+    };
+    
+    // Build filename: Discipline_Niveau_Theme_Titre.ext
+    const parts = [
+        exerciseData.discipline || 'unknown',
+        exerciseData.niveau || 'A1',
+        exerciseData.theme || 'general',
+        exerciseData.titre || 'exercice'
+    ];
+    
+    const filename = parts.map(sanitize).join('_') + '.' + ext;
+    console.log('[v0] Generated smart filename:', filename);
+    return filename;
 }
 </script>
 </body>

@@ -26,12 +26,16 @@ export default async function handler(req: any, res: any) {
     // Get file from request
     const formData = await req.formData()
     const file = formData.get("file")
+    const customFilename = formData.get("filename")
 
     if (!file) {
       return res.status(400).json({ error: "No file provided" })
     }
 
     console.log("[v0] Uploading file:", file.name, "Size:", file.size)
+    if (customFilename) {
+      console.log("[v0] Using custom filename:", customFilename)
+    }
 
     // Prepare Cloudinary upload
     const cloudinaryFormData = new FormData()
@@ -40,6 +44,13 @@ export default async function handler(req: any, res: any) {
 
     const folder = process.env.CLOUDINARY_FOLDER || "entrainement-francais"
     cloudinaryFormData.append("folder", folder)
+
+    if (customFilename) {
+      // Remove extension from filename for public_id
+      const publicId = customFilename.replace(/\.[^/.]+$/, "")
+      cloudinaryFormData.append("public_id", publicId)
+      console.log("[v0] Setting public_id:", publicId)
+    }
 
     // Determine resource type (image, video, or raw for audio)
     const fileName = file.name.toLowerCase()
