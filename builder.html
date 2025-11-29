@@ -328,7 +328,7 @@ hr{border:none;border-top:1px solid #e8e8e8;margin:16px 0}
       <hr>
 
       <!-- Passage Box for CE -->
-      <div id="passageBox" class="hidden">
+      <div id="textBox" class="hidden">
         <h3>Texte de lecture (CE)</h3>
         
         <div class="form-group">
@@ -767,14 +767,11 @@ function clearAudio() {
 
 function toggleBoxes() {
     const kind = $('#kind').value;
-    $('#passageBox').classList.add('hidden');
-    $('#audioBox').classList.add('hidden');
     
-    if (kind === 'lecture') {
-        $('#passageBox').classList.remove('hidden');
-    } else if (kind === 'ecoute') {
-        $('#audioBox').classList.remove('hidden');
-    }
+    $('#textBox').style.display = (kind === 'lecture') ? 'block' : 'none';
+    $('#audioBox').style.display = (kind === 'ecoute') ? 'block' : 'none';
+    
+    toggleExplanationFields();
 }
 
 function showQuestionTypeModal() {
@@ -814,6 +811,11 @@ function addQuestionOfType(type) {
                 `).join('')}
             </div>
             <button type="button" class="secondary" onclick="addOption(${questionCounter})">+ Ajouter une option</button>
+            <div class="grammar-explanation-container" style="margin-top: 15px;">
+                <label>Explication grammaticale (optionnel)</label>
+                <textarea class="question-explanation" placeholder="Expliquez le point de grammaire abordé dans cette question..." style="width:100%; min-height:60px; padding:8px; border:1px solid #ccc; border-radius:4px; font-family: inherit;"></textarea>
+                <small style="color: #666; display: block; margin-top: 4px;">Cette explication apparaîtra dans le corrigé après la soumission</small>
+            </div>
         `;
     } else if (type === 'vf') {
         div.innerHTML = `
@@ -829,6 +831,11 @@ function addQuestionOfType(type) {
                 <option value="true">Vrai</option>
                 <option value="false">Faux</option>
             </select>
+            <div class="grammar-explanation-container" style="margin-top: 15px;">
+                <label>Explication grammaticale (optionnel)</label>
+                <textarea class="question-explanation" placeholder="Expliquez le point de grammaire abordé dans cette question..." style="width:100%; min-height:60px; padding:8px; border:1px solid #ccc; border-radius:4px; font-family: inherit;"></textarea>
+                <small style="color: #666; display: block; margin-top: 4px;">Cette explication apparaîtra dans le corrigé après la soumission</small>
+            </div>
         `;
     } else if (type === 'cloze') {
         div.innerHTML = `
@@ -841,10 +848,16 @@ function addQuestionOfType(type) {
                 <div class="cloze-hint">Entourez les mots à masquer avec des crochets, ex: "Le [chat] mange."</div>
                 <textarea class="cloze-text" placeholder="Entrez le texte avec les mots entre [crochets]..." style="width:100%;min-height:80px" required></textarea>
             </div>
+            <div class="grammar-explanation-container" style="margin-top: 15px;">
+                <label>Explication grammaticale (optionnel)</label>
+                <textarea class="question-explanation" placeholder="Expliquez le point de grammaire abordé dans cette question..." style="width:100%; min-height:60px; padding:8px; border:1px solid #ccc; border-radius:4px; font-family: inherit;"></textarea>
+                <small style="color: #666; display: block; margin-top: 4px;">Cette explication apparaîtra dans le corrigé après la soumission</small>
+            </div>
         `;
     }
     
     container.appendChild(div);
+    toggleExplanationFields();
 }
 
 function removeQuestion(id) {
@@ -922,6 +935,7 @@ async function saveExercise(e) {
     $$('.question-item').forEach((item) => {
         const type = item.querySelector('.question-type').value;
         const text = item.querySelector('.question-text')?.value;
+        const explanation = item.querySelector('.question-explanation')?.value || '';
         
         if (type === 'qcm') {
             const options = [...item.querySelectorAll('.option-text')].map(o => o.value);
@@ -932,20 +946,23 @@ async function saveExercise(e) {
                 type: 'qcm',
                 question: text,
                 options,
-                correct: correctIndex
+                correct: correctIndex,
+                ...(explanation && { explanation })
             });
         } else if (type === 'vf') {
             const answer = item.querySelector('.vf-answer').value === 'true';
             questions.push({
                 type: 'vf',
                 question: text,
-                correct: answer
+                correct: answer,
+                ...(explanation && { explanation })
             });
         } else if (type === 'cloze') {
             const clozeText = item.querySelector('.cloze-text').value;
             questions.push({
                 type: 'cloze',
-                text: clozeText
+                text: clozeText,
+                ...(explanation && { explanation })
             });
         }
     });
@@ -1000,9 +1017,18 @@ function resetForm() {
     textImageBlob = null;
     clearAudio();
     clearTextImage();
-    $('#passageBox').classList.add('hidden');
+    $('#textBox').classList.add('hidden');
     $('#audioBox').classList.add('hidden');
     $('#saveStatus').innerHTML = '';
+}
+
+function toggleExplanationFields() {
+    const discipline = $('#kind').value;
+    const isGrammar = discipline === 'grammaire';
+    
+    $$('.grammar-explanation-container').forEach(container => {
+        container.style.display = isGrammar ? 'block' : 'none';
+    });
 }
 
 if (document.readyState === 'loading') {
