@@ -222,9 +222,9 @@ function renderExercise() {
     }
     
     // Show transcription for CO exercises
-    if (currentExercise.type === 'ecoute' && currentExercise.transcription) {
+    if (currentExercise.type === 'ecoute' && currentExercise.texte) {
         $('#transcriptionSection').style.display = 'block';
-        $('#transcriptionContent').textContent = currentExercise.transcription;
+        $('#transcriptionContent').textContent = currentExercise.texte;
     }
     
     // Render questions
@@ -440,7 +440,7 @@ async function submitExercise() {
     $('#correctionBtn').style.display = 'inline-block';
     $('#redoBtn').style.display = 'inline-block';
     
-    if (currentExercise.type === 'ecoute' && currentExercise.transcription) {
+    if (currentExercise.type === 'ecoute' && currentExercise.texte) {
         $('#transcriptionBtn').style.display = 'inline-block';
     }
     
@@ -544,7 +544,7 @@ function toggleTranscription() {
     const btn = $('#transcriptionBtn');
     
     if (transcriptionBox.style.display === 'none') {
-        const transcriptionText = currentExercise.transcription || currentExercise.texte || 'Aucune transcription disponible.';
+        const transcriptionText = currentExercise.texte || 'Aucune transcription disponible.';
         $('#transcriptionTextContent').textContent = transcriptionText;
         transcriptionBox.style.display = 'block';
         btn.textContent = 'Masquer la transcription';
