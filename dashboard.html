@@ -329,6 +329,16 @@ function switchTab(tab) {
 
 // Initialize
 document.addEventListener('DOMContentLoaded', checkAuth);
+
+window.addEventListener('beforeunload', async (event) => {
+    try {
+        if (window.SupabaseDB && currentUser) {
+            await window.SupabaseDB.logout();
+        }
+    } catch (error) {
+        console.error('Auto logout error:', error);
+    }
+});
 </script>
 </body>
 </html>
