@@ -126,6 +126,67 @@ hr{border:none;border-top:1px solid #e8e8e8;margin:16px 0}
 .cloze-editor{background:#f9f9f9;padding:12px;border-radius:8px;margin-top:8px}
 .cloze-hint{font-size:.85rem;color:var(--muted);margin-bottom:8px}
 .paste-btn{margin-left:8px;padding:6px 12px;font-size:.85rem;background:#e0e0e0;color:#111}
+
+/* Added modal styles for type selection */
+.modal {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0, 0, 0, 0.5);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 1000;
+}
+
+.modal-content {
+    background: white;
+    padding: 2rem;
+    border-radius: 8px;
+    max-width: 600px;
+    width: 90%;
+}
+
+.type-selector-buttons {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+    gap: 1rem;
+    margin-top: 1rem;
+}
+
+.type-option-btn {
+    padding: 1.5rem 1rem;
+    background: white;
+    border: 2px solid #ddd;
+    border-radius: 8px;
+    cursor: pointer;
+    transition: all 0.2s;
+    text-align: center;
+}
+
+.type-option-btn:hover {
+    border-color: #00c896;
+    background: #f0fdf9;
+    transform: translateY(-2px);
+}
+
+.type-icon {
+    font-size: 2rem;
+    margin-bottom: 0.5rem;
+}
+
+.type-name {
+    font-weight: bold;
+    margin-bottom: 0.25rem;
+    color: #333;
+}
+
+.type-desc {
+    font-size: 0.8rem;
+    color: #666;
+}
 </style>
 </head>
 <body>
@@ -273,19 +334,13 @@ hr{border:none;border-top:1px solid #e8e8e8;margin:16px 0}
         </div>
       </div>
 
-      <!-- Completely redesigned questions section with flexible question types -->
+      <!-- Removed separate type buttons, now using modal selector on add -->
       <div id="questionsSection">
         <h3>Questions</h3>
-        <p class="small">Ajoutez des questions de différents types</p>
+        <p class="small">Ajoutez des questions dans l'ordre souhaité</p>
         
-        <div class="question-type-selector">
-          <button type="button" class="type-btn active" onclick="setQuestionType('qcm')" id="typeQCM">QCM</button>
-          <button type="button" class="type-btn" onclick="setQuestionType('vf')" id="typeVF">Vrai/Faux</button>
-          <button type="button" class="type-btn" id="typeCloze" onclick="setQuestionType('cloze')" style="display:none">Cloze (Texte à trous)</button>
-        </div>
-
         <div id="questionsContainer"></div>
-        <button type="button" class="secondary" onclick="addQuestion()">+ Ajouter une question</button>
+        <button type="button" class="secondary" onclick="showQuestionTypeModal()">+ Ajouter une question</button>
       </div>
 
       <hr>
@@ -300,6 +355,31 @@ hr{border:none;border-top:1px solid #e8e8e8;margin:16px 0}
   </section>
 </div>
 
+<!-- Added modal for question type selection -->
+<div id="questionTypeModal" class="modal" style="display: none;">
+  <div class="modal-content">
+    <h3>Choisir le type de question</h3>
+    <div class="type-selector-buttons">
+      <button type="button" class="type-option-btn" onclick="addQuestionOfType('qcm')">
+        <div class="type-icon">📝</div>
+        <div class="type-name">QCM</div>
+        <div class="type-desc">Question à choix multiples</div>
+      </button>
+      <button type="button" class="type-option-btn" onclick="addQuestionOfType('vf')">
+        <div class="type-icon">✓✗</div>
+        <div class="type-name">Vrai/Faux</div>
+        <div class="type-desc">Question binaire vrai ou faux</div>
+      </button>
+      <button type="button" class="type-option-btn" onclick="addQuestionOfType('cloze')">
+        <div class="type-icon">⬚</div>
+        <div class="type-name">Cloze</div>
+        <div class="type-desc">Texte à trous</div>
+      </button>
+    </div>
+    <button type="button" class="secondary" onclick="hideQuestionTypeModal()" style="margin-top: 1rem;">Annuler</button>
+  </div>
+</div>
+
 <script src="lib/supabase-client.js"></script>
 
 <script>
@@ -308,7 +388,6 @@ const $$ = s => [...document.querySelectorAll(s)];
 
 let currentUser = null;
 let questionCounter = 0;
-let currentQuestionType = 'qcm';
 let audioBlob = null;
 let textImageBlob = null;
 
@@ -519,34 +598,25 @@ function clearAudio() {
     $('#audioFileInput').value = '';
 }
 
-function setQuestionType(type) {
-    currentQuestionType = type;
-    $$('[id^="type"]').forEach(btn => btn.classList.remove('active'));
-    $(`#type${type.toUpperCase()}`).classList.add('active');
+function showQuestionTypeModal() {
+    $('#questionTypeModal').style.display = 'flex';
 }
 
-function toggleBoxes() {
-    const kind = $('#kind').value;
-    
-    $('#passageBox').classList.toggle('hidden', kind !== 'lecture');
-    $('#audioBox').classList.toggle('hidden', kind !== 'ecoute');
-    
-    $('#typeCloze').style.display = kind === 'ecoute' ? 'inline-block' : 'none';
-    if (kind !== 'ecoute' && currentQuestionType === 'cloze') {
-        setQuestionType('qcm');
-    }
+function hideQuestionTypeModal() {
+    $('#questionTypeModal').style.display = 'none';
 }
 
-function addQuestion() {
+function addQuestionOfType(type) {
+    hideQuestionTypeModal();
     questionCounter++;
     const container = $('#questionsContainer');
     
     const div = document.createElement('div');
     div.className = 'question-item';
     div.id = `question_${questionCounter}`;
-    div.dataset.type = currentQuestionType;
+    div.dataset.type = type;
     
-    if (currentQuestionType === 'qcm') {
+    if (type === 'qcm') {
         div.innerHTML = `
             <div class="question-header">
                 <span class="question-number">Question ${questionCounter} (QCM)</span>
@@ -563,21 +633,17 @@ function addQuestion() {
             </div>
             <div class="form-group">
                 <label>Points</label>
-                <input type="number" class="q-points" value="1" min="1" max="10">
+                <input type="number" class="q-points" value="1" min="1">
             </div>
             <div class="form-group">
                 <label>Explication (optionnel)</label>
-                <input type="text" class="q-explanation" placeholder="Explication de la réponse correcte">
+                <textarea class="q-explanation" placeholder="Expliquez la bonne réponse..." rows="2"></textarea>
             </div>
         `;
-        
-        // Add 4 default options
         container.appendChild(div);
-        for (let i = 0; i < 4; i++) {
-            addOption(questionCounter);
-        }
-        
-    } else if (currentQuestionType === 'vf') {
+        addOption(questionCounter);
+        addOption(questionCounter);
+    } else if (type === 'vf') {
         div.innerHTML = `
             <div class="question-header">
                 <span class="question-number">Question ${questionCounter} (Vrai/Faux)</span>
@@ -585,42 +651,42 @@ function addQuestion() {
             </div>
             <div class="form-group">
                 <label>Affirmation</label>
-                <input type="text" class="q-text" placeholder="Ex: La tour Eiffel est à Paris">
+                <input type="text" class="q-text" placeholder="Ex: Paris est la capitale de la France">
             </div>
             <div class="form-group">
                 <label>Réponse correcte</label>
-                <select class="q-answer">
-                    <option value="vrai">Vrai</option>
-                    <option value="faux">Faux</option>
+                <select class="q-correct-vf">
+                    <option value="true">Vrai</option>
+                    <option value="false">Faux</option>
                 </select>
             </div>
             <div class="form-group">
                 <label>Points</label>
-                <input type="number" class="q-points" value="1" min="1" max="10">
+                <input type="number" class="q-points" value="1" min="1">
             </div>
             <div class="form-group">
                 <label>Explication (optionnel)</label>
-                <input type="text" class="q-explanation" placeholder="Explication de la réponse">
+                <textarea class="q-explanation" placeholder="Expliquez pourquoi c'est vrai ou faux..." rows="2"></textarea>
             </div>
         `;
         container.appendChild(div);
-        
-    } else if (currentQuestionType === 'cloze') {
+    } else if (type === 'cloze') {
         div.innerHTML = `
             <div class="question-header">
-                <span class="question-number">Texte à trous ${questionCounter}</span>
+                <span class="question-number">Question ${questionCounter} (Cloze - Texte à trous)</span>
                 <button type="button" class="danger" style="padding:4px 8px;font-size:.8rem" onclick="removeQuestion(${questionCounter})">Supprimer</button>
             </div>
-            <div class="cloze-editor">
-                <div class="cloze-hint">💡 Utilisez {mot} pour indiquer les blancs. Ex: "Je {suis} étudiant."</div>
-                <div class="form-group">
-                    <label>Texte avec blancs</label>
-                    <textarea class="q-cloze-text" placeholder="Ex: La France est {un} pays européen. Sa capitale est {Paris}." style="min-height:80px"></textarea>
-                </div>
+            <div class="form-group">
+                <label>💡 Utilisez (mot) pour indiquer les blancs. Ex: "Je (suis) étudiant."</label>
+                <textarea class="q-cloze-text" placeholder="Ex: La France est (un) pays européen. Sa capitale est (Paris)." rows="3"></textarea>
             </div>
             <div class="form-group">
                 <label>Points</label>
-                <input type="number" class="q-points" value="1" min="1" max="10">
+                <input type="number" class="q-points" value="1" min="1">
+            </div>
+            <div class="form-group">
+                <label>Explication (optionnel)</label>
+                <textarea class="q-explanation" placeholder="Expliquez les réponses..." rows="2"></textarea>
             </div>
         `;
         container.appendChild(div);
@@ -639,7 +705,7 @@ function addOption(questionId) {
     optionDiv.innerHTML = `
         <input type="text" placeholder="Option ${letter.toUpperCase()}" class="option-text" value="">
         <label style="margin:0;display:flex;align-items:center;gap:4px;white-space:nowrap">
-            <input type="radio" name="correct_${questionId}" onchange="markCorrect(${questionId}, '${letter}')">
+            <input type="radio" name="correct_${questionId}">
             Correcte
         </label>
         <button type="button" class="danger" onclick="removeOption(this)">✕</button>
@@ -657,13 +723,6 @@ function addOption(questionId) {
 function removeOption(btn) {
     const optionItem = btn.closest('.option-item');
     optionItem.remove();
-}
-
-function markCorrect(questionId, letter) {
-    const optionList = $(`#options_${questionId}`);
-    $$(`#options_${questionId} .option-item`).forEach(item => {
-        item.classList.toggle('correct', item.dataset.letter === letter);
-    });
 }
 
 function removeQuestion(id) {
@@ -709,7 +768,7 @@ function getQuestions() {
             }
             
         } else if (type === 'vf') {
-            const answer = item.querySelector('.q-answer').value;
+            const answer = item.querySelector('.q-correct-vf').value === 'true';
             
             if (text) {
                 questions.push({
