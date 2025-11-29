@@ -383,10 +383,11 @@ h1 {
           <div class="form-group">
             <label>Titre</label>
             <input type="text" id="resourceTitle" required>
+            <small id="titleLoadingStatus" style="color: #10b981; display: none;">🔄 Récupération du titre...</small>
           </div>
           <div class="form-group">
             <label>URL</label>
-            <input type="url" id="resourceUrl" required>
+            <input type="url" id="resourceUrl" required oninput="handleUrlInput(this.value)">
           </div>
           <div class="form-group">
             <label>Catégorie</label>
@@ -1196,6 +1197,109 @@ async function changePin(event) {
 
 // Initialize
 document.addEventListener('DOMContentLoaded', checkAuth);
+
+let fetchTitleTimeout;
+
+async function handleUrlInput(url) {
+    // Clear previous timeout
+    clearTimeout(fetchTitleTimeout);
+    
+    // Wait 500ms after user stops typing
+    fetchTitleTimeout = setTimeout(async () => {
+        const titleInput = document.getElementById('resourceTitle');
+        const statusElement = document.getElementById('titleLoadingStatus');
+        
+        // Only auto-fetch if title field is empty
+        if (titleInput.value.trim() !== '') return;
+        
+        // Check if URL is from a supported platform
+        if (isVideoUrl(url)) {
+            try {
+                statusElement.style.display = 'block';
+                const title = await fetchVideoTitle(url);
+                
+                if (title) {
+                    titleInput.value = title;
+                    statusElement.textContent = '✅ Titre récupéré automatiquement';
+                    statusElement.style.color = '#10b981';
+                    setTimeout(() => {
+                        statusElement.style.display = 'none';
+                    }, 3000);
+                } else {
+                    statusElement.style.display = 'none';
+                }
+            } catch (error) {
+                console.error('[v0] Error fetching video title:', error);
+                statusElement.textContent = '⚠️ Impossible de récupérer le titre';
+                statusElement.style.color = '#f59e0b';
+                setTimeout(() => {
+                    statusElement.style.display = 'none';
+                }, 3000);
+            }
+        }
+    }, 500);
+}
+
+function isVideoUrl(url) {
+    try {
+        const urlObj = new URL(url);
+        const hostname = urlObj.hostname.toLowerCase();
+        
+        // Supported platforms
+        return hostname.includes('youtube.com') || 
+               hostname.includes('youtu.be') ||
+               hostname.includes('vimeo.com') ||
+               hostname.includes('dailymotion.com');
+    } catch {
+        return false;
+    }
+}
+
+async function fetchVideoTitle(url) {
+    try {
+        const urlObj = new URL(url);
+        const hostname = urlObj.hostname.toLowerCase();
+        
+        // YouTube
+        if (hostname.includes('youtube.com') || hostname.includes('youtu.be')) {
+            // Use oEmbed API (no authentication required)
+            const oembedUrl = `https://www.youtube.com/oembed?url=${encodeURIComponent(url)}&format=json`;
+            const response = await fetch(oembedUrl);
+            
+            if (response.ok) {
+                const data = await response.json();
+                return data.title;
+            }
+        }
+        
+        // Vimeo
+        if (hostname.includes('vimeo.com')) {
+            const oembedUrl = `https://vimeo.com/api/oembed.json?url=${encodeURIComponent(url)}`;
+            const response = await fetch(oembedUrl);
+            
+            if (response.ok) {
+                const data = await response.json();
+                return data.title;
+            }
+        }
+        
+        // Dailymotion
+        if (hostname.includes('dailymotion.com')) {
+            const oembedUrl = `https://www.dailymotion.com/services/oembed?url=${encodeURIComponent(url)}`;
+            const response = await fetch(oembedUrl);
+            
+            if (response.ok) {
+                const data = await response.json();
+                return data.title;
+            }
+        }
+        
+        return null;
+    } catch (error) {
+        console.error('[v0] Error in fetchVideoTitle:', error);
+        return null;
+    }
+}
 </script>
 </body>
 </html>
