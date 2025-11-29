@@ -6,6 +6,8 @@
 <meta http-equiv="Content-Security-Policy" content="connect-src 'self' https://*.supabase.co https://res.cloudinary.com https://api.cloudinary.com ws: wss:; default-src 'self'; script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net; style-src 'self' 'unsafe-inline'; img-src 'self' data: https: blob:; font-src 'self' data:; media-src 'self' https: blob:;">
 <title>Créateur d'exercices — Version améliorée</title>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="lib/supabase-client.js"></script>
+<script src="lib/config.js"></script>
 <style>
 :root{--brand:#2b5;--ink:#222;--muted:#666;--bg:#f7f7f7;--card:#fff}
 html,body{margin:0;padding:0;background:var(--bg);color:var(--ink);font-family:system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif}
@@ -403,8 +405,6 @@ hr{border:none;border-top:1px solid #e8e8e8;margin:16px 0}
   </div>
 </div>
 
-<script src="lib/supabase-client.js"></script>
-
 <script>
 const $ = s => document.querySelector(s);
 const $$ = s => [...document.querySelectorAll(s)];
@@ -418,19 +418,23 @@ let textImageBlob = null;
 // Authentication
 // =============================================
 
-async function checkAuth() {
+async function initAuth() {
     try {
-        if (!window.SupabaseDB || !window.SupabaseDB.isAvailable()) {
-            throw new Error('Supabase non disponible');
-        }
-        
         currentUser = await window.SupabaseDB.getCurrentUser();
         
-        if (!currentUser || currentUser.role !== 'admin') {
-            alert('Accès réservé aux administrateurs');
+        if (!currentUser) {
+            alert('Vous devez être connecté pour créer des exercices');
             window.location.href = 'login.html';
             return;
         }
+        
+        if (currentUser.role !== 'admin') {
+            alert('Accès réservé aux administrateurs');
+            window.location.href = 'index.html';
+            return;
+        }
+        
+        console.log('[v0] Builder loaded for admin:', currentUser.email);
         
         $('#supabaseStatus').textContent = 'Supabase: Connecté';
         $('#supabaseStatus').classList.remove('disconnected');
@@ -439,16 +443,15 @@ async function checkAuth() {
         await loadExercises();
         
     } catch (error) {
-        console.error('Auth error:', error);
-        $('#supabaseStatus').textContent = 'Supabase: Erreur';
-        window.location.href = 'login.html';
+        console.error('Init error:', error);
+        $('#supabaseStatus').textContent = 'Erreur de connexion Supabase';
+        $('#supabaseStatus').classList.add('disconnected');
     }
 }
 
 // =============================================
 // Exercise Loading
 // =============================================
-
 async function loadExercises() {
     const container = $('#exerciseListContainer');
     const filter = $('#disciplineFilter').value;
@@ -499,7 +502,7 @@ async function loadExercises() {
         
     } catch (error) {
         console.error('Error loading exercises:', error);
-        container.innerHTML = '<div style="text-align:center;padding:20px;color:#ef4444">Erreur de chargement</div>';
+        container.innerHTML = '<div style="text-align:center;padding:20px;color:#ef4444">Erreur de chargement: ' + error.message + '</div>';
     }
 }
 
@@ -521,13 +524,9 @@ async function deleteExercise(id) {
         await loadExercises();
     } catch (error) {
         console.error('Error deleting exercise:', error);
-        alert('Erreur lors de la suppression');
+        alert('Erreur lors de la suppression: ' + error.message);
     }
 }
-
-// =============================================
-// Form Management
-// =============================================
 
 function switchTextMode(mode) {
     // Update buttons
@@ -863,13 +862,13 @@ async function saveExercise(event) {
         } else if (!$('#textPasteMode').classList.contains('hidden')) {
             exercise.texte = $('#textePaste').value.trim();
         } else if (textImageBlob) {
-            // TODO: Upload image to storage and get URL
-            statusEl.innerHTML = '<span style="color:#f59e0b">Upload d\'image en cours...</span>';
+            statusEl.innerHTML = '<span style="color:#f59e0b">Upload de l\'image en cours...</span>';
             try {
-                const imageUrl = await uploadToStorage(textImageBlob, 'text-images');
+                const imageUrl = await uploadToBlob(textImageBlob, 'image');
                 exercise.texteImage = imageUrl;
             } catch (err) {
-                statusEl.innerHTML = '<span style="color:#ef4444">Erreur upload image</span>';
+                console.error('Image upload error:', err);
+                statusEl.innerHTML = '<span style="color:#ef4444">Erreur upload image: ' + err.message + '</span>';
                 return;
             }
         }
@@ -878,12 +877,13 @@ async function saveExercise(event) {
     // Handle CO audio and transcription
     if (kind === 'ecoute') {
         if (audioBlob) {
-            statusEl.innerHTML = '<span style="color:#f59e0b">Upload audio en cours...</span>';
+            statusEl.innerHTML = '<span style="color:#f59e0b">Upload de l\'audio en cours...</span>';
             try {
-                const audioUrl = await uploadToStorage(audioBlob, 'audio-files');
+                const audioUrl = await uploadToBlob(audioBlob, 'audio');
                 exercise.audio = audioUrl;
             } catch (err) {
-                statusEl.innerHTML = '<span style="color:#ef4444">Erreur upload audio</span>';
+                console.error('Audio upload error:', err);
+                statusEl.innerHTML = '<span style="color:#ef4444">Erreur upload audio: ' + err.message + '</span>';
                 return;
             }
         }
@@ -897,36 +897,44 @@ async function saveExercise(event) {
     try {
         await window.SupabaseDB.createExercise(exercise);
         
-        statusEl.innerHTML = '<span style="color:#10b981">✓ Exercice sauvegardé avec succès!</span>';
+        statusEl.innerHTML = '<span style="color:#10b981">✓ Exercice sauvegardé dans la base de données!</span>';
         
+        // Reset form and reload list
         resetForm();
         await loadExercises();
         
-        setTimeout(() => {
-            statusEl.innerHTML = '';
-        }, 3000);
-        
     } catch (error) {
-        console.error('Error saving exercise:', error);
-        statusEl.innerHTML = `<span style="color:#ef4444">Erreur: ${error.message}</span>`;
+        console.error('Save error:', error);
+        statusEl.innerHTML = '<span style="color:#ef4444">Erreur lors de la sauvegarde: ' + error.message + '</span>';
     }
 }
 
-async function uploadToStorage(blob, folder) {
+async function uploadToBlob(file, type) {
     const formData = new FormData();
-    formData.append('file', blob);
+    formData.append('file', file);
     
-    const response = await fetch(`/api/upload?folder=${folder}`, {
+    const response = await fetch('/api/upload', {
         method: 'POST',
         body: formData
     });
     
     if (!response.ok) {
-        throw new Error('Upload failed');
+        const error = await response.text();
+        throw new Error('Upload failed: ' + error);
     }
     
     const data = await response.json();
     return data.url;
+}
+
+// Helper function to convert Blob to base64 (kept for backwards compatibility but not used)
+function blobToBase64(blob) {
+    return new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = () => resolve(reader.result);
+        reader.onerror = reject;
+        reader.readAsDataURL(blob);
+    });
 }
 
 function resetForm() {
@@ -942,7 +950,7 @@ function resetForm() {
 }
 
 // Initialize
-document.addEventListener('DOMContentLoaded', checkAuth);
+document.addEventListener('DOMContentLoaded', initAuth);
 
 function toggleBoxes() {
   const kind = $('#kind').value;
