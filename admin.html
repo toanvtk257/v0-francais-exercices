@@ -60,7 +60,7 @@ input,select,textarea{width:100%;padding:10px;border:1px solid #ddd;border-radiu
 .user-name{font-weight:600;font-size:1.1rem}
 .user-email{font-size:.85rem;opacity:.9}
 .header-actions{display:flex;gap:8px}
-.header-actions .btn{background:rgba(255,255,255,.2);color:#fff;border:1px solid rgba(255,255,255,.3)}
+.header-actions .btn{background:rgba(255,255,255,.2);color:#fff;border:1px solid rgba(255,255,.3)}
 /* Added styles for creator tabs */
 .tab-btn-creator.active {
   color: var(--brand);
@@ -1201,6 +1201,8 @@ document.addEventListener('DOMContentLoaded', checkAuth);
 let fetchTitleTimeout;
 
 async function handleUrlInput(url) {
+    console.log('[v0] handleUrlInput called with URL:', url);
+    
     // Clear previous timeout
     clearTimeout(fetchTitleTimeout);
     
@@ -1209,14 +1211,22 @@ async function handleUrlInput(url) {
         const titleInput = document.getElementById('resourceTitle');
         const statusElement = document.getElementById('titleLoadingStatus');
         
+        console.log('[v0] Title input value:', titleInput?.value);
+        console.log('[v0] Status element:', statusElement);
+        
         // Only auto-fetch if title field is empty
-        if (titleInput.value.trim() !== '') return;
+        if (titleInput.value.trim() !== '') {
+            console.log('[v0] Title field not empty, skipping auto-fetch');
+            return;
+        }
         
         // Check if URL is from a supported platform
         if (isVideoUrl(url)) {
+            console.log('[v0] URL is a video URL, attempting to fetch title');
             try {
                 statusElement.style.display = 'block';
                 const title = await fetchVideoTitle(url);
+                console.log('[v0] Fetched title:', title);
                 
                 if (title) {
                     titleInput.value = title;
@@ -1226,6 +1236,7 @@ async function handleUrlInput(url) {
                         statusElement.style.display = 'none';
                     }, 3000);
                 } else {
+                    console.log('[v0] No title returned');
                     statusElement.style.display = 'none';
                 }
             } catch (error) {
@@ -1236,6 +1247,8 @@ async function handleUrlInput(url) {
                     statusElement.style.display = 'none';
                 }, 3000);
             }
+        } else {
+            console.log('[v0] URL is not a video URL');
         }
     }, 500);
 }
@@ -1246,11 +1259,15 @@ function isVideoUrl(url) {
         const hostname = urlObj.hostname.toLowerCase();
         
         // Supported platforms
-        return hostname.includes('youtube.com') || 
+        const isVideo = hostname.includes('youtube.com') || 
                hostname.includes('youtu.be') ||
                hostname.includes('vimeo.com') ||
                hostname.includes('dailymotion.com');
-    } catch {
+        
+        console.log('[v0] isVideoUrl check:', hostname, '→', isVideo);
+        return isVideo;
+    } catch (error) {
+        console.log('[v0] Invalid URL:', error);
         return false;
     }
 }
@@ -1260,14 +1277,20 @@ async function fetchVideoTitle(url) {
         const urlObj = new URL(url);
         const hostname = urlObj.hostname.toLowerCase();
         
+        console.log('[v0] Fetching title for hostname:', hostname);
+        
         // YouTube
         if (hostname.includes('youtube.com') || hostname.includes('youtu.be')) {
             // Use oEmbed API (no authentication required)
             const oembedUrl = `https://www.youtube.com/oembed?url=${encodeURIComponent(url)}&format=json`;
+            console.log('[v0] Calling YouTube oEmbed:', oembedUrl);
+            
             const response = await fetch(oembedUrl);
+            console.log('[v0] YouTube oEmbed response status:', response.status);
             
             if (response.ok) {
                 const data = await response.json();
+                console.log('[v0] YouTube oEmbed data:', data);
                 return data.title;
             }
         }
@@ -1275,7 +1298,10 @@ async function fetchVideoTitle(url) {
         // Vimeo
         if (hostname.includes('vimeo.com')) {
             const oembedUrl = `https://vimeo.com/api/oembed.json?url=${encodeURIComponent(url)}`;
+            console.log('[v0] Calling Vimeo oEmbed:', oembedUrl);
+            
             const response = await fetch(oembedUrl);
+            console.log('[v0] Vimeo oEmbed response status:', response.status);
             
             if (response.ok) {
                 const data = await response.json();
@@ -1286,7 +1312,10 @@ async function fetchVideoTitle(url) {
         // Dailymotion
         if (hostname.includes('dailymotion.com')) {
             const oembedUrl = `https://www.dailymotion.com/services/oembed?url=${encodeURIComponent(url)}`;
+            console.log('[v0] Calling Dailymotion oEmbed:', oembedUrl);
+            
             const response = await fetch(oembedUrl);
+            console.log('[v0] Dailymotion oEmbed response status:', response.status);
             
             if (response.ok) {
                 const data = await response.json();
