@@ -1877,7 +1877,8 @@ function handleAudioFile(file, inputElement, fileNameDisplay, hiddenAudioInput) 
   inputElement.value = ''; 
 }
 
-window.addEventListener('DOMContentLoaded', function() {
+// /** rest of code here **/
+document.addEventListener('DOMContentLoaded', function() {
   checkAuth();
   loadBank();
   loadUsers(); 
@@ -1915,7 +1916,27 @@ window.addEventListener('DOMContentLoaded', function() {
       difficultyValue.textContent = `Niveau ${this.value}`;
     });
   }
+
+  const recipientSelect = $('#recipientSelect');
+  if (recipientSelect) {
+    recipientSelect.addEventListener('change', function() {
+      const selectedId = this.value;
+      if (!selectedId) return;
+      
+      const allUsers = JSON.parse(localStorage.getItem(USERS_STORAGE_KEY) || '[]');
+      const selectedStudent = allUsers.find(u => u.id === selectedId);
+      
+      if (selectedStudent && !selectedRecipients.find(r => r.id === selectedId)) {
+        selectedRecipients.push({ id: selectedStudent.id, name: selectedStudent.name });
+        updateSelectedRecipientsUI();
+      }
+      
+      // Reset dropdown to default
+      this.value = '';
+    });
+  }
 });
+
 
 function resetExerciseForm() {
   const form = $('#exerciseForm');
@@ -2328,7 +2349,7 @@ function approveRegistration(regId) {
   registrations[regIndex].processedBy = currentUser.name;
   localStorage.setItem(PENDING_REGISTRATIONS_KEY, JSON.stringify(registrations));
   
-  alert(`Compte créé avec succès pour ${registration.name}!\n\nContactez l'étudiant sur Zalo (${registration.zalo}) pour l'informer de l'approbation.`);
+  alert(`Compte créé avec succès pour ${registration.name}!\n\nContactez l'étudiant sur Zalo (${registration.zalo}) pour l'informer de l\'approbation.`);
   
   loadPendingRegistrations();
   updateUsersTable(); 
