@@ -72,26 +72,39 @@ button:hover{opacity:.9}
   </div>
 
   <div id="register-tab" class="tab-content">
+    <!-- Added info box explaining the approval process -->
+    <div class="info-box">
+      <strong>Important:</strong> Votre demande d'inscription sera envoyée aux administrateurs pour approbation. Vous recevrez une réponse sur votre numéro Zalo.
+    </div>
+    
     <div class="form-group">
-      <label for="register-name">Nom complet</label>
-      <input type="text" id="register-name" autocomplete="off" placeholder="Jean Dupont">
+      <label for="register-name">Nom complet <span style="color:#c33">*</span></label>
+      <input type="text" id="register-name" autocomplete="off" placeholder="Jean Dupont" required>
     </div>
 
     <div class="form-group">
       <!-- Changed to email input type -->
-      <label for="register-username">Email</label>
-      <input type="email" id="register-username" autocomplete="email" placeholder="votre.email@example.com">
+      <label for="register-username">Email <span style="color:#c33">*</span></label>
+      <input type="email" id="register-username" autocomplete="email" placeholder="votre.email@example.com" required>
+    </div>
+    
+    <!-- Added Zalo number field (required) -->
+    <div class="form-group">
+      <label for="register-zalo">Numéro Zalo <span style="color:#c33">*</span></label>
+      <input type="tel" id="register-zalo" autocomplete="tel" placeholder="0123456789" required>
+      <small style="color:var(--muted);font-size:.85rem;display:block;margin-top:4px;">L'admin vous contactera sur ce numéro pour l'approbation</small>
     </div>
 
     <div class="form-group">
-      <label for="register-pin">Code PIN (6 chiffres)</label>
-      <input type="text" id="register-pin" class="pin-input" autocomplete="off" data-form-type="other" placeholder="••••••" maxlength="6" pattern="[0-9]*" inputmode="numeric">
+      <label for="register-pin">Code PIN (6 chiffres) <span style="color:#c33">*</span></label>
+      <input type="text" id="register-pin" class="pin-input" autocomplete="off" data-form-type="other" placeholder="••••••" maxlength="6" pattern="[0-9]*" inputmode="numeric" required>
     </div>
 
     <!-- Added filière dropdown, initially hidden, shown only for students -->
-    <div class="form-group" id="filiere-field" style="display:none;">
-      <label for="register-filiere">Filière/Spécialité</label>
-      <select id="register-filiere">
+    <div class="form-group" id="filiere-field">
+      <label for="register-filiere">Filière/Spécialité <span style="color:#c33">*</span></label>
+      <select id="register-filiere" required>
+        <option value="">Sélectionnez une filière</option>
         <option value="Tourisme">Tourisme</option>
         <option value="Traduction-Interprétation">Traduction-Interprétation</option>
         <option value="Communication">Communication</option>
@@ -100,22 +113,20 @@ button:hover{opacity:.9}
         <option value="Autre">Autre</option>
       </select>
     </div>
-
+    
+    <!-- Added explanation field (required) -->
     <div class="form-group">
-      <label for="register-role">Rôle</label>
-      <select id="register-role" onchange="toggleAdminSecretField()">
-        <option value="student">Étudiant - Accès aux exercices</option>
-        <option value="admin">Administrateur - Gestion complète</option>
-      </select>
+      <label for="register-explanation">Expliquer la demande <span style="color:#c33">*</span></label>
+      <textarea id="register-explanation" rows="4" style="width:100%;padding:12px;border:1px solid #ddd;border-radius:10px;font-size:1rem;font-family:inherit;resize:vertical" placeholder="Expliquez pourquoi vous souhaitez créer un compte (ex: étudiant en 2ème année, cours de français...)" required></textarea>
+      <small style="color:var(--muted);font-size:.85rem;display:block;margin-top:4px;">Minimum 20 caractères</small>
     </div>
 
-    <div class="form-group" id="admin-secret-field" style="display:none;">
-      <label for="admin-secret">Code secret administrateur</label>
-      <input type="text" id="admin-secret" autocomplete="off" placeholder="Code requis pour créer un compte admin">
-      <small style="color:var(--muted);font-size:.85rem;display:block;margin-top:4px;">Contactez l'administrateur pour obtenir ce code</small>
-    </div>
+    <!-- Removed role selection - only students can register, admins are created manually -->
+    <input type="hidden" id="register-role" value="student">
 
-    <button type="button" onclick="handleRegister()">S'inscrire</button>
+    <!-- Removed admin secret field - no longer needed -->
+
+    <button type="button" onclick="handleRegister()">Soumettre la demande</button>
     <div id="register-error" class="error"></div>
   </div>
 </div>
@@ -158,6 +169,7 @@ button:hover{opacity:.9}
 <script>
 const ADMIN_SECRET_CODE = '250784';
 const USERS_STORAGE_KEY = 'fr_users_db';
+const PENDING_REGISTRATIONS_KEY = 'fr_pending_registrations';
 
 function migrateOldAccounts() {
   if (!isLocalStorageAvailable()) return;
@@ -245,20 +257,6 @@ function isLocalStorageAvailable() {
   }
 }
 
-function toggleAdminSecretField() {
-  const role = document.getElementById('register-role').value;
-  const adminSecretField = document.getElementById('admin-secret-field');
-  const filiereField = document.getElementById('filiere-field');
-  
-  if (role === 'admin') {
-    adminSecretField.style.display = 'block';
-    filiereField.style.display = 'none'; // Hide filiere for admins
-  } else {
-    adminSecretField.style.display = 'none';
-    filiereField.style.display = 'block'; // Show filiere for students
-  }
-}
-
 function switchTab(tab) {
   const loginTab = document.getElementById('login-tab');
   const registerTab = document.getElementById('register-tab');
@@ -342,11 +340,11 @@ function handleLogin() {
 function handleRegister() {
   const name = document.getElementById('register-name').value.trim();
   const username = document.getElementById('register-username').value.trim();
+  const zalo = document.getElementById('register-zalo').value.trim();
   const pin = document.getElementById('register-pin').value;
-  const role = document.getElementById('register-role').value;
+  const filiere = document.getElementById('register-filiere').value;
+  const explanation = document.getElementById('register-explanation').value.trim();
   const errorDiv = document.getElementById('register-error');
-  
-  const filiere = role === 'student' ? document.getElementById('register-filiere').value : null;
   
   if (!isLocalStorageAvailable()) {
     errorDiv.textContent = 'Le stockage local n\'est pas disponible dans ce navigateur';
@@ -354,8 +352,15 @@ function handleRegister() {
     return;
   }
   
-  if (!name || !username || !pin) {
-    errorDiv.textContent = 'Veuillez remplir tous les champs';
+  // Validation
+  if (!name || !username || !zalo || !pin || !filiere || !explanation) {
+    errorDiv.textContent = 'Veuillez remplir tous les champs obligatoires';
+    errorDiv.style.display = 'block';
+    return;
+  }
+  
+  if (explanation.length < 20) {
+    errorDiv.textContent = 'L\'explication doit contenir au moins 20 caractères';
     errorDiv.style.display = 'block';
     return;
   }
@@ -373,16 +378,8 @@ function handleRegister() {
     return;
   }
   
-  if (role === 'admin') {
-    const adminSecret = document.getElementById('admin-secret').value.trim();
-    if (adminSecret !== ADMIN_SECRET_CODE) {
-      errorDiv.textContent = 'Code secret administrateur incorrect';
-      errorDiv.style.display = 'block';
-      return;
-    }
-  }
-  
   try {
+    // Check if email already exists in users or pending registrations
     const usersJson = localStorage.getItem(USERS_STORAGE_KEY);
     const users = JSON.parse(usersJson || '[]');
     
@@ -392,31 +389,44 @@ function handleRegister() {
       return;
     }
     
-    const userId = 'user_' + Date.now();
-    const newUser = {
-      id: userId,
+    const pendingJson = localStorage.getItem(PENDING_REGISTRATIONS_KEY);
+    const pending = JSON.parse(pendingJson || '[]');
+    
+    if (pending.find(p => p.email === username && p.status === 'pending')) {
+      errorDiv.textContent = 'Une demande est déjà en attente pour cet email';
+      errorDiv.style.display = 'block';
+      return;
+    }
+    
+    // Create pending registration
+    const registrationId = 'reg_' + Date.now();
+    const newRegistration = {
+      id: registrationId,
       name: name,
       email: username,
+      zalo: zalo,
       pin: pin,
-      role: role,
-      filiere: filiere, // This will be null for admins, only set for students
-      createdAt: new Date().toISOString()
+      filiere: filiere,
+      explanation: explanation,
+      status: 'pending', // pending, approved, rejected
+      submittedAt: new Date().toISOString()
     };
     
-    users.push(newUser);
-    localStorage.setItem(USERS_STORAGE_KEY, JSON.stringify(users));
+    pending.push(newRegistration);
+    localStorage.setItem(PENDING_REGISTRATIONS_KEY, JSON.stringify(pending));
     
-    const userData = {
-      id: userId,
-      name: name,
-      email: username,
-      role: role
-    };
-    localStorage.setItem('fr_auth_user', JSON.stringify(userData));
-    localStorage.setItem('fr_current_user', userId);
+    alert('Votre demande d\'inscription a été envoyée avec succès! Vous recevrez une réponse sur votre numéro Zalo dans les plus brefs délais.');
     
-    const timestamp = Date.now();
-    window.location.href = role === 'admin' ? `admin.html?v=${timestamp}` : 'dashboard.html';
+    // Clear form
+    document.getElementById('register-name').value = '';
+    document.getElementById('register-username').value = '';
+    document.getElementById('register-zalo').value = '';
+    document.getElementById('register-pin').value = '';
+    document.getElementById('register-filiere').value = '';
+    document.getElementById('register-explanation').value = '';
+    
+    // Switch back to login tab
+    switchTab('login');
   } catch (error) {
     console.error('[v0] Error during registration:', error);
     errorDiv.textContent = 'Erreur lors de l\'inscription: ' + error.message;
@@ -499,14 +509,13 @@ function resetAdminPin() {
 document.addEventListener('DOMContentLoaded', function() {
   migrateOldAccounts();
   initializeDefaultAccounts();
-  toggleAdminSecretField(); // Set initial state
   
   document.getElementById('login-pin').addEventListener('keypress', function(e) {
     if (e.key === 'Enter') handleLogin();
   });
   
-  document.getElementById('register-role').addEventListener('keypress', function(e) {
-    if (e.key === 'Enter') handleRegister();
+  document.getElementById('register-explanation').addEventListener('keypress', function(e) {
+    if (e.key === 'Enter' && e.ctrlKey) handleRegister();
   });
   
   const pinInputs = document.querySelectorAll('.pin-input');

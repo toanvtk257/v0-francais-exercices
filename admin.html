@@ -153,6 +153,143 @@ h1 {
   background:#1ea34a;
 }
 /* END NEW STYLES */
+
+/* Added badge styling for pending count */
+.badge {
+  display: inline-block;
+  background: #dc2626;
+  color: #fff;
+  font-size: 0.75rem;
+  font-weight: 600;
+  padding: 2px 6px;
+  border-radius: 10px;
+  margin-left: 6px;
+  min-width: 18px;
+  text-align: center;
+}
+
+/* Added registration card styling */
+.registration-card {
+  background: #f9f9f9;
+  border: 1px solid #e5e5e5;
+  border-radius: 10px;
+  padding: 16px;
+  margin-bottom: 12px;
+}
+
+.registration-card.approved {
+  background: #f0fdf4;
+  border-color: #86efac;
+}
+
+.registration-card.rejected {
+  background: #fef2f2;
+  border-color: #fca5a5;
+}
+
+.registration-card h3 {
+  margin: 0 0 8px;
+  font-size: 1.1rem;
+  color: var(--ink);
+}
+
+.registration-card .info-row {
+  display: flex;
+  gap: 16px;
+  flex-wrap: wrap;
+  margin: 8px 0;
+  font-size: 0.9rem;
+}
+
+.registration-card .info-item {
+  flex: 1;
+  min-width: 200px;
+}
+
+.registration-card .info-label {
+  font-weight: 600;
+  color: var(--muted);
+  font-size: 0.85rem;
+  display: block;
+  margin-bottom: 2px;
+}
+
+.registration-card .explanation-box {
+  background: #fff;
+  padding: 12px;
+  border-radius: 8px;
+  margin: 12px 0;
+  border-left: 3px solid var(--brand);
+  font-size: 0.9rem;
+  line-height: 1.5;
+}
+
+.registration-card .actions {
+  display: flex;
+  gap: 8px;
+  margin-top: 12px;
+}
+
+.registration-card .btn-approve {
+  background: #22c55e;
+  color: #fff;
+  border: none;
+  padding: 8px 16px;
+  border-radius: 8px;
+  cursor: pointer;
+  font-weight: 600;
+  transition: all 0.2s;
+}
+
+.registration-card .btn-approve:hover {
+  background: #16a34a;
+}
+
+.registration-card .btn-reject {
+  background: #dc2626;
+  color: #fff;
+  border: none;
+  padding: 8px 16px;
+  border-radius: 8px;
+  cursor: pointer;
+  font-weight: 600;
+  transition: all 0.2s;
+}
+
+.registration-card .btn-reject:hover {
+  background: #b91c1c;
+}
+
+.registration-card .status-badge {
+  display: inline-block;
+  padding: 4px 12px;
+  border-radius: 12px;
+  font-size: 0.85rem;
+  font-weight: 600;
+  margin-left: 8px;
+}
+
+.registration-card .status-badge.approved {
+  background: #dcfce7;
+  color: #166534;
+}
+
+.registration-card .status-badge.rejected {
+  background: #fee2e2;
+  color: #991b1b;
+}
+
+.registration-card .status-badge.pending {
+  background: #fef3c7;
+  color: #92400e;
+}
+
+.empty-state {
+  text-align: center;
+  padding: 40px 20px;
+  color: var(--muted);
+  font-style: italic;
+}
 </style>
 </head>
 <body>
@@ -175,7 +312,8 @@ h1 {
     <button class="tab-btn active" onclick="switchTab('dashboard')">Tableau de bord</button>
     <button class="tab-btn" onclick="switchTab('exercises')">Exercices</button>
     <button class="tab-btn" onclick="switchTab('users')">Utilisateurs</button>
-    <!-- Removed Créateur tab, keeping only Builder -->
+    <!-- Added registrations tab for approval -->
+    <button class="tab-btn" onclick="switchTab('registrations')">Demandes d'inscription <span id="pending-count" class="badge"></span></button>
     <button class="tab-btn" onclick="switchTab('resources')">Ressources externes</button>
     <button class="tab-btn" onclick="switchTab('chat')">Messages</button>
   </div>
@@ -323,6 +461,19 @@ h1 {
     </div>
   </div>
 
+  <!-- Added registrations tab for managing pending registrations -->
+  <div id="registrations" class="tab-content">
+    <div class="card">
+      <h2>Demandes d'inscription en attente</h2>
+      <div id="pendingRegistrationsContainer"></div>
+    </div>
+    
+    <div class="card">
+      <h2>Historique des demandes</h2>
+      <div id="registrationHistoryContainer"></div>
+    </div>
+  </div>
+
   <!-- Users Tab -->
   <!-- Users section - Added grouping by filière -->
   <div id="users" class="tab-content">
@@ -398,8 +549,8 @@ h1 {
     <div class="card">
       <h2>Messages des étudiants</h2>
       
-      <div style="margin-bottom:16px;padding:12px;background:#f0f9ff;border-radius:8px;border:1px solid #bae6fd">
-        <label style="display:block;margin-bottom:8px;font-weight:600;color:#0c4a6e">Destinataire(s):</label>
+      <div style="margin-bottom:16px;padding:12px;background:#f0f0ff;border-radius:8px;border:1px solid #cbd5e1">
+        <label style="display:block;margin-bottom:8px;font-weight:600;color:#4c1d95">Destinataire(s):</label>
         <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">
           <select id="recipientSelect" style="flex:1;min-width:200px;padding:8px;border:1px solid #cbd5e1;border-radius:6px">
             <option value="">-- Sélectionner un étudiant --</option>
@@ -518,8 +669,11 @@ const $ = s => document.querySelector(s);
 const $$ = s => [...document.querySelectorAll(s)];
 const AUTH_KEY = 'fr_auth_user';
 const BANK_KEY = 'fr_bank_data';
-const USERS_KEY = 'fr_users_db';
+const USERS_STORAGE_KEY = 'fr_users_db'; // Use consistent key name
 const FILES_INDEX_KEY = 'fr_json_files_index'; // Track all uploaded JSON files from Cloudinary
+const RESOURCES_KEY = 'fr_external_resources';
+const MESSAGES_KEY = 'fr_chat_messages';
+const PENDING_REGISTRATIONS_KEY = 'fr_pending_registrations';
 
 const CLOUDINARY_CLOUD_NAME = 'dvbsn45rk';
 const CLOUDINARY_UPLOAD_PRESET = 'francais_exercices';
@@ -602,7 +756,7 @@ window.addFormQcmOption = function(questionId) {
   
   optionDiv.innerHTML = `
     <label style="margin:0;font-weight:600;min-width:60px">Choix ${optionLetter.toUpperCase()}</label>
-    <input class="form-qcm-option" data-option-letter="${optionLetter}" placeholder="Réponse ${optionLetter.toUpperCase()}" style="flex:1;padding:10px;border:1px solid #ddd;border-radius:8px;font-size:.95rem">
+    <input class="form-qcm-option" data-option-letter="${optionLetter}" placeholder="Réponse ${letter.toUpperCase()}" style="flex:1;padding:10px;border:1px solid #ddd;border-radius:8px;font-size:.95rem">
     <button onclick="removeFormQcmOption(${questionId}, '${optionLetter}')" type="button" style="background:#e53e3e;color:#fff;border:none;padding:8px 12px;border-radius:6px;cursor:pointer;font-size:.85rem">✕</button>
   `;
   container.appendChild(optionDiv);
@@ -691,7 +845,7 @@ window.removeFormQcmQuestion = function(id) {
 
 function loadRecipientOptions() {
   console.log('[v0] loadRecipientOptions called');
-  const allUsers = JSON.parse(localStorage.getItem(USERS_KEY) || '[]');
+  const allUsers = JSON.parse(localStorage.getItem(USERS_STORAGE_KEY) || '[]');
   console.log('[v0] All users:', allUsers);
   const students = allUsers.filter(u => u.role === 'student');
   console.log('[v0] Filtered students:', students);
@@ -799,190 +953,7 @@ async function loadBank() {
 }
 
 function updateDashboard() {
-  const users = JSON.parse(localStorage.getItem(USERS_KEY) || '[]').filter(u => u.role === 'student');
-  const allStats = JSON.parse(localStorage.getItem('fr_stats_db') || '{}');
-
-  let totalAttempts = 0;
-  let totalScore = 0;
-  let attemptCount = 0;
-
-  Object.values(allStats).forEach(userStats => {
-    Object.values(userStats).forEach(lesson => {
-      if (lesson.attempts) {
-        totalAttempts += lesson.attempts.length;
-        lesson.attempts.forEach(a => {
-          totalScore += a.percentage;
-          attemptCount++;
-        });
-      }
-    });
-  });
-
-  $('#totalUsers').textContent = users.length;
-  const totalExercises = (bank?.lecture?.length || 0) + (bank?.ecoute?.length || 0) + (bank?.grammaire?.length || 0) + (bank?.lexique?.length || 0);
-  console.log('[v0] Dashboard - Total exercises:', totalExercises);
-  $('#totalExercises').textContent = totalExercises;
-  $('#totalAttempts').textContent = totalAttempts;
-  $('#avgScore').textContent = attemptCount > 0 ? Math.round(totalScore / attemptCount) + '%' : '0%';
-
-  setTimeout(() => {
-    drawAdminActivityChart();
-    drawAdminLevelChart();
-  }, 100);
-}
-
-function checkAuth() {
-  const auth = localStorage.getItem(AUTH_KEY);
-  if (!auth) {
-    window.location.href = 'login.html';
-    return;
-  }
-  currentUser = JSON.parse(auth);
-  if (currentUser.role !== 'admin') {
-    alert('Accès refusé');
-    window.location.href = 'dashboard.html';
-    return;
-  }
-  $('#adminUserName').textContent = currentUser.name + ' (Admin)';
-  $('#adminUserEmail').textContent = currentUser.email;
-}
-
-function syncFromCloudinary() {
-  try {
-    console.log('[v0] Manual sync from Cloudinary triggered');
-    
-    const filesIndex = JSON.parse(localStorage.getItem(FILES_INDEX_KEY) || '[]');
-    console.log('[v0] Files index from localStorage:', filesIndex);
-    
-    if (filesIndex.length > 0) {
-      // Use the index if available
-      loadBank().then(() => {
-        alert('✅ Synchronisation réussie! ' + filesIndex.length + ' fichier(s) chargé(s) depuis Cloudinary.');
-      });
-      return;
-    }
-    
-    console.log('[v0] No index found, trying to load known files directly...');
-    const cloudName = CLOUDINARY_CLOUD_NAME;
-    const knownFiles = ['questions.json', 'tous_exercices.json', 'a1_CO.json', 'a1_CE.json', 'a2_CO.json', 'a2_CE.json', 'b1_CO.json', 'b1_CE.json', 'b2_CO.json', 'b2_CE.json', 'c1_CO.json', 'c1_CE.json', 'c2_CO.json', 'c2_CE.json'];
-    
-    let loadedCount = 0;
-    const allExercises = [];
-    
-    const fetchPromises = knownFiles.map(async (fileName) => {
-      try {
-        const url = `https://res.cloudinary.com/${cloudName}/raw/upload/entrainement-francais/${fileName}`;
-        console.log('[v0] Trying to fetch:', url);
-        
-        const response = await fetch(url, {
-          mode: 'cors',
-          headers: {
-            'Accept': 'application/json'
-          }
-        });
-        
-        console.log('[v0] Response status for', fileName, ':', response.status);
-        
-        if (response.ok) {
-          const data = await response.json();
-          console.log('[v0] Successfully loaded:', fileName, data);
-          
-          // Handle different data formats
-          if (Array.isArray(data)) {
-            allExercises.push(...data);
-          } else if (data.exercises && Array.isArray(data.exercises)) {
-            allExercises.push(...data.exercises);
-          } else {
-            // Try to extract exercises from category structure
-            ['lecture', 'ecoute', 'grammaire', 'lexique'].forEach(cat => {
-              if (data[cat] && Array.isArray(data[cat])) {
-                allExercises.push(...data[cat]);
-              }
-            });
-          }
-          
-          loadedCount++;
-          return true; // Indicate success
-        } else {
-          console.log('[v0] File not found or error:', fileName, response.status, response.statusText);
-          return false; // Indicate failure
-        }
-      } catch (err) {
-        console.error('[v0] Error loading', fileName, ':', err.message);
-        return false; // Indicate failure
-      }
-    });
-    
-    Promise.all(fetchPromises).then(results => {
-      const successfulLoads = results.filter(Boolean).length;
-      console.log('[v0] Total files loaded:', successfulLoads, 'Total exercises:', allExercises.length);
-      
-      if (successfulLoads > 0) {
-        console.log('[v0] Total exercises loaded:', allExercises.length);
-        
-        // Merge with existing localStorage data
-        const stored = JSON.parse(localStorage.getItem(BANK_KEY) || '{"lecture":[],"ecoute":[],"grammaire":[],"lexique":[]}');
-        
-        // Categorize and merge exercises
-        allExercises.forEach(ex => {
-          const category = ex.type === 'lecture' || ex.type === 'CE' ? 'lecture' : 
-                           ex.type === 'ecoute' || ex.type === 'CO' ? 'ecoute' :
-                           ex.type === 'grammaire' || ex.type === 'Grammaire' ? 'grammaire' : 'lexique';
-          
-          if (!stored[category]) stored[category] = [];
-          
-          if (!ex.type) {
-              if (category === 'lecture') ex.type = 'CE';
-              else if (category === 'ecoute') ex.type = 'CO';
-              else if (category === 'grammaire') ex.type = 'Grammaire';
-              else ex.type = 'Lexique';
-          }
-
-          if (!ex.id) {
-              ex.id = `${category}_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`;
-          }
-
-          const exists = stored[category].some(e => e.id === ex.id);
-          if (!exists) {
-            stored[category].push(ex);
-          }
-        });
-        
-        localStorage.setItem(BANK_KEY, JSON.stringify(stored));
-        bank = stored;
-        
-        updateExercisesTable();
-        alert('✅ Synchronisation réussie! ' + successfulLoads + ' fichier(s) trouvé(s), ' + allExercises.length + ' exercice(s) chargé(s).');
-      } else {
-        alert('⚠️ Aucun fichier trouvé sur Cloudinary. Vérifiez que les fichiers sont bien uploadés dans le dossier "entrainement-francais".');
-      }
-    });
-    
-  } catch (error) {
-    console.error('[v0] Sync error:', error);
-    alert('❌ Erreur lors de la synchronisation: ' + error.message);
-  }
-}
-
-function switchTab(tabName) {
-  $$('.tab-content').forEach(t => t.classList.remove('active'));
-  $$('.tab-btn').forEach(b => b.classList.remove('active'));
-  $(`#${tabName}`).classList.add('active');
-  event.target.classList.add('active');
-
-  if (tabName === 'dashboard') updateDashboard();
-  if (tabName === 'exercises') updateExercisesTable();
-  if (tabName === 'users') updateUsersTable();
-  if (tabName === 'resources') updateResourcesTable();
-  if (tabName === 'chat') {
-    loadRecipientOptions(); // Ensure recipient options are loaded for chat tab
-    loadChatUsers();
-  }
-  // No need to initialize creator tab anymore
-}
-
-function updateDashboard() {
-  const users = JSON.parse(localStorage.getItem(USERS_KEY) || '[]').filter(u => u.role === 'student');
+  const users = JSON.parse(localStorage.getItem(USERS_STORAGE_KEY) || '[]').filter(u => u.role === 'student');
   const allStats = JSON.parse(localStorage.getItem('fr_stats_db') || '{}');
 
   let totalAttempts = 0;
@@ -1303,7 +1274,7 @@ function editExercise(id) {
 
 function cancelEdit() {
   if (confirm('Annuler les modifications ?')) {
-    resetFormState();
+    resetExerciseForm();
     updateExercisesTable(); // Refresh table in case some other changes were made
   }
 }
@@ -1314,73 +1285,12 @@ function saveBank() {
 }
 
 // Placeholder for actual chart drawing logic
-// function drawAdminActivityChart() {
-//   const ctx = document.getElementById('adminActivityChart').getContext('2d');
-//   new Chart(ctx, {
-//     type: 'line',
-//     data: {
-//       labels: ['Jour 1', 'Jour 2', 'Jour 3', 'Jour 4', 'Jour 5', 'Jour 6', 'Jour 7'], // Example labels
-//       datasets: [{
-//         label: 'Nombre de tentatives',
-//         data: [10, 15, 12, 20, 18, 25, 22], // Example data
-//         borderColor: 'rgba(34, 187, 85, 1)',
-//         backgroundColor: 'rgba(34, 187, 85, 0.2)',
-//         fill: true,
-//         tension: 0.3
-//       }]
-//     },
-//     options: {
-//       responsive: true,
-//       scales: {
-//         y: { beginAtZero: true }
-//       }
-//     }
-//   });
-// }
-
-// function drawAdminLevelChart() {
-//   const ctx = document.getElementById('adminLevelChart').getContext('2d');
-//   new Chart(ctx, {
-//     type: 'bar',
-//     data: {
-//       labels: ['A1', 'A2', 'B1', 'B2', 'C1', 'C2'], // Example labels
-//       datasets: [{
-//         label: 'Score moyen',
-//         data: [75, 80, 85, 90, 92, 95], // Example data
-//         backgroundColor: [
-//           'rgba(54, 162, 235, 0.6)',
-//           'rgba(255, 206, 86, 0.6)',
-//           'rgba(75, 192, 192, 0.6)',
-//           'rgba(153, 102, 255, 0.6)',
-//           'rgba(255, 159, 64, 0.6)',
-//           'rgba(255, 99, 132, 0.6)'
-//         ],
-//         borderColor: [
-//           'rgba(54, 162, 235, 1)',
-//           'rgba(255, 206, 86, 1)',
-//           'rgba(75, 192, 192, 1)',
-//           'rgba(153, 102, 255, 1)',
-//           'rgba(255, 159, 64, 1)',
-//           'rgba(255, 99, 132, 1)'
-//         ],
-//         borderWidth: 1
-//       }]
-//     },
-//     options: {
-//       responsive: true,
-//       scales: {
-//         y: {
-//           beginAtZero: true,
-//           max: 100
-//         }
-//       }
-//     }
-//   });
-// }
+// function drawAdminActivityChart() { ... }
+// function drawAdminLevelChart() { ... }
 
 function updateUsersTable() {
   const container = $('#usersGroupedContainer');
-  const users = JSON.parse(localStorage.getItem(USERS_KEY) || '[]');
+  const users = JSON.parse(localStorage.getItem(USERS_STORAGE_KEY) || '[]');
   const students = users.filter(u => u.role === 'student');
   
   if (students.length === 0) {
@@ -1473,9 +1383,9 @@ function updateUsersTable() {
 
 function deleteUser(userId) {
   if (!confirm('Êtes-vous sûr de vouloir supprimer cet utilisateur ?')) return;
-  let users = JSON.parse(localStorage.getItem(USERS_KEY) || '[]');
+  let users = JSON.parse(localStorage.getItem(USERS_STORAGE_KEY) || '[]');
   users = users.filter(u => u.id !== userId);
-  localStorage.setItem(USERS_KEY, JSON.stringify(users));
+  localStorage.setItem(USERS_STORAGE_KEY, JSON.stringify(users));
   // Also remove stats for this user
   let stats = JSON.parse(localStorage.getItem('fr_stats_db') || '{}');
   delete stats[userId];
@@ -1485,7 +1395,7 @@ function deleteUser(userId) {
 }
 
 function viewUserStats(userId) {
-  const users = JSON.parse(localStorage.getItem(USERS_KEY) || '[]');
+  const users = JSON.parse(localStorage.getItem(USERS_STORAGE_KEY) || '[]');
   const user = users.find(u => u.id === userId);
   const userStats = JSON.parse(localStorage.getItem('fr_stats_db') || '{}')[userId] || {};
 
@@ -1578,7 +1488,7 @@ function saveNewPin() {
   }
 
   // Retrieve user data from localStorage
-  const users = JSON.parse(localStorage.getItem(USERS_KEY) || '[]');
+  const users = JSON.parse(localStorage.getItem(USERS_STORAGE_KEY) || '[]');
   const userIndex = users.findIndex(u => u.id === currentUser.id);
 
   if (userIndex === -1) {
@@ -1596,7 +1506,7 @@ function saveNewPin() {
 
   // Update PIN
   users[userIndex].pin = newPin;
-  localStorage.setItem(USERS_KEY, JSON.stringify(users));
+  localStorage.setItem(USERS_STORAGE_KEY, JSON.stringify(users));
   
   // Update currentUser object in memory as well, if needed for session
   currentUser.pin = newPin; // This is optional if you don't re-authenticate
@@ -1606,7 +1516,7 @@ function saveNewPin() {
 }
 
 function openResetStudentPinModal(userId) {
-  const users = JSON.parse(localStorage.getItem(USERS_KEY) || '[]');
+  const users = JSON.parse(localStorage.getItem(USERS_STORAGE_KEY) || '[]');
   const student = users.find(u => u.id === userId && u.role === 'student');
 
   if (!student) {
@@ -1648,7 +1558,7 @@ function saveResetPin() {
     return;
   }
 
-  const users = JSON.parse(localStorage.getItem(USERS_KEY) || '[]');
+  const users = JSON.parse(localStorage.getItem(USERS_STORAGE_KEY) || '[]');
   const userIndex = users.findIndex(u => u.id === userId);
 
   if (userIndex === -1) {
@@ -1658,7 +1568,7 @@ function saveResetPin() {
   }
 
   users[userIndex].pin = newPin; // Assuming PIN is stored directly
-  localStorage.setItem(USERS_KEY, JSON.stringify(users));
+  localStorage.setItem(USERS_STORAGE_KEY, JSON.stringify(users));
   
   alert('Code PIN de l\'étudiant réinitialisé avec succès !');
   closeResetStudentPinModal();
@@ -1699,11 +1609,11 @@ function addResource() {
 }
 
 function saveResources() {
-  localStorage.setItem('fr_external_resources', JSON.stringify(resources));
+  localStorage.setItem(RESOURCES_KEY, JSON.stringify(resources));
 }
 
 function loadResources() {
-  resources = JSON.parse(localStorage.getItem('fr_external_resources') || '[]');
+  resources = JSON.parse(localStorage.getItem(RESOURCES_KEY) || '[]');
 }
 
 function updateResourcesTable() {
@@ -1773,8 +1683,8 @@ let chatUsers = []; // Store users with messages
 function loadChatUsers() {
   // In a real app, this would fetch from a server/backend
   // For now, simulate by looking at local storage for any messages or user activity
-  const allUsers = JSON.parse(localStorage.getItem(USERS_KEY) || '[]');
-  const messagesDb = JSON.parse(localStorage.getItem('fr_chat_messages') || '{}');
+  const allUsers = JSON.parse(localStorage.getItem(USERS_STORAGE_KEY) || '[]');
+  const messagesDb = JSON.parse(localStorage.getItem(MESSAGES_KEY) || '{}');
   
   const usersWithMessages = Object.keys(messagesDb).map(userId => {
     const user = allUsers.find(u => u.id === userId);
@@ -1825,7 +1735,7 @@ function selectChatUser(userId) {
 }
 
 function loadChatMessages(userId) {
-  const messagesDb = JSON.parse(localStorage.getItem('fr_chat_messages') || '{}');
+  const messagesDb = JSON.parse(localStorage.getItem(MESSAGES_KEY) || '{}');
   const messages = messagesDb[userId] || [];
   
   const chatMessagesArea = $('#chatMessagesArea');
@@ -1859,7 +1769,7 @@ function loadChatMessages(userId) {
   // Update messagesDb with read status
   if (messages.some(msg => !msg.read)) {
     messagesDb[userId] = messages;
-    localStorage.setItem('fr_chat_messages', JSON.stringify(messagesDb));
+    localStorage.setItem(MESSAGES_KEY, JSON.stringify(messagesDb));
     // Refresh user list to update unread indicators
     loadChatUsers(); 
   }
@@ -1880,7 +1790,7 @@ function sendAdminMessage() {
       return;
     }
     
-    const messagesDb = JSON.parse(localStorage.getItem('fr_chat_messages') || '{}');
+    const messagesDb = JSON.parse(localStorage.getItem(MESSAGES_KEY) || '{}');
     
     selectedRecipients.forEach(recipient => {
       if (!messagesDb[recipient.id]) messagesDb[recipient.id] = [];
@@ -1895,7 +1805,7 @@ function sendAdminMessage() {
       messagesDb[recipient.id].push(newMessage);
     });
     
-    localStorage.setItem('fr_chat_messages', JSON.stringify(messagesDb));
+    localStorage.setItem(MESSAGES_KEY, JSON.stringify(messagesDb));
     
     messageInput.value = '';
     selectedRecipients = []; // Clear recipients after sending
@@ -1913,7 +1823,7 @@ function sendAdminMessage() {
     
     if (!text) return;
     
-    const messagesDb = JSON.parse(localStorage.getItem('fr_chat_messages') || '{}');
+    const messagesDb = JSON.parse(localStorage.getItem(MESSAGES_KEY) || '{}');
     if (!messagesDb[selectedChatUserId]) messagesDb[selectedChatUserId] = [];
     
     const newMessage = {
@@ -1924,7 +1834,7 @@ function sendAdminMessage() {
     };
     
     messagesDb[selectedChatUserId].push(newMessage);
-    localStorage.setItem('fr_chat_messages', JSON.stringify(messagesDb));
+    localStorage.setItem(MESSAGES_KEY, JSON.stringify(messagesDb));
     
     messageInput.value = '';
     loadChatMessages(selectedChatUserId);
@@ -1938,9 +1848,9 @@ function deleteAdminChatHistory() {
   if (!selectedChatUserId) return;
   if (!confirm('Supprimer tout l\'historique de conversation avec cet étudiant ? Cette action est irréversible.')) return;
   
-  const messagesDb = JSON.parse(localStorage.getItem('fr_chat_messages') || '{}');
+  const messagesDb = JSON.parse(localStorage.getItem(MESSAGES_KEY) || '{}');
   delete messagesDb[selectedChatUserId];
-  localStorage.setItem('fr_chat_messages', JSON.stringify(messagesDb));
+  localStorage.setItem(MESSAGES_KEY, JSON.stringify(messagesDb));
   
   $('#chatMessagesArea').innerHTML = '<div class="empty-state">Historique supprimé</div>';
   $('#adminMessageInput').disabled = true;
@@ -2011,20 +1921,17 @@ function handleAudioFile(file, inputElement, fileNameDisplay, hiddenAudioInput) 
   fileNameDisplay.style.display = 'block';
   hiddenAudioInput.value = placeholderPath; // Store placeholder path
   inputElement.value = ''; // Clear input to allow re-uploading the same file
-
-  // Simulate upload and get URL (if using Cloudinary, for example)
-  // For now, just use the placeholderPath
 }
 
 // CHANGE: Fix initialization to call loadRecipientOptions
-document.addEventListener('DOMContentLoaded', async function() {
+document.addEventListener('DOMContentLoaded', function() {
   console.log('[v0] Admin page loaded');
   
   // Check authentication
   checkAuth();
   
   // Load bank and update dashboard
-  await loadBank();
+  loadBank();
   
   // Load users table
   updateUsersTable();
@@ -2080,6 +1987,9 @@ document.addEventListener('DOMContentLoaded', async function() {
   
   // CHANGE: Initialize student charts on page load
   initStudentCharts(); 
+
+  // Load pending registrations on page load to update badge and tables
+  loadPendingRegistrations();
 });
 
 // Helper function to reset the exercise form
@@ -2126,17 +2036,10 @@ function resetExerciseForm() {
 
 // Helper function to initialize creator tab
 // This is now a no-op as the Builder tab is removed.
-// function initCreatorTab() {
-//   toggleBoxes();
-//   qcmQuestionCount = 0;
-//   vfQuestionCount = 0;
-//   if (!editingExerciseId) {
-//     resetExerciseForm();
-//   }
-// }
+// function initCreatorTab() { ... }
 
 function loadStudentOptions() {
-  const allUsers = JSON.parse(localStorage.getItem(USERS_KEY) || '[]');
+  const allUsers = JSON.parse(localStorage.getItem(USERS_STORAGE_KEY) || '[]');
   const students = allUsers.filter(u => u.role === 'student');
   
   const selector = $('#studentSelector');
@@ -2382,6 +2285,316 @@ function initStudentCharts() {
   drawAdminActivityChart(null);
   drawAdminLevelChart(null);
 }
+
+// --- New functions for Registrations Tab ---
+
+function loadPendingRegistrations() {
+  const pendingJson = localStorage.getItem(PENDING_REGISTRATIONS_KEY);
+  const allRegistrations = JSON.parse(pendingJson || '[]');
+  
+  const pending = allRegistrations.filter(r => r.status === 'pending');
+  const history = allRegistrations.filter(r => r.status !== 'pending');
+  
+  // Update badge count
+  const badge = document.getElementById('pending-count');
+  if (pending.length > 0) {
+    badge.textContent = pending.length;
+    badge.style.display = 'inline-block';
+  } else {
+    badge.style.display = 'none';
+  }
+  
+  // Display pending registrations
+  const pendingContainer = document.getElementById('pendingRegistrationsContainer');
+  if (pending.length === 0) {
+    pendingContainer.innerHTML = '<div class="empty-state">Aucune demande en attente</div>';
+  } else {
+    pendingContainer.innerHTML = pending.map(reg => `
+      <div class="registration-card">
+        <h3>${reg.name} <span class="status-badge pending">En attente</span></h3>
+        <div class="info-row">
+          <div class="info-item">
+            <span class="info-label">Email:</span>
+            ${reg.email}
+          </div>
+          <div class="info-item">
+            <span class="info-label">Numéro Zalo:</span>
+            ${reg.zalo}
+          </div>
+          <div class="info-item">
+            <span class="info-label">Filière:</span>
+            ${reg.filiere}
+          </div>
+          <div class="info-item">
+            <span class="info-label">Soumis le:</span>
+            ${new Date(reg.submittedAt).toLocaleString('fr-FR')}
+          </div>
+        </div>
+        <div class="explanation-box">
+          <strong>Explication:</strong><br>
+          ${reg.explanation}
+        </div>
+        <div class="actions">
+          <button class="btn-approve" onclick="approveRegistration('${reg.id}')">✓ Approuver</button>
+          <button class="btn-reject" onclick="rejectRegistration('${reg.id}')">✗ Refuser</button>
+        </div>
+      </div>
+    `).join('');
+  }
+  
+  // Display history
+  const historyContainer = document.getElementById('registrationHistoryContainer');
+  if (history.length === 0) {
+    historyContainer.innerHTML = '<div class="empty-state">Aucun historique</div>';
+  } else {
+    historyContainer.innerHTML = history.reverse().map(reg => `
+      <div class="registration-card ${reg.status}">
+        <h3>${reg.name} <span class="status-badge ${reg.status}">${reg.status === 'approved' ? 'Approuvé' : 'Refusé'}</span></h3>
+        <div class="info-row">
+          <div class="info-item">
+            <span class="info-label">Email:</span>
+            ${reg.email}
+          </div>
+          <div class="info-item">
+            <span class="info-label">Numéro Zalo:</span>
+            ${reg.zalo}
+          </div>
+          <div class="info-item">
+            <span class="info-label">Filière:</span>
+            ${reg.filiere}
+          </div>
+          <div class="info-item">
+            <span class="info-label">Traité le:</span>
+            ${reg.processedAt ? new Date(reg.processedAt).toLocaleString('fr-FR') : 'N/A'}
+          </div>
+        </div>
+        <div class="explanation-box">
+          <strong>Explication:</strong><br>
+          ${reg.explanation}
+        </div>
+      </div>
+    `).join('');
+  }
+}
+
+function approveRegistration(regId) {
+  if (!confirm('Voulez-vous vraiment approuver cette demande d\'inscription?')) {
+    return;
+  }
+  
+  const pendingJson = localStorage.getItem(PENDING_REGISTRATIONS_KEY);
+  const registrations = JSON.parse(pendingJson || '[]');
+  
+  const regIndex = registrations.findIndex(r => r.id === regId);
+  if (regIndex === -1) {
+    alert('Demande introuvable');
+    return;
+  }
+  
+  const registration = registrations[regIndex];
+  
+  // Create user account
+  const usersJson = localStorage.getItem(USERS_STORAGE_KEY);
+  const users = JSON.parse(usersJson || '[]');
+  
+  const userId = 'user_' + Date.now();
+  const newUser = {
+    id: userId,
+    name: registration.name,
+    email: registration.email,
+    pin: registration.pin,
+    role: 'student',
+    filiere: registration.filiere,
+    createdAt: new Date().toISOString(),
+    approvedBy: currentUser.name
+  };
+  
+  users.push(newUser);
+  localStorage.setItem(USERS_STORAGE_KEY, JSON.stringify(users));
+  
+  // Update registration status
+  registrations[regIndex].status = 'approved';
+  registrations[regIndex].processedAt = new Date().toISOString();
+  registrations[regIndex].processedBy = currentUser.name;
+  localStorage.setItem(PENDING_REGISTRATIONS_KEY, JSON.stringify(registrations));
+  
+  alert(`Compte créé avec succès pour ${registration.name}!\n\nContactez l'étudiant sur Zalo (${registration.zalo}) pour l'informer de l'approbation.`);
+  
+  loadPendingRegistrations();
+  updateUsersTable(); // Refresh users table to show new user
+}
+
+function rejectRegistration(regId) {
+  const reason = prompt('Raison du refus (sera affichée dans l\'historique):');
+  if (reason === null) {
+    return;
+  }
+  
+  const pendingJson = localStorage.getItem(PENDING_REGISTRATIONS_KEY);
+  const registrations = JSON.parse(pendingJson || '[]');
+  
+  const regIndex = registrations.findIndex(r => r.id === regId);
+  if (regIndex === -1) {
+    alert('Demande introuvable');
+    return;
+  }
+  
+  const registration = registrations[regIndex];
+  
+  // Update registration status
+  registrations[regIndex].status = 'rejected';
+  registrations[regIndex].processedAt = new Date().toISOString();
+  registrations[regIndex].processedBy = currentUser.name;
+  registrations[regIndex].rejectionReason = reason || 'Aucune raison fournie';
+  localStorage.setItem(PENDING_REGISTRATIONS_KEY, JSON.stringify(registrations));
+  
+  alert(`Demande refusée.\n\nContactez l'étudiant sur Zalo (${registration.zalo}) pour l'informer du refus.`);
+  
+  loadPendingRegistrations();
+}
+
+// Function to load and display users (renamed from loadUsers to match updateUsersTable usage)
+function loadUsers() {
+  updateUsersTable();
+}
+
+// Function to load and display bank (renamed from loadBank to match updateExercisesTable usage)
+function loadExercises() {
+  updateExercisesTable();
+}
+
+// Function to load and display messages (renamed from loadMessages to match switchTab usage)
+function loadMessages() {
+  loadChatUsers();
+}
+
+// Dummy functions for selectAllStudents and selectGroupStudents if needed
+function selectAllStudents() {
+  const allUsers = JSON.parse(localStorage.getItem(USERS_STORAGE_KEY) || '[]');
+  const students = allUsers.filter(u => u.role === 'student');
+  selectedRecipients = students.map(s => ({id: s.id, name: s.name}));
+  updateSelectedRecipientsUI();
+  alert(`Tous les ${students.length} étudiants sélectionnés.`);
+}
+
+function selectGroupStudents() {
+  // This would involve a more complex UI or selection logic.
+  // For now, simulate selecting a few.
+  const demoRecipients = [{id: 'user1', name: 'Alice'}, {id: 'user2', name: 'Bob'}]; // Replace with actual logic
+  selectedRecipients = demoRecipients;
+  updateSelectedRecipientsUI();
+  alert(`Groupe personnalisé sélectionné (${demoRecipients.length} étudiants).`);
+}
+
+function updateSelectedRecipientsUI() {
+  const container = $('#selectedRecipients');
+  container.innerHTML = '';
+  selectedRecipients.forEach(r => {
+    const span = document.createElement('span');
+    span.style.cssText = 'background:#e0e0e0;padding:4px 8px;border-radius:4px;font-size:.85rem;display:flex;align-items:center;gap:4px';
+    span.innerHTML = `
+      ${r.name} 
+      <button onclick="removeRecipient(${JSON.stringify(r)})" style="background:none;border:none;color:red;cursor:pointer;font-weight:bold;padding:0;font-size:1rem">✕</button>
+    `;
+    container.appendChild(span);
+  });
+}
+
+function removeRecipient(recipient) {
+  selectedRecipients = selectedRecipients.filter(r => r.id !== recipient.id);
+  updateSelectedRecipientsUI();
+}
+
+function switchTab(tabName) {
+  const tabs = document.querySelectorAll('.tab-btn');
+  const contents = document.querySelectorAll('.tab-content');
+  
+  tabs.forEach(t => t.classList.remove('active'));
+  contents.forEach(c => c.classList.remove('active'));
+  
+  event.target.classList.add('active');
+  document.getElementById(tabName).classList.add('active');
+  
+  if (tabName === 'registrations') {
+    loadPendingRegistrations();
+  }
+  
+  if (tabName === 'dashboard') {
+    updateDashboard(); // Ensure dashboard stats are refreshed
+    initStudentCharts(); // Re-initialize charts for potentially new students
+  }
+  
+  if (tabName === 'exercises') {
+    updateExercisesTable(); // Ensure exercise table is up-to-date
+  }
+  
+  if (tabName === 'users') {
+    updateUsersTable(); // Ensure user table is up-to-date
+  }
+  
+  if (tabName === 'resources') {
+    updateResourcesTable(); // Ensure resources table is up-to-date
+  }
+  
+  if (tabName === 'chat') {
+    loadRecipientOptions(); // Make sure recipient list is fresh
+    loadChatUsers(); // Refresh chat user list
+  }
+}
+
+// Use the renamed functions in the DOMContentLoaded listener
+window.addEventListener('DOMContentLoaded', function() {
+  console.log('[v0] DOMContentLoaded - Initializing admin page');
+  
+  checkAuth();
+  loadBank();
+  loadUsers(); // Calls updateUsersTable
+  
+  // Load pending registrations on page load to update badge and tables
+  loadPendingRegistrations();
+  
+  initStudentCharts(); // This will draw initial empty charts and load student options
+  
+  // Logout button handler
+  const logoutBtn = $('#logoutBtn');
+  if (logoutBtn) {
+    logoutBtn.addEventListener('click', function() {
+      localStorage.removeItem(AUTH_KEY);
+      window.location.href = 'login.html';
+    });
+  }
+
+  // Add event listener for the new "Add to bank" button
+  const addItemBtn = $('#addItem');
+  if (addItemBtn) {
+    addItemBtn.addEventListener('click', addExerciseFromBuilder);
+    console.log('[v0] Add item button listener attached');
+  }
+  
+  // Add QCM button
+  const addQcmBtn = $('#addQcmQuestion');
+  if (addQcmBtn) {
+    addQcmBtn.addEventListener('click', addFormQcmQuestion);
+    console.log('[v0] QCM button listener attached');
+  }
+  
+  // Add V/F button
+  const addVfBtn = $('#addVfQuestion');
+  if (addVfBtn) {
+    addVfBtn.addEventListener('click', addVfQuestion);
+    console.log('[v0] V/F button listener attached');
+  }
+
+  // Update difficulty value display
+  const difficultySlider = $('#difficulty');
+  const difficultyValue = $('#difficultyValue');
+  if (difficultySlider && difficultyValue) {
+    difficultyValue.textContent = `Niveau ${difficultySlider.value}`;
+    difficultySlider.addEventListener('input', function() {
+      difficultyValue.textContent = `Niveau ${this.value}`;
+    });
+  }
+});
 </script>
 </body>
 </html>
