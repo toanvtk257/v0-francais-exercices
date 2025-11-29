@@ -920,6 +920,24 @@ function resetForm() {
 
 // Initialize
 document.addEventListener('DOMContentLoaded', checkAuth);
+
+function toggleBoxes() {
+  const kind = $('#kind').value;
+  const passageBox = $('#passageBox');
+  const audioBox = $('#audioBox');
+  
+  // Hide all boxes first
+  passageBox.classList.add('hidden');
+  audioBox.classList.add('hidden');
+  
+  // Show relevant box based on discipline
+  if (kind === 'lecture') {
+    passageBox.classList.remove('hidden');
+  } else if (kind === 'ecoute') {
+    audioBox.classList.remove('hidden');
+  }
+  // For grammaire and lexique, no special content box is shown
+}
 </script>
 </body>
 </html>
