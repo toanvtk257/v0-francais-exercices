@@ -1,0 +1,403 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Migration vers Supabase</title>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="lib/supabase-client.js"></script>
+    <style>
+        body {
+            font-family: system-ui, -apple-system, sans-serif;
+            max-width: 800px;
+            margin: 50px auto;
+            padding: 20px;
+            background: #f5f5f5;
+        }
+        .container {
+            background: white;
+            padding: 30px;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        h1 {
+            color: #333;
+            margin-bottom: 10px;
+        }
+        .status {
+            margin: 20px 0;
+            padding: 15px;
+            border-radius: 5px;
+            background: #e3f2fd;
+            border-left: 4px solid #2196f3;
+        }
+        .log {
+            background: #f5f5f5;
+            padding: 15px;
+            border-radius: 5px;
+            max-height: 400px;
+            overflow-y: auto;
+            font-family: monospace;
+            font-size: 12px;
+            margin: 20px 0;
+        }
+        .log-entry {
+            padding: 5px 0;
+            border-bottom: 1px solid #ddd;
+        }
+        .log-entry.success { color: #4caf50; }
+        .log-entry.error { color: #f44336; }
+        .log-entry.info { color: #2196f3; }
+        button {
+            background: #4caf50;
+            color: white;
+            padding: 12px 30px;
+            border: none;
+            border-radius: 5px;
+            font-size: 16px;
+            cursor: pointer;
+            margin: 10px 5px 10px 0;
+        }
+        button:hover {
+            background: #45a049;
+        }
+        button:disabled {
+            background: #ccc;
+            cursor: not-allowed;
+        }
+        .warning {
+            background: #fff3cd;
+            border-left: 4px solid #ffc107;
+            padding: 15px;
+            margin: 20px 0;
+            border-radius: 5px;
+        }
+        .stats {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+            gap: 15px;
+            margin: 20px 0;
+        }
+        .stat-card {
+            background: #f5f5f5;
+            padding: 15px;
+            border-radius: 5px;
+            text-align: center;
+        }
+        .stat-number {
+            font-size: 32px;
+            font-weight: bold;
+            color: #2196f3;
+        }
+        .stat-label {
+            color: #666;
+            font-size: 14px;
+            margin-top: 5px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Migration localStorage → Supabase</h1>
+        <p>Cette page va migrer toutes vos données de localStorage vers la base de données Supabase.</p>
+        
+        <div class="warning">
+            <strong>⚠️ Attention:</strong> Cette migration va transférer toutes les données existantes. Assurez-vous d'être sur le bon navigateur avec les données à migrer.
+        </div>
+
+        <div class="stats" id="stats">
+            <div class="stat-card">
+                <div class="stat-number" id="userCount">0</div>
+                <div class="stat-label">Utilisateurs</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-number" id="exerciseCount">0</div>
+                <div class="stat-label">Exercices</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-number" id="resultCount">0</div>
+                <div class="stat-label">Résultats</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-number" id="messageCount">0</div>
+                <div class="stat-label">Messages</div>
+            </div>
+        </div>
+
+        <button id="scanBtn" onclick="scanLocalStorage()">1. Scanner localStorage</button>
+        <button id="migrateBtn" onclick="startMigration()" disabled>2. Lancer la migration</button>
+        <button onclick="location.href='login.html'">Retour à la connexion</button>
+
+        <div class="status" id="status">
+            Prêt à scanner les données localStorage...
+        </div>
+
+        <div class="log" id="log"></div>
+    </div>
+
+    <script>
+        let localData = {
+            users: [],
+            exercises: {},
+            results: {},
+            messages: [],
+            requests: [],
+            resources: []
+        };
+
+        function log(message, type = 'info') {
+            const logDiv = document.getElementById('log');
+            const entry = document.createElement('div');
+            entry.className = `log-entry ${type}`;
+            const timestamp = new Date().toLocaleTimeString();
+            entry.textContent = `[${timestamp}] ${message}`;
+            logDiv.appendChild(entry);
+            logDiv.scrollTop = logDiv.scrollHeight;
+            console.log(message);
+        }
+
+        function updateStatus(message) {
+            document.getElementById('status').textContent = message;
+        }
+
+        function scanLocalStorage() {
+            log('Début du scan de localStorage...', 'info');
+            
+            // Scanner les utilisateurs
+            localData.users = JSON.parse(localStorage.getItem('users') || '[]');
+            document.getElementById('userCount').textContent = localData.users.length;
+            log(`Trouvé ${localData.users.length} utilisateurs`, 'success');
+
+            // Scanner les exercices
+            const types = ['lecture', 'ecoute', 'grammaire', 'lexique'];
+            let totalExercises = 0;
+            types.forEach(type => {
+                const exos = JSON.parse(localStorage.getItem(`exercices-${type}`) || '[]');
+                localData.exercises[type] = exos;
+                totalExercises += exos.length;
+                log(`Trouvé ${exos.length} exercices de ${type}`, 'success');
+            });
+            document.getElementById('exerciseCount').textContent = totalExercises;
+
+            // Scanner les résultats
+            const allResults = JSON.parse(localStorage.getItem('exerciseResults') || '{}');
+            localData.results = allResults;
+            let totalResults = 0;
+            Object.values(allResults).forEach(results => {
+                if (results) totalResults += results.length;
+            });
+            document.getElementById('resultCount').textContent = totalResults;
+            log(`Trouvé ${totalResults} résultats d'exercices`, 'success');
+
+            // Scanner les messages
+            localData.messages = JSON.parse(localStorage.getItem('adminMessages') || '[]');
+            document.getElementById('messageCount').textContent = localData.messages.length;
+            log(`Trouvé ${localData.messages.length} messages`, 'success');
+
+            // Scanner les demandes d'inscription
+            localData.requests = JSON.parse(localStorage.getItem('registrationRequests') || '[]');
+            log(`Trouvé ${localData.requests.length} demandes d'inscription`, 'success');
+
+            // Scanner les ressources externes
+            localData.resources = JSON.parse(localStorage.getItem('externalResources') || '[]');
+            log(`Trouvé ${localData.resources.length} ressources externes`, 'success');
+
+            updateStatus(`Scan terminé: ${localData.users.length} utilisateurs, ${totalExercises} exercices, ${totalResults} résultats à migrer`);
+            document.getElementById('migrateBtn').disabled = false;
+            log('Scan terminé! Vous pouvez maintenant lancer la migration.', 'success');
+        }
+
+        async function startMigration() {
+            document.getElementById('migrateBtn').disabled = true;
+            document.getElementById('scanBtn').disabled = true;
+            
+            log('🚀 Début de la migration...', 'info');
+            updateStatus('Migration en cours...');
+
+            try {
+                // 1. Migrer les utilisateurs
+                log('--- Migration des utilisateurs ---', 'info');
+                for (const user of localData.users) {
+                    try {
+                        await window.SupabaseDB.users.create({
+                            email: user.email,
+                            name: user.name,
+                            role: user.role,
+                            pin: user.pin,
+                            filiere: user.filiere,
+                            zalo: user.zalo,
+                            status: user.status || 'approved'
+                        });
+                        log(`✅ Utilisateur migré: ${user.email}`, 'success');
+                    } catch (error) {
+                        if (error.message.includes('duplicate')) {
+                            log(`⚠️ Utilisateur déjà existant: ${user.email}`, 'info');
+                        } else {
+                            log(`❌ Erreur pour ${user.email}: ${error.message}`, 'error');
+                        }
+                    }
+                }
+
+                // 2. Migrer les exercices
+                log('--- Migration des exercices ---', 'info');
+                for (const [type, exos] of Object.entries(localData.exercises)) {
+                    for (const exo of exos) {
+                        try {
+                            // Convertir le format d'exercice
+                            const questions = [];
+
+                            // QCM
+                            if (exo.qcm && exo.qcm.length > 0) {
+                                exo.qcm.forEach((q, i) => {
+                                    questions.push({
+                                        type: 'qcm',
+                                        number: i + 1,
+                                        question: q.question,
+                                        options: q.options,
+                                        correctAnswer: q.correctAnswer
+                                    });
+                                });
+                            }
+
+                            // Vrai/Faux
+                            if (exo.vf && exo.vf.length > 0) {
+                                exo.vf.forEach((q, i) => {
+                                    questions.push({
+                                        type: 'vf',
+                                        number: questions.length + 1,
+                                        question: q.question,
+                                        correctAnswer: q.correctAnswer
+                                    });
+                                });
+                            }
+
+                            // Texte à trous
+                            if (exo.cloze && exo.cloze.length > 0) {
+                                exo.cloze.forEach((q, i) => {
+                                    questions.push({
+                                        type: 'cloze',
+                                        number: questions.length + 1,
+                                        sentence: q.sentence,
+                                        correctAnswer: q.correctAnswer
+                                    });
+                                });
+                            }
+
+                            await window.SupabaseDB.exercises.create({
+                                id: exo.id,
+                                type: type,
+                                niveau: exo.niveau,
+                                theme: exo.theme,
+                                titre: exo.titre,
+                                texte: exo.texte,
+                                audio: exo.audio,
+                                questions: questions
+                            });
+                            log(`✅ Exercice migré: ${exo.titre}`, 'success');
+                        } catch (error) {
+                            if (error.message.includes('duplicate')) {
+                                log(`⚠️ Exercice déjà existant: ${exo.titre}`, 'info');
+                            } else {
+                                log(`❌ Erreur pour ${exo.titre}: ${error.message}`, 'error');
+                            }
+                        }
+                    }
+                }
+
+                // 3. Migrer les résultats
+                log('--- Migration des résultats ---', 'info');
+                for (const [userId, results] of Object.entries(localData.results)) {
+                    if (!results || results.length === 0) continue;
+
+                    for (const result of results) {
+                        try {
+                            await window.SupabaseDB.exercises.saveAttempt(userId, result.exerciseId, {
+                                score: result.score,
+                                maxScore: result.maxScore,
+                                percentage: result.percentage,
+                                timeSpent: result.timeSpent || 0,
+                                answers: result.answers || [],
+                                completedAt: result.completedAt || new Date().toISOString()
+                            });
+                            log(`✅ Résultat migré pour exercice ${result.exerciseId}`, 'success');
+                        } catch (error) {
+                            log(`❌ Erreur pour résultat: ${error.message}`, 'error');
+                        }
+                    }
+                }
+
+                // 4. Migrer les messages
+                log('--- Migration des messages ---', 'info');
+                for (const msg of localData.messages) {
+                    try {
+                        await window.SupabaseDB.messages.send({
+                            senderId: msg.from,
+                            content: msg.content,
+                            recipients: msg.recipients || [msg.to],
+                            groupId: msg.groupId,
+                            isGroupMessage: msg.isGroupMessage || false
+                        });
+                        log(`✅ Message migré`, 'success');
+                    } catch (error) {
+                        log(`❌ Erreur pour message: ${error.message}`, 'error');
+                    }
+                }
+
+                // 5. Migrer les demandes d'inscription
+                log('--- Migration des demandes d\'inscription ---', 'info');
+                for (const req of localData.requests) {
+                    try {
+                        await window.SupabaseDB.registrations.create({
+                            email: req.email,
+                            name: req.name,
+                            pin: req.pin,
+                            filiere: req.filiere,
+                            zalo: req.zalo,
+                            explanation: req.explanation,
+                            status: req.status || 'pending'
+                        });
+                        log(`✅ Demande migrée: ${req.email}`, 'success');
+                    } catch (error) {
+                        if (error.message.includes('duplicate')) {
+                            log(`⚠️ Demande déjà existante: ${req.email}`, 'info');
+                        } else {
+                            log(`❌ Erreur pour ${req.email}: ${error.message}`, 'error');
+                        }
+                    }
+                }
+
+                // 6. Migrer les ressources externes
+                log('--- Migration des ressources externes ---', 'info');
+                for (const res of localData.resources) {
+                    try {
+                        await window.SupabaseDB.resources.create({
+                            titre: res.titre,
+                            description: res.description,
+                            url: res.url,
+                            categorie: res.categorie
+                        });
+                        log(`✅ Ressource migrée: ${res.titre}`, 'success');
+                    } catch (error) {
+                        log(`❌ Erreur pour ressource: ${error.message}`, 'error');
+                    }
+                }
+
+                log('🎉 Migration terminée avec succès!', 'success');
+                updateStatus('Migration terminée! Toutes les données ont été transférées vers Supabase.');
+                
+            } catch (error) {
+                log(`❌ Erreur critique: ${error.message}`, 'error');
+                updateStatus('Erreur lors de la migration. Consultez les logs.');
+            }
+        }
+
+        // Scanner automatiquement au chargement de la page
+        window.addEventListener('DOMContentLoaded', () => {
+            setTimeout(() => {
+                log('Page de migration chargée', 'info');
+                log('Cliquez sur "Scanner localStorage" pour commencer', 'info');
+            }, 500);
+        });
+    </script>
+</body>
+</html>
