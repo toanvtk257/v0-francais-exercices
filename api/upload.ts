@@ -10,6 +10,19 @@ export default async function handler(req: any, res: any) {
   }
 
   try {
+    const cloudName = process.env.CLOUDINARY_CLOUD_NAME
+    const uploadPreset = process.env.CLOUDINARY_UPLOAD_PRESET || "francais_exercices"
+
+    if (!cloudName) {
+      console.error("[v0] CLOUDINARY_CLOUD_NAME not configured")
+      return res.status(500).json({
+        error:
+          "Configuration error: CLOUDINARY_CLOUD_NAME environment variable is missing. Please add it in Vercel project settings.",
+      })
+    }
+
+    console.log("[v0] Cloudinary config:", { cloudName, uploadPreset })
+
     // Get file from request
     const formData = await req.formData()
     const file = formData.get("file")
@@ -18,10 +31,12 @@ export default async function handler(req: any, res: any) {
       return res.status(400).json({ error: "No file provided" })
     }
 
+    console.log("[v0] Uploading file:", file.name, "Size:", file.size)
+
     // Prepare Cloudinary upload
     const cloudinaryFormData = new FormData()
     cloudinaryFormData.append("file", file)
-    cloudinaryFormData.append("upload_preset", process.env.CLOUDINARY_UPLOAD_PRESET || "francais_exercices")
+    cloudinaryFormData.append("upload_preset", uploadPreset)
 
     const folder = process.env.CLOUDINARY_FOLDER || "entrainement-francais"
     cloudinaryFormData.append("folder", folder)
@@ -33,8 +48,12 @@ export default async function handler(req: any, res: any) {
       resourceType = "video" // Cloudinary uses 'video' for audio files
     }
 
+    console.log("[v0] Resource type:", resourceType, "Folder:", folder)
+
     // Upload to Cloudinary
-    const cloudinaryUrl = `https://api.cloudinary.com/v1_1/${process.env.CLOUDINARY_CLOUD_NAME}/${resourceType}/upload`
+    const cloudinaryUrl = `https://api.cloudinary.com/v1_1/${cloudName}/${resourceType}/upload`
+
+    console.log("[v0] Uploading to:", cloudinaryUrl)
 
     const response = await fetch(cloudinaryUrl, {
       method: "POST",
@@ -43,13 +62,16 @@ export default async function handler(req: any, res: any) {
 
     if (!response.ok) {
       const error = await response.text()
+      console.error("[v0] Cloudinary error:", error)
       throw new Error(`Cloudinary upload failed: ${error}`)
     }
 
     const data = await response.json()
+    console.log("[v0] Upload successful:", data.secure_url)
+
     return res.status(200).json({ url: data.secure_url })
   } catch (error) {
-    console.error("Upload error:", error)
+    console.error("[v0] Upload error:", error)
     return res.status(500).json({ error: "Upload failed: " + (error as Error).message })
   }
 }

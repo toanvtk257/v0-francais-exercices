@@ -868,7 +868,7 @@ async function saveExercise(event) {
         } else if (textImageBlob) {
             statusEl.innerHTML = '<span style="color:#f59e0b">Upload de l\'image en cours...</span>';
             try {
-                const imageUrl = await uploadToBlob(textImageBlob, 'image');
+                const imageUrl = await uploadToCloudinary(textImageBlob, 'image');
                 exercise.texteImage = imageUrl;
             } catch (err) {
                 console.error('Image upload error:', err);
@@ -881,12 +881,13 @@ async function saveExercise(event) {
     // Handle CO audio and transcription
     if (kind === 'ecoute') {
         if (audioBlob) {
-            statusEl.innerHTML = '<span style="color:#f59e0b">Upload de l\'audio en cours...</span>';
+            statusEl.innerHTML = '<span style="color:#f59e0b">Upload de l\'audio sur Cloudinary...</span>';
             try {
-                const audioUrl = await uploadToBlob(audioBlob, 'audio');
+                const audioUrl = await uploadToCloudinary(audioBlob, 'audio');
                 exercise.audio = audioUrl;
+                console.log('[v0] Audio uploaded:', audioUrl);
             } catch (err) {
-                console.error('Audio upload error:', err);
+                console.error('[v0] Audio upload error:', err);
                 statusEl.innerHTML = '<span style="color:#ef4444">Erreur upload audio: ' + err.message + '</span>';
                 return;
             }
@@ -913,22 +914,37 @@ async function saveExercise(event) {
     }
 }
 
-async function uploadToBlob(file, type) {
+async function uploadToCloudinary(file, type) {
+    console.log('[v0] Uploading to Cloudinary:', file.name, 'Type:', type);
+    
     const formData = new FormData();
     formData.append('file', file);
     
-    const response = await fetch('/api/upload', {
-        method: 'POST',
-        body: formData
-    });
-    
-    if (!response.ok) {
-        const error = await response.text();
-        throw new Error('Upload failed: ' + error);
+    try {
+        const response = await fetch('/api/upload', {
+            method: 'POST',
+            body: formData
+        });
+        
+        if (!response.ok) {
+            const error = await response.json();
+            console.error('[v0] Upload failed:', error);
+            
+            // Show user-friendly error message
+            if (error.error && error.error.includes('CLOUDINARY_CLOUD_NAME')) {
+                throw new Error('Configuration Cloudinary manquante. Veuillez ajouter CLOUDINARY_CLOUD_NAME dans les variables d\'environnement Vercel.');
+            }
+            
+            throw new Error(error.error || 'Upload failed');
+        }
+        
+        const data = await response.json();
+        console.log('[v0] Upload successful:', data.url);
+        return data.url;
+    } catch (err) {
+        console.error('[v0] Upload error:', err);
+        throw err;
     }
-    
-    const data = await response.json();
-    return data.url;
 }
 
 // Helper function to convert Blob to base64 (kept for backwards compatibility but not used)
