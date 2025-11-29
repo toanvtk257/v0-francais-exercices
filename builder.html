@@ -116,9 +116,32 @@ hr{border:none;border-top:1px solid #e8e8e8;margin:16px 0}
 .preview-audio{width:100%;margin-top:8px}
 .preview-image{max-width:100%;max-height:300px;border-radius:8px;margin-top:8px}
 .option-list{display:flex;flex-direction:column;gap:8px;margin-top:8px}
-.option-item{display:flex;gap:8px;align-items:center;padding:8px;background:#f9f9f9;border-radius:6px;border:1px solid #e0e0e0}
-.option-item input{flex:1;border:none;background:transparent;padding:6px}
-.option-item button{padding:4px 8px;font-size:.8rem}
+.option-item{
+    display:flex;
+    gap:8px;
+    align-items:center;
+    padding:12px;
+    background:#f9f9f9;
+    border-radius:6px;
+    border:2px solid #e0e0e0;
+}
+.option-item .option-text{
+    flex:1;
+    border:1px solid #ddd;
+    background:white;
+    padding:8px 12px;
+    border-radius:4px;
+    font-size:1rem;
+}
+.option-item label{
+    margin:0;
+    display:flex;
+    align-items:center;
+    gap:6px;
+    white-space:nowrap;
+    font-weight:500;
+}
+.option-item button{padding:6px 12px;font-size:.9rem}
 .option-item.correct{border-color:var(--brand);background:#e8f5e9}
 .question-type-selector{display:flex;gap:8px;margin:12px 0}
 .type-btn{padding:8px 16px;border:1px solid #ddd;background:#fff;border-radius:6px;cursor:pointer;font-size:.9rem}
@@ -704,8 +727,8 @@ function addOption(questionId) {
     
     optionDiv.innerHTML = `
         <input type="text" placeholder="Option ${letter.toUpperCase()}" class="option-text" value="">
-        <label style="margin:0;display:flex;align-items:center;gap:4px;white-space:nowrap">
-            <input type="radio" name="correct_${questionId}">
+        <label>
+            <input type="radio" name="correct_${questionId}" onchange="markCorrect(this)">
             Correcte
         </label>
         <button type="button" class="danger" onclick="removeOption(this)">✕</button>
@@ -937,6 +960,20 @@ function toggleBoxes() {
     audioBox.classList.remove('hidden');
   }
   // For grammaire and lexique, no special content box is shown
+}
+
+function markCorrect(radio) {
+    // Remove 'correct' class from all options in this question
+    const questionDiv = radio.closest('[id^="question_"]');
+    questionDiv.querySelectorAll('.option-item').forEach(item => {
+        item.classList.remove('correct');
+    });
+    
+    // Add 'correct' class to selected option
+    const optionItem = radio.closest('.option-item');
+    if (radio.checked) {
+        optionItem.classList.add('correct');
+    }
 }
 </script>
 </body>
