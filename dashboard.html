@@ -3,46 +3,19 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data: https:; font-src 'self' data:; connect-src 'self' ws: wss:;">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net; style-src 'self' 'unsafe-inline'; img-src 'self' data: https:; font-src 'self' data:; connect-src 'self' https://*.supabase.co ws: wss:;">
 <title>Tableau de bord — Apprenant</title>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <style>
 :root{--brand:#2b5;--ink:#222;--muted:#666;--bg:#f7f7f7;--card:#fff;--success:#4caf50;--warning:#ff9800}
 html,body{margin:0;padding:0;background:var(--bg);color:var(--ink);font-family:system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif}
 header{background:var(--brand);color:#fff;padding:16px 20px;display:flex;justify-content:space-between;align-items:center}
 h1{margin:0;font-size:1.3rem}
-.user-info{
-  display:flex;
-  flex-direction:column;
-  align-items:flex-end;
-  gap:4px;
-  background:#fff;
-  padding:12px 16px;
-  border-radius:8px;
-}
-#userName{
-  font-weight:600;
-  color:#22c55e;
-  font-size:.95rem;
-}
-.user-email{
-  font-size:.85rem;
-  color:#444;
-}
-.logout-btn{
-  background:#22c55e;
-  border:none;
-  color:#fff;
-  padding:6px 12px;
-  border-radius:6px;
-  cursor:pointer;
-  font-weight:600;
-  font-size:.85rem;
-  margin-top:4px;
-  transition:all .2s;
-}
-.logout-btn:hover{
-  background:#1ea34a;
-}
+.user-info{display:flex;flex-direction:column;align-items:flex-end;gap:4px;background:#fff;padding:12px 16px;border-radius:8px}
+#userName{font-weight:600;color:#22c55e;font-size:.95rem}
+.user-email{font-size:.85rem;color:#444}
+.logout-btn{background:#22c55e;border:none;color:#fff;padding:6px 12px;border-radius:6px;cursor:pointer;font-weight:600;font-size:.85rem;margin-top:4px;transition:all .2s}
+.logout-btn:hover{background:#1ea34a}
 main{max-width:1200px;margin:24px auto;padding:0 16px 48px}
 .card{background:var(--card);border-radius:14px;box-shadow:0 6px 18px rgba(0,0,0,.05);padding:20px;margin-bottom:20px}
 h2{margin:0 0 16px;font-size:1.2rem;color:var(--ink)}
@@ -50,897 +23,302 @@ h2{margin:0 0 16px;font-size:1.2rem;color:var(--ink)}
 .stat-box{background:linear-gradient(135deg,var(--brand),#1a9d4d);color:#fff;padding:20px;border-radius:12px;text-align:center}
 .stat-value{font-size:2rem;font-weight:700;margin:8px 0}
 .stat-label{font-size:.9rem;opacity:.9}
-.lessons-list{display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:16px}
-.lesson-card{background:var(--card);border:1px solid #e0e0e0;border-radius:12px;padding:16px;cursor:pointer;transition:all .2s}
-.lesson-card:hover{box-shadow:0 4px 12px rgba(0,0,0,.1);transform:translateY(-2px)}
-.lesson-header{display:flex;justify-content:space-between;align-items:start;margin-bottom:12px}
-.lesson-title{font-weight:600;color:var(--ink)}
-.lesson-level{background:var(--brand);color:#fff;padding:4px 8px;border-radius:6px;font-size:.8rem}
-.lesson-meta{font-size:.85rem;color:var(--muted);margin:8px 0}
-.lesson-progress{background:#e0e0e0;height:6px;border-radius:3px;overflow:hidden;margin:8px 0}
-.lesson-progress-bar{background:var(--success);height:100%;transition:width .3s}
-.lesson-actions{display:flex;gap:8px;margin-top:12px}
-button{border:0;padding:8px 12px;border-radius:8px;cursor:pointer;font-weight:600;font-size:.9rem;transition:all .2s}
+table{width:100%;border-collapse:collapse;font-size:.95rem}
+th,td{text-align:left;padding:12px;border-bottom:1px solid #e0e0e0}
+th{background:#f5f5f5;font-weight:600}
+.badge{display:inline-block;padding:4px 10px;border-radius:8px;font-size:.85rem;font-weight:600}
+.badge-success{background:#e8f5e9;color:#2e7d32}
+.badge-warning{background:#fff3e0;color:#e65100}
+.badge-info{background:#e3f2fd;color:#1565c0}
+.btn{display:inline-block;padding:10px 16px;border-radius:8px;border:none;cursor:pointer;font-weight:600;font-size:.95rem;transition:all .2s}
 .btn-primary{background:var(--brand);color:#fff}
 .btn-primary:hover{opacity:.9}
-.btn-secondary{background:#e0e0e0;color:#111}
-.btn-secondary:hover{background:#d0d0d0}
-.empty-state{text-align:center;padding:40px 20px;color:var(--muted)}
-.empty-state-icon{font-size:3rem;margin-bottom:16px}
-.filter-bar{display:flex;gap:12px;margin-bottom:20px;flex-wrap:wrap}
-select{padding:8px 12px;border:1px solid #ddd;border-radius:8px;font-size:.95rem}
-.chart-container{margin-top:24px}
-.chart-title{font-size:1rem;font-weight:600;margin-bottom:12px;color:var(--ink)}
-.chart-canvas{width:100%;height:250px;border:1px solid #e0e0e0;border-radius:8px;background:#fff}
-.chart-legend{display:flex;gap:16px;margin-top:12px;flex-wrap:wrap;font-size:.85rem}
-.legend-item{display:flex;align-items:center;gap:6px}
-.legend-color{width:12px;height:12px;border-radius:2px}
-.badge{display:inline-block;padding:4px 8px;border-radius:4px;font-size:.75rem;font-weight:600}
-.badge-a1{background:#e53935}
-.badge-a2{background:#e91e63}
-.badge-b1{background:#f44336}
-.badge-b2{background:#ff5722}
-.badge-c1{background:#ff9800}
-.badge-c2{background:#8bc34a}
+.exercise-card{border:1px solid #e0e0e0;border-radius:10px;padding:16px;margin-bottom:12px;display:flex;justify-content:space-between;align-items:center}
+.exercise-info h3{margin:0 0 4px;font-size:1rem}
+.exercise-info p{margin:0;color:var(--muted);font-size:.9rem}
+.empty-state{text-align:center;padding:40px;color:var(--muted)}
+.loading{text-align:center;padding:40px;color:var(--muted)}
+.tabs{display:flex;gap:8px;margin-bottom:20px;border-bottom:2px solid #e0e0e0}
+.tab-btn{background:none;border:none;padding:12px 16px;cursor:pointer;font-weight:600;color:var(--muted);border-bottom:3px solid transparent;transition:all .2s}
+.tab-btn.active{color:var(--brand);border-bottom-color:var(--brand)}
+.tab-content{display:none}
+.tab-content.active{display:block}
+.chart-container{height:200px;display:flex;align-items:center;justify-content:center;border:1px solid #e0e0e0;border-radius:8px}
 </style>
 </head>
 <body>
 <header>
-  <h1>Entraînement au français - <em>espace numérique</em></h1>
+  <h1>🍀 Entraînement au français - <em>espace numérique</em></h1>
   <div class="user-info">
-    <span id="userName">Utilisateur</span>
-    <span class="user-email" id="userEmail"></span>
-    <div style="display:flex;gap:8px;margin-top:4px">
-      <button class="logout-btn" style="background:#f59e0b" onclick="openChangePinModal()">Modifier PIN</button>
-      <button class="logout-btn" id="logoutBtn">Déconnexion</button>
-    </div>
+    <span id="userName">Chargement...</span>
+    <span id="userEmail" class="user-email"></span>
+    <button class="logout-btn" onclick="handleLogout()">Déconnexion</button>
   </div>
 </header>
 
 <main>
-  <div class="card">
-    <h2>Votre progression</h2>
-    <div class="stats-grid">
-      <div class="stat-box">
-        <div class="stat-label">Leçons complétées</div>
-        <div class="stat-value" id="completedLessons">0</div>
-      </div>
-      <div class="stat-box">
-        <div class="stat-label">Tentatives totales</div>
-        <div class="stat-value" id="totalAttempts">0</div>
-      </div>
-      <div class="stat-box">
-        <div class="stat-label">Score moyen</div>
-        <div class="stat-value" id="avgScore">0%</div>
-      </div>
-      <div class="stat-box">
-        <div class="stat-label">Temps total</div>
-        <div class="stat-value" id="totalTime">0h</div>
-      </div>
-    </div>
-    <div class="chart-container">
-      <div class="chart-title">Progression au fil du temps</div>
-      <canvas id="progressChart" class="chart-canvas"></canvas>
-    </div>
-    <div class="chart-container">
-      <div class="chart-title">Scores par niveau CECRL</div>
-      <canvas id="levelChart" class="chart-canvas"></canvas>
-    </div>
-    <div class="chart-container">
-      <div class="chart-title">Répartition CE vs CO</div>
-      <canvas id="typeChart" class="chart-canvas"></canvas>
-    </div>
+  <div class="tabs">
+    <button class="tab-btn active" onclick="switchTab('overview')">Vue d'ensemble</button>
+    <button class="tab-btn" onclick="switchTab('exercises')">Exercices</button>
+    <button class="tab-btn" onclick="switchTab('resources')">Ressources</button>
   </div>
 
-  <div class="card">
-    <h2>Ressources externes recommandées</h2>
-    <div id="externalResourcesList"></div>
-  </div>
-
-  <div class="card">
-    <h2>Messages</h2>
-    
-    <div style="margin-bottom:16px;padding:12px;background:#eff6ff;border-radius:8px;border:1px solid #bae6fd">
-      <label style="display:block;margin-bottom:8px;font-weight:600;color:#0c4a6e">Envoyer à:</label>
-      <select id="adminRecipientSelect" style="width:100%;padding:8px;border:1px solid #cbd5e1;border-radius:6px">
-        <option value="admin">Tous les administrateurs</option>
-      </select>
-    </div>
-    
-    <div style="display:flex;flex-direction:column;gap:16px">
-      <div id="chatMessagesArea" style="max-height:400px;overflow-y:auto;padding:16px;background:#f9f9f9;border-radius:8px">
-        <div class="empty-state">Aucun message</div>
-      </div>
-      <div>
-        <textarea id="studentMessageInput" placeholder="Envoyez un message à l'administrateur..." style="width:100%;padding:10px;border:1px solid #ddd;border-radius:8px;font-size:.95rem;box-sizing:border-box;min-height:80px;margin-bottom:8px"></textarea>
-        <div style="display:flex;gap:8px">
-          <button class="btn-primary" onclick="sendStudentMessage()">Envoyer message</button>
-          <button class="btn-secondary" onclick="deleteStudentChatHistory()">Supprimer l'historique</button>
+  <!-- Overview Tab -->
+  <div id="overview" class="tab-content active">
+    <div class="card">
+      <h2>Votre progression</h2>
+      <div class="stats-grid">
+        <div class="stat-box">
+          <div class="stat-label">Leçons complétées</div>
+          <div class="stat-value" id="statLessons">0</div>
+        </div>
+        <div class="stat-box">
+          <div class="stat-label">Tentatives totales</div>
+          <div class="stat-value" id="statAttempts">0</div>
+        </div>
+        <div class="stat-box">
+          <div class="stat-label">Score moyen</div>
+          <div class="stat-value" id="statAvgScore">0%</div>
+        </div>
+        <div class="stat-box">
+          <div class="stat-label">Temps total</div>
+          <div class="stat-value" id="statTime">0m</div>
         </div>
       </div>
     </div>
+
+    <div class="card">
+      <h2>Dernières tentatives</h2>
+      <div id="recentAttempts">
+        <div class="loading">Chargement...</div>
+      </div>
+    </div>
   </div>
 
-  <div class="card">
-    <h2>Exercices disponibles</h2>
-    <div class="filter-bar">
-      <select id="levelFilter">
-        <option value="">Tous les niveaux</option>
-        <option value="A1">A1</option>
-        <option value="A2">A2</option>
-        <option value="B1">B1</option>
-        <option value="B2">B2</option>
-        <option value="C1">C1</option>
-        <option value="C2">C2</option>
-      </select>
-      <select id="typeFilter">
-        <option value="">Tous les types</option>
-        <option value="lecture">CE</option>
-        <option value="ecoute">CO</option>
-        <option value="grammaire">Grammaire</option>
-        <option value="lexique">Lexique</option>
-      </select>
+  <!-- Exercises Tab -->
+  <div id="exercises" class="tab-content">
+    <div class="card">
+      <h2>Compréhension Écrite (CE)</h2>
+      <div id="ceExercises"><div class="loading">Chargement...</div></div>
     </div>
-    <div class="lessons-list" id="lessonsList">
-      <div class="empty-state">
-        <div class="empty-state-icon">📂</div>
-        <p>Aucune banque de questions chargée.</p>
-      </div>
+    <div class="card">
+      <h2>Compréhension Orale (CO)</h2>
+      <div id="coExercises"><div class="loading">Chargement...</div></div>
+    </div>
+    <div class="card">
+      <h2>Grammaire</h2>
+      <div id="grammaireExercises"><div class="loading">Chargement...</div></div>
+    </div>
+    <div class="card">
+      <h2>Lexique</h2>
+      <div id="lexiqueExercises"><div class="loading">Chargement...</div></div>
+    </div>
+  </div>
+
+  <!-- Resources Tab -->
+  <div id="resources" class="tab-content">
+    <div class="card">
+      <h2>Ressources externes</h2>
+      <div id="resourcesList"><div class="loading">Chargement...</div></div>
     </div>
   </div>
 </main>
 
-<!-- CHANGE: Added modal for students to change their PIN -->
-<div id="changePinModal" style="display:none;position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,0.5);z-index:1000;align-items:center;justify-content:center">
-  <div style="background:#fff;border-radius:14px;padding:24px;max-width:400px;width:90%;margin:20px">
-    <h2 style="margin:0 0 16px;color:var(--brand)">Modifier mon code PIN</h2>
-    
-    <div class="form-group" style="margin-bottom:16px">
-      <label for="currentPin" style="display:block;margin-bottom:6px;font-weight:600">Code PIN actuel</label>
-      <input type="password" id="currentPin" maxlength="6" pattern="[0-9]*" inputmode="numeric" placeholder="••••••" style="width:100%;padding:12px;border:1px solid #ddd;border-radius:10px;font-size:1rem;box-sizing:border-box;text-align:center;letter-spacing:8px">
-    </div>
-    
-    <div class="form-group" style="margin-bottom:16px">
-      <label for="newPin" style="display:block;margin-bottom:6px;font-weight:600">Nouveau code PIN (6 chiffres)</label>
-      <input type="password" id="newPin" maxlength="6" pattern="[0-9]*" inputmode="numeric" placeholder="••••••" style="width:100%;padding:12px;border:1px solid #ddd;border-radius:10px;font-size:1rem;box-sizing:border-box;text-align:center;letter-spacing:8px">
-    </div>
-    
-    <div class="form-group" style="margin-bottom:16px">
-      <label for="confirmNewPin" style="display:block;margin-bottom:6px;font-weight:600">Confirmer le nouveau code PIN</label>
-      <input type="password" id="confirmNewPin" maxlength="6" pattern="[0-9]*" inputmode="numeric" placeholder="••••••" style="width:100%;padding:12px;border:1px solid #ddd;border-radius:10px;font-size:1rem;box-sizing:border-box;text-align:center;letter-spacing:8px">
-    </div>
-    
-    <div id="changePinError" style="color:#c33;font-size:.9rem;margin:8px 0;display:none"></div>
-    
-    <div style="display:flex;gap:8px;margin-top:16px">
-      <button class="btn-primary" onclick="saveNewPin()" style="flex:1">Enregistrer</button>
-      <button class="btn-secondary" onclick="closeChangePinModal()" style="flex:1">Annuler</button>
-    </div>
-  </div>
-</div>
+<script src="lib/supabase-client.js"></script>
 
-<script src="lib/stats.js"></script>
 <script>
-const $ = s => document.querySelector(s);
-const $$ = s => [...document.querySelectorAll(s)];
-const AUTH_KEY = 'fr_auth_user';
-const BANK_KEY = 'fr_bank_data';
-const USERS_KEY = 'fr_users_db';
-
+// Global state
 let currentUser = null;
-let bank = null;
 
-function checkAuth() {
-  const auth = localStorage.getItem(AUTH_KEY);
-  if (!auth) {
-    window.location.href = 'login.html';
-    return;
-  }
-  currentUser = JSON.parse(auth);
-  $('#userName').textContent = currentUser.name;
-  $('#userEmail').textContent = currentUser.email;
-}
+// =============================================
+// Authentication
+// =============================================
 
-function loadBank() {
-  const stored = localStorage.getItem(BANK_KEY);
-  if (stored) {
-    bank = JSON.parse(stored);
-  } else {
-    bank = null;
-  }
-}
-
-function updateProgressStats() {
-  const progress = getUserProgress(currentUser.id);
-  $('#completedLessons').textContent = progress.completedLessons;
-  $('#totalAttempts').textContent = progress.totalAttempts;
-  $('#avgScore').textContent = progress.avgScore + '%';
-  
-  const hours = Math.floor(progress.totalTime / 3600);
-  const minutes = Math.floor((progress.totalTime % 3600) / 60);
-  $('#totalTime').textContent = hours > 0 ? `${hours}h ${minutes}m` : `${minutes}m`;
-}
-
-function renderLessons() {
-  if (!bank) {
-    $('#lessonsList').innerHTML = '<div class="empty-state"><div class="empty-state-icon">📂</div><p>Aucune banque de questions chargée.</p></div>';
-    return;
-  }
-
-  const levelFilter = $('#levelFilter').value;
-  const typeFilter = $('#typeFilter').value;
-  
-  let allLessons = [];
-  
-  if (!typeFilter || typeFilter === 'lecture') {
-    bank.lecture?.forEach(lesson => { allLessons.push({ ...lesson, type: 'lecture' }); });
-  }
-  if (!typeFilter || typeFilter === 'ecoute') {
-    bank.ecoute?.forEach(lesson => { allLessons.push({ ...lesson, type: 'ecoute' }); });
-  }
-  if (!typeFilter || typeFilter === 'grammaire') {
-    bank.grammaire?.forEach(lesson => { allLessons.push({ ...lesson, type: 'grammaire' }); });
-  }
-  if (!typeFilter || typeFilter === 'lexique') {
-    bank.lexique?.forEach(lesson => { allLessons.push({ ...lesson, type: 'lexique' }); });
-  }
-
-  if (levelFilter) {
-    allLessons = allLessons.filter(l => l.niveau === levelFilter);
-  }
-
-  if (allLessons.length === 0) {
-    $('#lessonsList').innerHTML = '<div class="empty-state"><div class="empty-state-icon">🔍</div><p>Aucun exercice ne correspond à vos filtres.</p></div>';
-    return;
-  }
-
-  const html = allLessons.map(lesson => {
-    const stats = getLessonStats(currentUser.id, lesson.id);
-    const progressPercent = stats ? stats.bestScore : 0;
-    let typeLabel = '📖 CE';
-    if (lesson.type === 'ecoute') typeLabel = '🎧 CO';
-    else if (lesson.type === 'grammaire') typeLabel = '📝 Grammaire';
-    else if (lesson.type === 'lexique') typeLabel = '📚 Lexique';
-    
-    return `
-      <div class="lesson-card" data-lesson-id="${lesson.id}" data-lesson-type="${lesson.type}">
-        <div class="lesson-header">
-          <div class="lesson-title">${lesson.titre}</div>
-          <div class="lesson-level">${lesson.niveau}</div>
-        </div>
-        <div class="lesson-meta">
-          <div>${typeLabel}</div>
-          <div>Thème: ${lesson.theme}</div>
-        </div>
-        ${stats ? `
-          <div class="lesson-progress">
-            <div class="lesson-progress-bar" style="width:${progressPercent}%"></div>
-          </div>
-          <div class="lesson-meta">
-            <div>Meilleur score: ${stats.bestScore}% (${stats.lastAttempt.score}/${stats.lastAttempt.total} pts)</div>
-            <div>${stats.totalAttempts} tentative${stats.totalAttempts > 1 ? 's' : ''} • ${formatTime(stats.totalTime)}</div>
-          </div>
-        ` : `
-          <div class="lesson-meta" style="color:#999">Pas encore commencé</div>
-        `}
-        <div class="lesson-actions">
-          <button class="btn-primary start-btn" data-lesson-id="${lesson.id}" data-lesson-type="${lesson.type}">Commencer</button>
-        </div>
-      </div>
-    `;
-  }).join('');
-
-  $('#lessonsList').innerHTML = html;
-  
-  attachLessonListeners();
-}
-
-function attachLessonListeners() {
-  $$('.start-btn').forEach(btn => {
-    btn.addEventListener('click', function(e) {
-      e.preventDefault();
-      e.stopPropagation();
-      
-      const lessonId = this.dataset.lessonId;
-      const lessonType = this.dataset.lessonType;
-      
-      window.startLesson(lessonId, lessonType);
-    });
-  });
-  
-  $$('.lesson-card').forEach(card => {
-    card.addEventListener('click', function(e) {
-      if (e.target.closest('.start-btn')) return;
-      
-      const lessonId = this.dataset.lessonId;
-      const lessonType = this.dataset.lessonType;
-      
-      window.startLesson(lessonId, lessonType);
-    });
-  });
-}
-
-function drawProgressChart() {
-  const canvas = $('#progressChart');
-  if (!canvas) return;
-  const ctx = canvas.getContext('2d');
-  const width = canvas.offsetWidth;
-  const height = canvas.offsetHeight;
-  canvas.width = width;
-  canvas.height = height;
-
-  const attempts = getAllAttempts(currentUser.id);
-  if (attempts.length === 0) {
-    ctx.fillStyle = '#999';
-    ctx.font = '14px system-ui';
-    ctx.textAlign = 'center';
-    ctx.fillText('Aucune donnée disponible', width/2, height/2);
-    return;
-  }
-
-  const byDate = {};
-  attempts.forEach(att => {
-    const date = new Date(att.timestamp).toLocaleDateString('fr-FR');
-    if (!byDate[date]) byDate[date] = [];
-    byDate[date].push(att.score);
-  });
-
-  const dates = Object.keys(byDate).sort();
-  const avgScores = dates.map(d => {
-    const scores = byDate[d];
-    return scores.reduce((a,b) => a+b, 0) / scores.length;
-  });
-
-  const padding = 40;
-  const chartWidth = width - padding * 2;
-  const chartHeight = height - padding * 2;
-  const maxScore = 100;
-  const step = chartWidth / (dates.length - 1 || 1);
-
-  ctx.strokeStyle = '#e0e0e0';
-  ctx.lineWidth = 1;
-  for (let i = 0; i <= 4; i++) {
-    const y = padding + (chartHeight / 4) * i;
-    ctx.beginPath();
-    ctx.moveTo(padding, y);
-    ctx.lineTo(width - padding, y);
-    ctx.stroke();
-    
-    ctx.fillStyle = '#999';
-    ctx.font = '11px system-ui';
-    ctx.textAlign = 'right';
-    ctx.fillText((100 - i * 25) + '%', padding - 8, y + 4);
-  }
-
-  ctx.strokeStyle = '#22bb55';
-  ctx.lineWidth = 3;
-  ctx.beginPath();
-  avgScores.forEach((score, i) => {
-    const x = padding + step * i;
-    const y = padding + chartHeight - (score / maxScore) * chartHeight;
-    if (i === 0) ctx.moveTo(x, y);
-    else ctx.lineTo(x, y);
-  });
-  ctx.stroke();
-
-  ctx.fillStyle = '#22bb55';
-  avgScores.forEach((score, i) => {
-    const x = padding + step * i;
-    const y = padding + chartHeight - (score / maxScore) * chartHeight;
-    ctx.beginPath();
-    ctx.arc(x, y, 4, 0, Math.PI * 2);
-    ctx.fill();
-  });
-
-  ctx.fillStyle = '#666';
-  ctx.font = '10px system-ui';
-  ctx.textAlign = 'center';
-  dates.forEach((date, i) => {
-    if (dates.length > 10 && i % 2 !== 0) return;
-    const x = padding + step * i;
-    ctx.fillText(date.split('/').slice(0,2).join('/'), x, height - 10);
-  });
-}
-
-function drawLevelChart() {
-  const canvas = $('#levelChart');
-  if (!canvas) return;
-  const ctx = canvas.getContext('2d');
-  const width = canvas.offsetWidth;
-  const height = canvas.offsetHeight;
-  canvas.width = width;
-  canvas.height = height;
-
-  const attempts = getAllAttempts(currentUser.id);
-  if (attempts.length === 0) {
-    ctx.fillStyle = '#999';
-    ctx.font = '14px system-ui';
-    ctx.textAlign = 'center';
-    ctx.fillText('Aucune donnée disponible', width/2, height/2);
-    return;
-  }
-
-  const levels = ['A1', 'A2', 'B1', 'B2', 'C1', 'C2'];
-  const byLevel = {};
-  levels.forEach(l => byLevel[l] = []);
-  
-  attempts.forEach(att => {
-    const lesson = findLessonById(att.lessonId);
-    if (lesson && byLevel[lesson.niveau]) {
-      byLevel[lesson.niveau].push(att.score);
+async function checkAuth() {
+    try {
+        if (!window.SupabaseDB || !window.SupabaseDB.isAvailable()) {
+            throw new Error('Base de données non disponible');
+        }
+        
+        currentUser = await window.SupabaseDB.getCurrentUser();
+        
+        if (!currentUser) {
+            window.location.href = 'login.html';
+            return;
+        }
+        
+        // Update header
+        document.getElementById('userName').textContent = currentUser.name;
+        document.getElementById('userEmail').textContent = currentUser.email;
+        
+        // Load all data
+        await loadAllData();
+        
+    } catch (error) {
+        console.error('Auth error:', error);
+        window.location.href = 'login.html';
     }
-  });
+}
 
-  const avgByLevel = levels.map(l => {
-    const scores = byLevel[l];
-    return scores.length > 0 ? scores.reduce((a,b) => a+b, 0) / scores.length : 0;
-  });
-
-  const padding = 40;
-  const chartWidth = width - padding * 2;
-  const chartHeight = height - padding * 2;
-  const barWidth = chartWidth / levels.length - 10;
-  const colors = ['#4caf50', '#8bc34a', '#ffc107', '#ff9800', '#ff5722', '#f44336'];
-
-  levels.forEach((level, i) => {
-    const avg = avgByLevel[i];
-    const x = padding + (chartWidth / levels.length) * i + 5;
-    const barHeight = (avg / 100) * chartHeight;
-    const y = padding + chartHeight - barHeight;
-
-    ctx.fillStyle = colors[i];
-    ctx.fillRect(x, y, barWidth, barHeight);
-
-    ctx.fillStyle = '#333';
-    ctx.font = '12px system-ui';
-    ctx.textAlign = 'center';
-    ctx.fillText(level, x + barWidth/2, height - 10);
-    
-    if (avg > 0) {
-      ctx.fillText(Math.round(avg) + '%', x + barWidth/2, y - 5);
+async function handleLogout() {
+    try {
+        await window.SupabaseDB.logout();
+        window.location.href = 'login.html';
+    } catch (error) {
+        console.error('Logout error:', error);
+        window.location.href = 'login.html';
     }
-  });
-
-  ctx.strokeStyle = '#e0e0e0';
-  ctx.lineWidth = 1;
-  for (let i = 0; i <= 4; i++) {
-    const y = padding + (chartHeight / 4) * i;
-    ctx.beginPath();
-    ctx.moveTo(padding, y);
-    ctx.lineTo(width - padding, y);
-    ctx.stroke();
-    
-    ctx.fillStyle = '#999';
-    ctx.font = '11px system-ui';
-    ctx.textAlign = 'right';
-    ctx.fillText((100 - i * 25) + '%', padding - 8, y + 4);
-  }
 }
 
-function drawTypeChart() {
-  const canvas = $('#typeChart');
-  if (!canvas) return;
-  const ctx = canvas.getContext('2d');
-  const width = canvas.offsetWidth;
-  const height = canvas.offsetHeight;
-  canvas.width = width;
-  canvas.height = height;
+// =============================================
+// Data Loading
+// =============================================
 
-  const attempts = getAllAttempts(currentUser.id);
-  if (attempts.length === 0) {
-    ctx.fillStyle = '#999';
-    ctx.font = '14px system-ui';
-    ctx.textAlign = 'center';
-    ctx.fillText('Aucune donnée disponible', width/2, height/2);
-    return;
-  }
+async function loadAllData() {
+    await Promise.all([
+        loadStats(),
+        loadExercises(),
+        loadResources()
+    ]);
+}
 
-  let lectureCount = 0, ecouteCount = 0, grammaireCount = 0, lexiqueCount = 0;
-  attempts.forEach(att => {
-    const lesson = findLessonById(att.lessonId);
-    if (lesson) {
-      if (lesson.type === 'lecture') lectureCount++;
-      else if (lesson.type === 'ecoute') ecouteCount++;
-      else if (lesson.type === 'grammaire') grammaireCount++;
-      else if (lesson.type === 'lexique') lexiqueCount++;
+async function loadStats() {
+    try {
+        const stats = await window.SupabaseDB.getStudentStats(currentUser.id);
+        
+        // Update stats display
+        document.getElementById('statLessons').textContent = new Set(stats.recentAttempts.map(a => a.exercise_id)).size;
+        document.getElementById('statAttempts').textContent = stats.totalAttempts;
+        document.getElementById('statAvgScore').textContent = stats.averageScore + '%';
+        
+        // Calculate total time
+        const totalMinutes = stats.recentAttempts.reduce((sum, a) => sum + (a.time_spent || 0), 0);
+        document.getElementById('statTime').textContent = Math.round(totalMinutes / 60) + 'm';
+        
+        // Recent attempts
+        const container = document.getElementById('recentAttempts');
+        if (stats.recentAttempts.length === 0) {
+            container.innerHTML = '<div class="empty-state">Aucune tentative pour le moment. Commencez un exercice!</div>';
+        } else {
+            container.innerHTML = `<table>
+                <thead><tr><th>Exercice</th><th>Type</th><th>Score</th><th>Date</th></tr></thead>
+                <tbody>
+                    ${stats.recentAttempts.slice(0, 10).map(a => `
+                        <tr>
+                            <td>${a.exercises?.titre || 'N/A'}</td>
+                            <td><span class="badge badge-info">${getTypeLabel(a.exercises?.type)}</span></td>
+                            <td><span class="badge ${a.percentage >= 70 ? 'badge-success' : 'badge-warning'}">${a.percentage}%</span></td>
+                            <td>${new Date(a.completed_at).toLocaleDateString('fr-FR')}</td>
+                        </tr>
+                    `).join('')}
+                </tbody>
+            </table>`;
+        }
+        
+    } catch (error) {
+        console.error('Error loading stats:', error);
     }
-  });
-
-  const total = lectureCount + ecouteCount + grammaireCount + lexiqueCount;
-  if (total === 0) {
-    ctx.fillStyle = '#999';
-    ctx.font = '14px system-ui';
-    ctx.textAlign = 'center';
-    ctx.fillText('Aucune donnée disponible', width/2, height/2);
-    return;
-  }
-
-  const centerX = width / 2;
-  const centerY = height / 2 - 20;
-  const radius = Math.min(width, height) / 3;
-
-  const lectureAngle = (lectureCount / total) * Math.PI * 2;
-  const ecouteAngle = (ecouteCount / total) * Math.PI * 2;
-  const grammaireAngle = (grammaireCount / total) * Math.PI * 2;
-  const lexiqueAngle = (lexiqueCount / total) * Math.PI * 2;
-
-  ctx.fillStyle = '#4caf50';
-  ctx.beginPath();
-  ctx.moveTo(centerX, centerY);
-  ctx.arc(centerX, centerY, radius, 0, lectureAngle);
-  ctx.closePath();
-  ctx.fill();
-
-  ctx.fillStyle = '#2196f3';
-  ctx.beginPath();
-  ctx.moveTo(centerX, centerY);
-  ctx.arc(centerX, centerY, radius, lectureAngle, lectureAngle + ecouteAngle);
-  ctx.closePath();
-  ctx.fill();
-
-  ctx.fillStyle = '#ff5722';
-  ctx.beginPath();
-  ctx.moveTo(centerX, centerY);
-  ctx.arc(centerX, centerY, radius, lectureAngle + ecouteAngle, lectureAngle + ecouteAngle + grammaireAngle);
-  ctx.closePath();
-  ctx.fill();
-
-  ctx.fillStyle = '#8bc34a';
-  ctx.beginPath();
-  ctx.moveTo(centerX, centerY);
-  ctx.arc(centerX, centerY, radius, lectureAngle + ecouteAngle + grammaireAngle, lectureAngle + ecouteAngle + grammaireAngle + lexiqueAngle);
-  ctx.closePath();
-  ctx.fill();
-
-  const legendStartY = height - 40;
-  const legendSpacing = 15;
-  
-  // First row - CE and CO
-  ctx.fillStyle = '#4caf50';
-  ctx.fillRect(20, legendStartY, 12, 12);
-  ctx.fillStyle = '#333';
-  ctx.font = '12px system-ui';
-  ctx.textAlign = 'left';
-  ctx.fillText(`CE: ${lectureCount} (${Math.round(lectureCount/total*100)}%)`, 38, legendStartY + 10);
-
-  ctx.fillStyle = '#2196f3';
-  ctx.fillRect(width/2 + 10, legendStartY, 12, 12);
-  ctx.fillText(`CO: ${ecouteCount} (${Math.round(ecouteCount/total*100)}%)`, width/2 + 28, legendStartY + 10);
-
-  // Second row - Grammaire and Lexique
-  ctx.fillStyle = '#ff5722';
-  ctx.fillRect(20, legendStartY + legendSpacing, 12, 12);
-  ctx.fillText(`Grammaire: ${grammaireCount} (${Math.round(grammaireCount/total*100)}%)`, 38, legendStartY + legendSpacing + 10);
-
-  ctx.fillStyle = '#8bc34a';
-  ctx.fillRect(width/2 + 10, legendStartY + legendSpacing, 12, 12);
-  ctx.fillText(`Lexique: ${lexiqueCount} (${Math.round(lexiqueCount/total*100)}%)`, width/2 + 28, legendStartY + legendSpacing + 10);
 }
 
-function findLessonById(lessonId) {
-  if (!bank) return null;
-  let found = null;
-  bank.lecture?.forEach(l => { if (l.id === lessonId) found = { ...l, type: 'lecture' }; });
-  bank.ecoute?.forEach(l => { if (l.id === lessonId) found = { ...l, type: 'ecoute' }; });
-  bank.grammaire?.forEach(l => { if (l.id === lessonId) found = { ...l, type: 'grammaire' }; });
-  bank.lexique?.forEach(l => { if (l.id === lessonId) found = { ...l, type: 'lexique' }; });
-  return found;
-}
-
-function getAllAttempts(userId) {
-  console.log('[v0] getAllAttempts called for userId:', userId);
-  
-  const allStats = JSON.parse(localStorage.getItem('fr_stats_db') || '{}');
-  console.log('[v0] fr_stats_db content:', allStats);
-  
-  const userStats = allStats[userId] || {};
-  console.log('[v0] User stats for', userId, ':', userStats);
-  
-  const attempts = [];
-  Object.entries(userStats).forEach(([lessonId, lessonData]) => {
-    if (lessonData.attempts) {
-      lessonData.attempts.forEach(att => {
-        attempts.push({
-          ...att,
-          lessonId: lessonId
-        });
-      });
-    }
-  });
-  
-  console.log('[v0] Total attempts found:', attempts.length);
-  return attempts.sort((a, b) => a.timestamp - b.timestamp);
-}
-
-function getLessonStats(userId, lessonId) {
-  const allStats = JSON.parse(localStorage.getItem('fr_stats_db') || '{}');
-  const userStats = allStats[userId] || {};
-  const lessonData = userStats[lessonId];
-  
-  if (!lessonData || !lessonData.attempts || lessonData.attempts.length === 0) {
-    return null;
-  }
-  
-  const attempts = lessonData.attempts;
-  const bestScore = Math.max(...attempts.map(a => a.percentage));
-  const lastAttempt = attempts[attempts.length - 1];
-  
-  return {
-    bestScore,
-    totalAttempts: attempts.length,
-    totalTime: lessonData.totalTime || 0,
-    lastAttempt: {
-      score: lastAttempt.score,
-      total: lastAttempt.maxScore,
-      percentage: lastAttempt.percentage
-    }
-  };
-}
-
-function formatTime(seconds) {
-  const hours = Math.floor(seconds / 3600);
-  const minutes = Math.floor((seconds % 3600) / 60);
-  const secs = seconds % 60;
-  return `${hours}h ${minutes}m ${secs}s`;
-}
-
-function getUserProgress(userId) {
-  const allStats = JSON.parse(localStorage.getItem('fr_stats_db') || '{}');
-  const userStats = allStats[userId] || {};
-  
-  let completedLessons = 0;
-  let totalAttempts = 0;
-  let totalScore = 0;
-  let totalTime = 0;
-  
-  Object.values(userStats).forEach(lessonData => {
-    if (lessonData.attempts && lessonData.attempts.length > 0) {
-      completedLessons++;
-      totalAttempts += lessonData.attempts.length;
-      lessonData.attempts.forEach(att => {
-        totalScore += att.percentage;
-      });
-      totalTime += lessonData.totalTime || 0;
-    }
-  });
-  
-  return {
-    completedLessons,
-    totalAttempts,
-    avgScore: totalAttempts > 0 ? Math.round(totalScore / totalAttempts) : 0,
-    totalTime
-  };
-}
-
-function loadExternalResources() {
-  const resources = JSON.parse(localStorage.getItem('fr_resources') || '[]');
-  const container = $('#externalResourcesList');
-
-  if (resources.length === 0) {
-    container.innerHTML = '<div class="empty-state">Aucune ressource externe disponible</div>';
-    return;
-  }
-
-  const typeIcons = {
-    video: '🎥',
-    article: '📄',
-    exercice: '✏️',
-    audio: '🎧',
-    autre: '🔗'
-  };
-
-  const html = resources.map(res => {
-    const icon = typeIcons[res.type] || '🔗';
-    const levelClass = 'badge-' + res.level.toLowerCase();
-    
-    return `
-      <div style="border:1px solid #e0e0e0;border-radius:8px;padding:16px;margin-bottom:12px">
-        <div style="display:flex;justify-content:space-between;align-items:start;margin-bottom:8px">
-          <div>
-            <div style="font-weight:600;font-size:1.05rem;margin-bottom:4px">${icon} ${res.title}</div>
-            <div style="font-size:.85rem;color:#666">${res.description || 'Aucune description'}</div>
-          </div>
-          <span class="badge ${levelClass}" style="margin-left:12px">${res.level}</span>
-        </div>
-        <a href="${res.url}" target="_blank" class="btn-primary" style="display:inline-block;text-decoration:none;margin-top:8px">Accéder à la ressource →</a>
-      </div>
-    `;
-  }).join('');
-
-  container.innerHTML = html;
-}
-
-function loadStudentChat() {
-  const messages = JSON.parse(localStorage.getItem('fr_messages') || '{}');
-  const userMessages = messages[currentUser.id] || [];
-
-  if (userMessages.length === 0) {
-    $('#chatMessagesArea').innerHTML = '<div class="empty-state">Aucun message. Envoyez un message à l\'administrateur!</div>';
-    return;
-  }
-
-  userMessages.forEach(m => {
-    if (m.from === 'admin') m.read = true;
-  });
-  messages[currentUser.id] = userMessages;
-  localStorage.setItem('fr_messages', JSON.stringify(messages));
-
-  const html = userMessages.map(msg => {
-    const isStudent = msg.from === currentUser.id;
-    const time = new Date(msg.timestamp).toLocaleString('fr-FR');
-    
-    return `
-      <div style="margin-bottom:16px;display:flex;justify-content:${isStudent ? 'flex-end' : 'flex-start'}">
-        <div style="max-width:70%;padding:12px;border-radius:12px;background:${isStudent ? 'var(--brand)' : '#fff'};color:${isStudent ? '#fff' : '#333'};box-shadow:0 2px 4px rgba(0,0,0,.1)">
-          <div style="font-weight:600;margin-bottom:4px;font-size:.85rem;opacity:.9">${isStudent ? 'Vous' : 'Admin'}</div>
-          <div>${msg.text}</div>
-          <div style="font-size:.75rem;margin-top:4px;opacity:.7">${time}</div>
-        </div>
-      </div>
-    `;
-  }).join('');
-
-  $('#chatMessagesArea').innerHTML = html;
-  $('#chatMessagesArea').scrollTop = $('#chatMessagesArea').scrollHeight;
-}
-
-function sendStudentMessage() {
-  const text = $('#studentMessageInput').value.trim();
-  if (!text) return;
-
-  const recipientId = $('#adminRecipientSelect').value || 'admin';
-
-  const messages = JSON.parse(localStorage.getItem('fr_messages') || '{}');
-  if (!messages[currentUser.id]) messages[currentUser.id] = [];
-  
-  messages[currentUser.id].push({
-    from: currentUser.id,
-    to: recipientId,
-    text,
-    timestamp: Date.now(),
-    read: false
-  });
-
-  localStorage.setItem('fr_messages', JSON.stringify(messages));
-  $('#studentMessageInput').value = '';
-  loadStudentChat();
-}
-
-function deleteStudentChatHistory() {
-  if (!confirm('Êtes-vous sûr de vouloir supprimer tout l\'historique de conversation avec l\'administrateur?\n\nCette action est irréversible.')) {
-    return;
-  }
-  
-  const messages = JSON.parse(localStorage.getItem('fr_messages') || '{}');
-  delete messages[currentUser.id];
-  localStorage.setItem('fr_messages', JSON.stringify(messages));
-  
-  $('#chatMessagesArea').innerHTML = '<div class="empty-state">Historique supprimé. Envoyez un message à l\'administrateur!</div>';
-  $('#studentMessageInput').value = '';
-  
-  alert('Historique de conversation supprimé avec succès');
-}
-
-function openChangePinModal() {
-  $('#changePinModal').style.display = 'flex';
-  $('#currentPin').value = '';
-  $('#newPin').value = '';
-  $('#confirmNewPin').value = '';
-  $('#changePinError').style.display = 'none';
-}
-
-function closeChangePinModal() {
-  $('#changePinModal').style.display = 'none';
-}
-
-function saveNewPin() {
-  const currentPin = $('#currentPin').value;
-  const newPin = $('#newPin').value;
-  const confirmNewPin = $('#confirmNewPin').value;
-  const errorEl = $('#changePinError');
-
-  if (!currentPin || !newPin || !confirmNewPin) {
-    errorEl.textContent = 'Veuillez remplir tous les champs.';
-    errorEl.style.display = 'block';
-    return;
-  }
-  if (newPin.length !== 6 || !/^\d{6}$/.test(newPin)) {
-    errorEl.textContent = 'Le nouveau code PIN doit contenir exactement 6 chiffres.';
-    errorEl.style.display = 'block';
-    return;
-  }
-  if (newPin !== confirmNewPin) {
-    errorEl.textContent = 'Les nouveaux codes PIN ne correspondent pas.';
-    errorEl.style.display = 'block';
-    return;
-  }
-
-  const users = JSON.parse(localStorage.getItem(USERS_KEY) || '[]');
-  const userIndex = users.findIndex(u => u.id === currentUser.id);
-
-  if (userIndex === -1) {
-    errorEl.textContent = 'Erreur: Utilisateur non trouvé.';
-    errorEl.style.display = 'block';
-    return;
-  }
-
-  if (users[userIndex].pin !== currentPin) {
-    errorEl.textContent = 'Le code PIN actuel est incorrect.';
-    errorEl.style.display = 'block';
-    return;
-  }
-
-  users[userIndex].pin = newPin;
-  localStorage.setItem(USERS_KEY, JSON.stringify(users));
-
-  alert('Code PIN modifié avec succès !');
-  closeChangePinModal();
-}
-
-function loadAdminRecipients() {
-  const allUsers = JSON.parse(localStorage.getItem('fr_users') || '[]');
-  const admins = allUsers.filter(u => u.role === 'admin');
-  
-  const select = $('#adminRecipientSelect');
-  select.innerHTML = '<option value="admin">Tous les administrateurs</option>';
-  
-  admins.forEach(admin => {
-    const option = document.createElement('option');
-    option.value = admin.id;
-    option.textContent = `${admin.name} (${admin.email})`;
-    select.appendChild(option);
-  });
-}
-
-window.startLesson = function(lessonId, lessonType) {
-  if (!lessonId || !lessonType) {
-    alert('Erreur: données de leçon manquantes');
-    return;
-  }
-  
-  try {
-    const dataToSave = {
-      lessonId: lessonId,
-      type: lessonType
+function getTypeLabel(type) {
+    const labels = {
+        lecture: 'CE',
+        ecoute: 'CO',
+        grammaire: 'Gram.',
+        lexique: 'Lex.'
     };
-    localStorage.setItem('current_lesson', JSON.stringify(dataToSave));
-    
-    const saved = localStorage.getItem('current_lesson');
-    
-    window.location.href = 'exercise.html';
-  } catch (error) {
-    console.error('Error in startLesson:', error);
-    alert('Erreur lors du démarrage de la leçon: ' + error.message);
-  }
-};
+    return labels[type] || type;
+}
 
-window.addEventListener('DOMContentLoaded', () => {
-  checkAuth();
-  loadBank();
-  updateProgressStats();
-  renderLessons();
-  loadExternalResources();
-  loadStudentChat();
-  loadAdminRecipients();
-  
-  const logoutBtn = document.getElementById('logoutBtn');
-  if (logoutBtn) {
-    logoutBtn.addEventListener('click', () => {
-      localStorage.removeItem('current_user');
-      localStorage.removeItem('current_lesson');
-      window.location.href = 'login.html';
-    });
-  }
-  
-  $('#levelFilter').addEventListener('change', renderLessons);
-  $('#typeFilter').addEventListener('change', renderLessons);
-  
-  setTimeout(() => {
-    drawProgressChart();
-    drawLevelChart();
-    drawTypeChart();
-  }, 100);
-});
+async function loadExercises() {
+    try {
+        const exercises = await window.SupabaseDB.getExercises();
+        
+        // Group by type
+        const grouped = {
+            lecture: exercises.filter(e => e.type === 'lecture'),
+            ecoute: exercises.filter(e => e.type === 'ecoute'),
+            grammaire: exercises.filter(e => e.type === 'grammaire'),
+            lexique: exercises.filter(e => e.type === 'lexique')
+        };
+        
+        // Render each type
+        renderExerciseList('ceExercises', grouped.lecture);
+        renderExerciseList('coExercises', grouped.ecoute);
+        renderExerciseList('grammaireExercises', grouped.grammaire);
+        renderExerciseList('lexiqueExercises', grouped.lexique);
+        
+    } catch (error) {
+        console.error('Error loading exercises:', error);
+    }
+}
+
+function renderExerciseList(containerId, exercises) {
+    const container = document.getElementById(containerId);
+    
+    if (exercises.length === 0) {
+        container.innerHTML = '<div class="empty-state">Aucun exercice disponible</div>';
+        return;
+    }
+    
+    container.innerHTML = exercises.map(e => `
+        <div class="exercise-card">
+            <div class="exercise-info">
+                <h3>${e.titre}</h3>
+                <p>Niveau: ${e.niveau} | ${e.questions?.length || 0} questions</p>
+            </div>
+            <button class="btn btn-primary" onclick="startExercise('${e.id}')">Commencer</button>
+        </div>
+    `).join('');
+}
+
+function startExercise(exerciseId) {
+    // Store exercise ID and redirect
+    localStorage.setItem('current_exercise_id', exerciseId);
+    window.location.href = 'exercise.html?id=' + exerciseId;
+}
+
+async function loadResources() {
+    const container = document.getElementById('resourcesList');
+    
+    try {
+        const resources = await window.SupabaseDB.getResources();
+        
+        if (resources.length === 0) {
+            container.innerHTML = '<div class="empty-state">Aucune ressource disponible</div>';
+            return;
+        }
+        
+        container.innerHTML = resources.map(r => `
+            <div class="exercise-card">
+                <div class="exercise-info">
+                    <h3>${r.titre}</h3>
+                    <p>${r.description || 'Pas de description'} | ${r.categorie || 'Général'}</p>
+                </div>
+                <a href="${r.url}" target="_blank" class="btn btn-primary">Ouvrir</a>
+            </div>
+        `).join('');
+        
+    } catch (error) {
+        console.error('Error loading resources:', error);
+        container.innerHTML = '<div class="empty-state">Erreur de chargement</div>';
+    }
+}
+
+// =============================================
+// UI Helpers
+// =============================================
+
+function switchTab(tab) {
+    document.querySelectorAll('.tab-btn').forEach(btn => btn.classList.remove('active'));
+    document.querySelectorAll('.tab-content').forEach(content => content.classList.remove('active'));
+    
+    document.querySelector(`.tab-btn[onclick="switchTab('${tab}')"]`).classList.add('active');
+    document.getElementById(tab).classList.add('active');
+}
+
+// Initialize
+document.addEventListener('DOMContentLoaded', checkAuth);
 </script>
 </body>
 </html>

@@ -3,13 +3,14 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<!-- Added cache-control meta tags to force browser to reload the page -->
 <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
 <meta http-equiv="Pragma" content="no-cache">
 <meta http-equiv="Expires" content="0">
-<!-- Updated CSP with connect-src explicitly at the beginning to ensure it's parsed -->
-<meta http-equiv="Content-Security-Policy" content="connect-src 'self' https://res.cloudinary.com https://api.cloudinary.com ws: wss:; default-2src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data: https:; font-src 'self' data:;">
+<!-- Updated CSP to allow Supabase connections -->
+<meta http-equiv="Content-Security-Policy" content="connect-src 'self' https://*.supabase.co https://res.cloudinary.com https://api.cloudinary.com ws: wss:; default-src 'self'; script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net; style-src 'self' 'unsafe-inline'; img-src 'self' data: https:; font-src 'self' data:;">
 <title>Panneau d'administration</title>
+<!-- Add Supabase CDN -->
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <style>
 :root{--brand:#2b5;--ink:#222;--muted:#666;--bg:#f7f7f7;--card:#fff;--success:#4caf50;--warning:#ff9800;--error:#d32f2f}
 html,body{margin:0;padding:0;background:var(--bg);color:var(--ink);font-family:system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif}
@@ -17,7 +18,7 @@ header{background:var(--brand);color:#fff;padding:16px 20px;display:flex;justify
 h1{margin:0;font-size:1.3rem}
 .logout-btn{background:rgba(255,255,255,.2);border:1px solid rgba(255,255,.3);color:#fff;padding:8px 12px;border-radius:8px;cursor:pointer;font-weight:600}
 main{max-width:1200px;margin:24px auto;padding:0 16px 48px}
-.tabs{display:flex;gap:8px;margin-bottom:20px;border-bottom:2px solid #e0e0e0}
+.tabs{display:flex;gap:8px;margin-bottom:20px;border-bottom:2px solid #e0e0e0;flex-wrap:wrap}
 .tab-btn{background:none;border:none;padding:12px 16px;cursor:pointer;font-weight:600;color:var(--muted);border-bottom:3px solid transparent;transition:all .2s}
 .tab-btn.active{color:var(--brand);border-bottom-color:var(--brand)}
 .tab-content{display:none}
@@ -28,54 +29,38 @@ h2{margin:0 0 16px;font-size:1.1rem}
 .stat-box{background:linear-gradient(135deg,var(--brand),#1a9d4d);color:#fff;padding:20px;border-radius:12px;text-align:center}
 .stat-value{font-size:1.8rem;font-weight:700;margin:8px 0}
 .stat-label{font-size:.9rem;opacity:.9}
+table{width:100%;border-collapse:collapse;font-size:.95rem}
+th,td{text-align:left;padding:10px;border-bottom:1px solid #e0e0e0}
+th{background:#f5f5f5;font-weight:600}
+.btn{display:inline-block;padding:8px 14px;border-radius:8px;border:none;cursor:pointer;font-weight:600;font-size:.9rem;transition:all .2s}
+.btn-primary{background:var(--brand);color:#fff}
+.btn-danger{background:var(--error);color:#fff}
+.btn-warning{background:var(--warning);color:#fff}
+.btn-small{padding:5px 10px;font-size:.8rem}
 .form-group{margin-bottom:16px}
 label{display:block;margin-bottom:6px;font-weight:600}
-input,select,textarea{width:100%;padding:10px;border:1px solid #ddd;border-radius:8px;font-size:.95rem;box-sizing:border-box}
-textarea{min-height:100px}
-.btns{display:flex;gap:10px;flex-wrap:wrap;margin-top:16px}
-button{border:0;padding:10px 16px;border-radius:8px;cursor:pointer;font-weight:600;font-size:.95rem;transition:all .2s}
-.btn-primary{background:var(--brand);color:#fff}
-.btn-primary:hover{opacity:.9}
-.btn-secondary{background:#e0e0e0;color:#111}
-.btn-secondary:hover{background:#d0d0d0}
-.btn-danger{background:var(--error);color:#fff}
-.btn-danger:hover{opacity:.9}
-.table-container{overflow-x:auto}
-table{width:100%;border-collapse:collapse;margin-top:16px}
-th,td{padding:12px;text-align:left;border-bottom:1px solid #e0e0e0}
-th{background:#f5f5f5;font-weight:600}
-tr:hover{background:#f9f9f9}
-.badge{display:inline-block;padding:4px 8px;border-radius:6px;font-size:.85rem;font-weight:600}
-.badge-lecture{background:#e3f2fd;color:#1976d2}
-.badge-ecoute{background:#f3e5f5;color:#7b1fa2}
-.badge-a1{background:#c8e6c9;color:#2e7d32}
-.badge-a2{background:#bbdefb;color:#1565c0}
-.badge-b1{background:#ffe0b2;color:#e65100}
-.badge-b2{background:#ffccbc;color:#d84315}
-.badge-c1{background:#f8bbd0;color:#c2185b}
-.badge-c2{background:#e1bee7;color:#6a1b9a}
-.action-btns{display:flex;gap:6px}
-.action-btns button{padding:6px 10px;font-size:.85rem}
-.empty-state{text-align:center;padding:40px 20px;color:var(--muted)}
-.success-msg{background:#e8f5e9;color:var(--success);padding:12px;border-radius:8px;margin-bottom:16px;display:none}
-.error-msg{background:#ffebee;color:var(--error);padding:12px;border-radius:8px;margin-bottom:16px;display:none}
-.chart-container{margin-top:24px}
-.chart-title{font-size:1rem;font-weight:600;margin-bottom:12px;color:var(--ink)}
-.chart-canvas{width:100%;height:250px;border:1px solid #e0e0e0;border-radius:8px;background:#fff}
-.modal{display:none;position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,.5);z-index:1000;overflow-y:auto}
-.modal.active{display:flex;align-items:center;justify-content:center;padding:20px}
-.modal-content{background:#fff;border-radius:16px;max-width:900px;width:100%;max-height:90vh;overflow-y:auto;box-shadow:0 10px 40px rgba(0,0,0,.2)}
-.modal-header{padding:20px;border-bottom:2px solid #e0e0e0;display:flex;justify-content:space-between;align-items:center}
-.modal-header h2{margin:0;font-size:1.3rem}
-.modal-close{background:none;border:none;font-size:1.5rem;cursor:pointer;color:#666;padding:0;width:32px;height:32px;border-radius:50%;display:flex;align-items:center;justify-content:center}
-.modal-close:hover{background:#f0f0f0}
-.modal-body{padding:20px}
-.user-info{background:#f5f5f5;padding:16px;border-radius:8px;margin-bottom:20px}
-.user-info p{margin:6px 0}
-.attempts-list{margin-top:20px}
-.attempt-item{background:#f9f9f9;padding:12px;border-radius:8px;margin-bottom:10px;display:flex;justify-content:space-between;align-items:center}
-.attempt-date{font-size:.85rem;color:#666}
-.attempt-score{font-weight:700;color:var(--brand)}
+input,select,textarea{width:100%;padding:10px;border:1px solid #ddd;border-radius:8px;font-size:1rem;box-sizing:border-box}
+.modal{display:none;position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,.5);z-index:1000;align-items:center;justify-content:center}
+.modal.active{display:flex}
+.modal-content{background:#fff;border-radius:14px;padding:24px;max-width:500px;width:90%;max-height:80vh;overflow-y:auto}
+.user-card{display:flex;align-items:center;gap:12px;padding:12px;border-radius:8px;cursor:pointer;transition:background .2s}
+.user-card:hover{background:#f0f0f0}
+.user-card.selected{background:#e8f5e9}
+.avatar{width:40px;height:40px;border-radius:50%;background:var(--brand);color:#fff;display:flex;align-items:center;justify-content:center;font-weight:600}
+.message-bubble{max-width:80%;padding:12px 16px;border-radius:16px;margin-bottom:8px}
+.message-sent{background:var(--brand);color:#fff;margin-left:auto;border-bottom-right-radius:4px}
+.message-received{background:#e0e0e0;color:var(--ink);border-bottom-left-radius:4px}
+.chip{display:inline-flex;align-items:center;gap:6px;background:#e0e0e0;padding:4px 10px;border-radius:16px;font-size:.85rem;margin:2px}
+.chip button{background:none;border:none;color:var(--error);cursor:pointer;font-size:1rem;padding:0}
+.badge{background:var(--error);color:#fff;border-radius:50%;padding:2px 6px;font-size:.75rem;margin-left:4px}
+.loading{text-align:center;padding:40px;color:var(--muted)}
+.empty-state{text-align:center;padding:40px;color:var(--muted)}
+.user-header{background:var(--brand);color:#fff;padding:12px 20px;border-radius:8px;display:flex;justify-content:space-between;align-items:center;margin-bottom:20px}
+.user-info{display:flex;flex-direction:column}
+.user-name{font-weight:600;font-size:1.1rem}
+.user-email{font-size:.85rem;opacity:.9}
+.header-actions{display:flex;gap:8px}
+.header-actions .btn{background:rgba(255,255,255,.2);color:#fff;border:1px solid rgba(255,255,255,.3)}
 /* Added styles for creator tabs */
 .tab-btn-creator.active {
   color: var(--brand);
@@ -294,16 +279,16 @@ h1 {
 </head>
 <body>
 <header>
-  <h1>
-    <span>🎓</span>
-    Entraînement au français - <em>espace numérique</em> | Admin
-  </h1>
-  <div class="user-info">
-    <span class="user-name" id="adminUserName">Admin</span>
-    <span class="user-email" id="adminUserEmail"></span>
-    <!-- CHANGE: Added button to change own PIN -->
-    <button class="logout-btn" style="background:#f59e0b;margin-right:8px" onclick="openChangePinModal()">Modifier PIN</button>
-    <button class="logout-btn" id="logoutBtn">Déconnexion</button>
+  <h1>🍀 Entraînement au français - <em>espace numérique</em> | Admin</h1>
+  <div class="user-header" style="background:transparent;padding:0;margin:0">
+    <div class="user-info">
+      <span id="adminUserName" class="user-name">Admin</span>
+      <span id="adminUserEmail" class="user-email"></span>
+    </div>
+    <div class="header-actions">
+      <button class="btn" onclick="openChangePinModal()">Modifier PIN</button>
+      <button class="btn" onclick="handleLogout()">Déconnexion</button>
+    </div>
   </div>
 </header>
 
@@ -312,10 +297,9 @@ h1 {
     <button class="tab-btn active" onclick="switchTab('dashboard')">Tableau de bord</button>
     <button class="tab-btn" onclick="switchTab('exercises')">Exercices</button>
     <button class="tab-btn" onclick="switchTab('users')">Utilisateurs</button>
-    <!-- Added registrations tab for approval -->
-    <button class="tab-btn" onclick="switchTab('registrations')">Demandes d'inscription <span id="pending-count" class="badge"></span></button>
+    <button class="tab-btn" onclick="switchTab('registrations')">Demandes d'inscription <span id="pendingBadge" class="badge" style="display:none">0</span></button>
     <button class="tab-btn" onclick="switchTab('resources')">Ressources externes</button>
-    <button class="tab-btn" onclick="switchTab('chat')">Messages</button>
+    <button class="tab-btn" onclick="switchTab('messages')">Messages</button>
   </div>
 
   <!-- Dashboard Tab -->
@@ -325,258 +309,133 @@ h1 {
       <div class="grid">
         <div class="stat-box">
           <div class="stat-label">Utilisateurs</div>
-          <div class="stat-value" id="totalUsers">0</div>
+          <div class="stat-value" id="statUsers">0</div>
         </div>
         <div class="stat-box">
           <div class="stat-label">Exercices</div>
-          <div class="stat-value" id="totalExercises">0</div>
+          <div class="stat-value" id="statExercises">0</div>
         </div>
         <div class="stat-box">
           <div class="stat-label">Tentatives</div>
-          <div class="stat-value" id="totalAttempts">0</div>
+          <div class="stat-value" id="statAttempts">0</div>
         </div>
         <div class="stat-box">
           <div class="stat-label">Score moyen</div>
-          <div class="stat-value" id="avgScore">0%</div>
-        </div>
-      </div>
-      <!-- ADDED: Chart section with student selector -->
-      <div class="charts-grid">
-        <!-- Added student selector dropdown above charts -->
-        <div style="grid-column: 1 / -1; margin-bottom: 16px;">
-          <label for="studentSelector" style="display: block; margin-bottom: 8px; font-weight: 600; color: #333;">
-            Sélectionner un étudiant pour afficher ses statistiques :
-          </label>
-          <select id="studentSelector" style="width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 8px; font-size: 14px;">
-            <option value="">-- Sélectionner un étudiant --</option>
-          </select>
-        </div>
-        
-        <div class="chart-container">
-          <div class="chart-title">Activité des étudiants (derniers 30 jours)</div>
-          <canvas id="adminActivityChart" class="chart-canvas"></canvas>
-        </div>
-        <div class="chart-container">
-          <div class="chart-title">Performance par niveau CECRL</div>
-          <canvas id="adminLevelChart" class="chart-canvas"></canvas>
+          <div class="stat-value" id="statAvgScore">0%</div>
         </div>
       </div>
     </div>
-
+    
     <div class="card">
-      <h2>Activité récente</h2>
-      <div id="recentActivity" class="empty-state">Aucune activité</div>
+      <h2>Sélectionner un étudiant pour afficher ses statistiques :</h2>
+      <select id="studentStatsSelect" onchange="loadStudentStats(this.value)">
+        <option value="">-- Sélectionner un étudiant --</option>
+      </select>
+      <div id="studentStatsContainer" style="margin-top:20px"></div>
     </div>
   </div>
 
   <!-- Exercises Tab -->
-  <!-- Exercises section - Added grouping by discipline -->
   <div id="exercises" class="tab-content">
     <div class="card">
-      <h2>Gestion des exercices</h2>
-      
-      <!-- CE Exercises Group -->
-      <div class="exercise-group" style="margin-bottom: 24px;">
-        <h3 style="color: #2b5; margin: 16px 0 8px; font-size: 1.1rem;">📖 Compréhension Écrite (CE)</h3>
-        <div class="table-container">
-          <table>
-            <thead>
-              <tr>
-                <th>Titre</th>
-                <th>Niveau</th>
-                <th>Thème</th>
-                <th>Questions</th>
-                <th>Actions</th>
-              </tr>
-            </thead>
-            <tbody id="exercicesBodyCE">
-              <tr><td colspan="5" class="empty-state">Aucun exercice CE</td></tr>
-            </tbody>
-          </table>
-        </div>
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px">
+        <h2 style="margin:0">Gestion des exercices</h2>
+        <a href="builder.html" class="btn btn-primary">+ Créer un exercice</a>
       </div>
-
-      <!-- CO Exercises Group -->
-      <div class="exercise-group" style="margin-bottom: 24px;">
-        <h3 style="color: #f59e0b; margin: 16px 0 8px; font-size: 1.1rem;">🎧 Compréhension Orale (CO)</h3>
-        <div class="table-container">
-          <table>
-            <thead>
-              <tr>
-                <th>Titre</th>
-                <th>Niveau</th>
-                <th>Thème</th>
-                <th>Questions</th>
-                <th>Actions</th>
-              </tr>
-            </thead>
-            <tbody id="exercicesBodyCO">
-              <tr><td colspan="5" class="empty-state">Aucun exercice CO</td></tr>
-            </tbody>
-          </table>
-        </div>
+      <div id="exercisesList">
+        <div class="loading">Chargement des exercices...</div>
       </div>
-
-      <!-- Grammaire Exercises Group -->
-      <div class="exercise-group" style="margin-bottom: 24px;">
-        <h3 style="color: #3b82f6; margin: 16px 0 8px; font-size: 1.1rem;">📝 Grammaire</h3>
-        <div class="table-container">
-          <table>
-            <thead>
-              <tr>
-                <th>Titre</th>
-                <th>Niveau</th>
-                <th>Thème</th>
-                <th>Questions</th>
-                <th>Actions</th>
-              </tr>
-            </thead>
-            <tbody id="exercicesBodyGrammaire">
-              <tr><td colspan="5" class="empty-state">Aucun exercice de grammaire</td></tr>
-            </tbody>
-          </table>
-        </div>
-      </div>
-
-      <!-- Lexique Exercises Group -->
-      <div class="exercise-group" style="margin-bottom: 24px;">
-        <h3 style="color: #8b5cf6; margin: 16px 0 8px; font-size: 1.1rem;">💬 Lexique</h3>
-        <div class="table-container">
-          <table>
-            <thead>
-              <tr>
-                <th>Titre</th>
-                <th>Niveau</th>
-                <th>Thème</th>
-                <th>Questions</th>
-                <th>Actions</th>
-              </tr>
-            </thead>
-            <tbody id="exercicesBodyLexique">
-              <tr><td colspan="5" class="empty-state">Aucun exercice de lexique</td></tr>
-            </tbody>
-          </table>
-        </div>
-      </div>
-    </div>
-  </div>
-
-  <!-- Added registrations tab for managing pending registrations -->
-  <div id="registrations" class="tab-content">
-    <div class="card">
-      <h2>Demandes d'inscription en attente</h2>
-      <div id="pendingRegistrationsContainer"></div>
-    </div>
-    
-    <div class="card">
-      <h2>Historique des demandes</h2>
-      <div id="registrationHistoryContainer"></div>
     </div>
   </div>
 
   <!-- Users Tab -->
-  <!-- Users section - Added grouping by filière -->
   <div id="users" class="tab-content">
     <div class="card">
       <h2>Gestion des utilisateurs</h2>
-      <div id="usersGroupedContainer"></div>
+      <div id="usersList">
+        <div class="loading">Chargement des utilisateurs...</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Registration Requests Tab -->
+  <div id="registrations" class="tab-content">
+    <div class="card">
+      <h2>Demandes d'inscription en attente</h2>
+      <div id="pendingRegistrations">
+        <div class="loading">Chargement des demandes...</div>
+      </div>
+    </div>
+    <div class="card">
+      <h2>Historique des demandes traitées</h2>
+      <div id="processedRegistrations">
+        <div class="loading">Chargement...</div>
+      </div>
     </div>
   </div>
 
   <!-- Resources Tab -->
   <div id="resources" class="tab-content">
     <div class="card">
-      <h2>Ajouter une ressource externe</h2>
-      <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px">
-        <div>
-          <label>Titre</label>
-          <input id="resourceTitle" placeholder="ex. Vidéo YouTube - Les salutations">
+      <h2>Ressources externes</h2>
+      <form id="resourceForm" onsubmit="addResource(event)" style="margin-bottom:20px">
+        <div class="grid">
+          <div class="form-group">
+            <label>Titre</label>
+            <input type="text" id="resourceTitle" required>
+          </div>
+          <div class="form-group">
+            <label>URL</label>
+            <input type="url" id="resourceUrl" required>
+          </div>
+          <div class="form-group">
+            <label>Catégorie</label>
+            <select id="resourceCategory">
+              <option value="video">Vidéo</option>
+              <option value="audio">Audio</option>
+              <option value="document">Document</option>
+              <option value="site">Site web</option>
+            </select>
+          </div>
         </div>
-        <div>
-          <label>Niveau</label>
-          <select id="resourceLevel">
-            <option>A1</option><option>A2</option><option>B1</option><option>B2</option><option>C1</option><option>C2</option>
-          </select>
+        <div class="form-group">
+          <label>Description</label>
+          <textarea id="resourceDescription" rows="2"></textarea>
         </div>
-      </div>
-      <div class="form-group">
-        <label>URL</label>
-        <input id="resourceUrl" placeholder="https://www.youtube.com/watch?v=...">
-      </div>
-      <div class="form-group">
-        <label>Description</label>
-        <textarea id="resourceDescription" placeholder="Courte description de la ressource..."></textarea>
-      </div>
-      <div class="form-group">
-        <label>Type</label>
-        <select id="resourceType">
-          <option value="video">Vidéo</option>
-          <option value="article">Article</option>
-          <option value="exercice">Exercice interactif</option>
-          <option value="audio">Audio/Podcast</option>
-          <option value="autre">Autre</option>
-        </select>
-      </div>
-      <div class="btns">
-        <button class="btn-primary" onclick="addResource()">Ajouter ressource</button>
-        <button class="btn-secondary" id="cancelResourceBtn" onclick="cancelResourceEdit()" style="display:none">Annuler</button>
-      </div>
-    </div>
-
-    <div class="card">
-      <h2>Ressources externes disponibles</h2>
-      <div class="table-container">
-        <table id="resourcesTable">
-          <thead>
-            <tr>
-              <th>Titre</th>
-              <th>Type</th>
-              <th>Niveau</th>
-              <th>URL</th>
-              <th>Actions</th>
-            </tr>
-          </thead>
-          <tbody id="resourcesBody">
-            <tr><td colspan="5" class="empty-state">Aucune ressource</td></tr>
-          </tbody>
-        </table>
-      </div>
+        <button type="submit" class="btn btn-primary">Ajouter</button>
+      </form>
+      <div id="resourcesList"></div>
     </div>
   </div>
 
-  <!-- Chat Tab -->
-  <div id="chat" class="tab-content">
+  <!-- Messages Tab -->
+  <div id="messages" class="tab-content">
     <div class="card">
       <h2>Messages des étudiants</h2>
-      
-      <div style="margin-bottom:16px;padding:12px;background:#f0f0ff;border-radius:8px;border:1px solid #cbd5e1">
-        <label style="display:block;margin-bottom:8px;font-weight:600;color:#4c1d95">Destinataire(s):</label>
-        <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">
-          <select id="recipientSelect" style="flex:1;min-width:200px;padding:8px;border:1px solid #cbd5e1;border-radius:6px">
+      <div style="margin-bottom:16px;padding:12px;background:#f5f5f5;border-radius:8px">
+        <label style="color:var(--brand);font-weight:600">Destinataire(s):</label>
+        <div style="display:flex;gap:8px;align-items:center;margin-top:8px">
+          <select id="recipientSelect" style="flex:1">
             <option value="">-- Sélectionner un étudiant --</option>
           </select>
-          <button class="btn-secondary" onclick="selectAllStudents()" style="padding:8px 16px">Tous les étudiants</button>
-          <button class="btn-secondary" onclick="selectGroupStudents()" style="padding:8px 16px">Groupe personnalisé</button>
+          <button type="button" class="btn" onclick="selectAllStudents()">Tous les étudiants</button>
+          <button type="button" class="btn" onclick="selectGroupStudents()">Groupe personnalisé</button>
         </div>
-        <div id="selectedRecipients" style="margin-top:8px;display:flex;gap:6px;flex-wrap:wrap"></div>
+        <div id="selectedRecipients" style="margin-top:8px;display:flex;flex-wrap:wrap;gap:4px"></div>
       </div>
-
-      <div style="display:flex;gap:16px;height:500px">
-        <div style="flex:1;border:1px solid #e0e0e0;border-radius:8px;overflow-y:auto;padding:16px" id="chatUsersList">
+      
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px">
+        <div id="conversationsList" style="border:1px solid #e0e0e0;border-radius:8px;max-height:400px;overflow-y:auto">
           <div class="empty-state">Aucun message</div>
         </div>
-        <div style="flex:2;border:1px solid #e0e0e0;border-radius:8px;display:flex;flex-direction:column">
-          <div id="chatMessagesArea" style="flex:1;overflow-y:auto;padding:16px;background:#f9f9f9">
+        <div style="border:1px solid #e0e0e0;border-radius:8px;padding:16px">
+          <div id="conversationMessages" style="min-height:200px;max-height:300px;overflow-y:auto;margin-bottom:16px">
             <div class="empty-state">Sélectionnez un étudiant pour voir la conversation</div>
           </div>
-          <div style="padding:16px;border-top:1px solid #e0e0e0;background:#fff">
-            <!-- Removed disabled attribute from textarea to allow admin to type messages -->
-            <textarea id="adminMessageInput" placeholder="Tapez votre message..." style="width:100%;padding:10px;border:1px solid #ddd;border-radius:8px;font-size:.95rem;box-sizing:border-box;min-height:60px;margin-bottom:8px"></textarea>
-            <div style="display:flex;gap:8px">
-              <!-- Removed disabled attributes from buttons -->
-              <button class="btn-primary" onclick="sendAdminMessage()" id="sendMessageBtn">Envoyer</button>
-              <button class="btn-danger" onclick="deleteAdminChatHistory()" id="deleteChatBtn">Supprimer l'historique</button>
-            </div>
+          <textarea id="adminMessageInput" rows="2" placeholder="Tapez votre message..."></textarea>
+          <div style="display:flex;gap:8px;margin-top:8px">
+            <button class="btn btn-primary" onclick="sendAdminMessage()">Envoyer</button>
+            <button class="btn btn-danger" onclick="deleteConversation()">Supprimer l'historique</button>
           </div>
         </div>
       </div>
@@ -584,2040 +443,758 @@ h1 {
   </div>
 </main>
 
-<!-- Modal for group student selection -->
-<!-- Added modal for selecting multiple students for group messages -->
-<div id="groupSelectModal" class="modal">
-  <div class="modal-content" style="max-width:500px">
-    <div class="modal-header">
-      <h2>Sélectionner un groupe d'étudiants</h2>
-      <button class="modal-close" onclick="closeGroupSelectModal()">×</button>
-    </div>
-    <div class="modal-body">
-      <p style="margin-bottom:12px;color:#666">Cochez les étudiants à ajouter au groupe :</p>
-      <div id="groupStudentCheckboxes" style="max-height:300px;overflow-y:auto"></div>
-    </div>
-    <div class="modal-footer">
-      <button class="btn-secondary" onclick="closeGroupSelectModal()">Annuler</button>
-      <button class="btn-primary" onclick="confirmGroupSelection()">Confirmer</button>
-    </div>
-  </div>
-</div>
-
-<!-- Added modal for viewing user statistics -->
-<div id="userStatsModal" class="modal">
-  <div class="modal-content">
-    <div class="modal-header">
-      <h2>Statistiques de l'étudiant</h2>
-      <button class="modal-close" onclick="closeUserStatsModal()">×</button>
-    </div>
-    <div class="modal-body">
-      <div class="user-info" id="modalUserInfo"></div>
-      
-      <div class="card">
-        <h2>Résumé des performances</h2>
-        <div class="grid">
-          <div class="stat-box">
-            <div class="stat-label">Leçons complétées</div>
-            <div class="stat-value" id="modalCompletedLessons">0</div>
-          </div>
-          <div class="stat-box">
-            <div class="stat-label">Score moyen</div>
-            <div class="stat-value" id="modalAvgScore">0%</div>
-          </div>
-          <div class="stat-box">
-            <div class="stat-label">Total tentatives</div>
-            <div class="stat-value" id="modalTotalAttempts">0</div>
-          </div>
-          <div class="stat-box">
-            <div class="stat-label">Points totaux</div>
-            <div class="stat-value" id="modalTotalPoints">0</div>
-          </div>
-        </div>
-      </div>
-
-      <div class="card">
-        <h2>Historique des tentatives</h2>
-        <div id="modalAttemptsList" class="attempts-list"></div>
-      </div>
-    </div>
-  </div>
-</div>
-
-<!-- CHANGE: Add modal for changing own PIN -->
+<!-- Change PIN Modal -->
 <div id="changePinModal" class="modal">
-  <div class="modal-content" style="max-width:400px">
-    <span class="close-btn" onclick="closeChangePinModal()">&times;</span>
-    <h2>Modifier mon code PIN</h2>
-    <div class="form-group">
-      <label for="currentPin">Code PIN actuel</label>
-      <input type="password" id="currentPin" maxlength="6" pattern="[0-9]*" inputmode="numeric" placeholder="••••••">
-    </div>
-    <div class="form-group">
-      <label for="newPin">Nouveau code PIN (6 chiffres)</label>
-      <input type="password" id="newPin" maxlength="6" pattern="[0-9]*" inputmode="numeric" placeholder="••••••">
-    </div>
-    <div class="form-group">
-      <label for="confirmNewPin">Confirmer le nouveau code PIN</label>
-      <input type="password" id="confirmNewPin" maxlength="6" pattern="[0-9]*" inputmode="numeric" placeholder="••••••">
-    </div>
-    <div id="changePinError" style="color:#c33;font-size:.9rem;margin:8px 0;display:none"></div>
-    <button class="btn-primary" onclick="saveNewPin()">Enregistrer</button>
+  <div class="modal-content">
+    <h2>Modifier le code PIN</h2>
+    <form onsubmit="changePin(event)">
+      <div class="form-group">
+        <label>Nouveau PIN (4 chiffres)</label>
+        <input type="password" id="newPin" maxlength="4" pattern="[0-9]{4}" required>
+      </div>
+      <div class="form-group">
+        <label>Confirmer le PIN</label>
+        <input type="password" id="confirmPin" maxlength="4" pattern="[0-9]{4}" required>
+      </div>
+      <div style="display:flex;gap:8px;justify-content:flex-end">
+        <button type="button" class="btn" onclick="closeModal('changePinModal')">Annuler</button>
+        <button type="submit" class="btn btn-primary">Enregistrer</button>
+      </div>
+    </form>
   </div>
 </div>
 
-<!-- CHANGE: Add modal for resetting student PIN -->
-<div id="resetStudentPinModal" class="modal">
-  <div class="modal-content" style="max-width:400px">
-    <span class="close-btn" onclick="closeResetStudentPinModal()">&times;</span>
-    <h2>Réinitialiser le code PIN</h2>
-    <p id="resetStudentInfo" style="margin-bottom:16px"></p>
-    <div class="form-group">
-      <label for="resetNewPin">Nouveau code PIN (6 chiffres)</label>
-      <input type="password" id="resetNewPin" maxlength="6" pattern="[0-9]*" inputmode="numeric" placeholder="••••••">
+<!-- Group Selection Modal -->
+<div id="groupSelectModal" class="modal">
+  <div class="modal-content">
+    <h2>Sélectionner les étudiants</h2>
+    <div id="groupStudentsList" style="max-height:300px;overflow-y:auto"></div>
+    <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:16px">
+      <button type="button" class="btn" onclick="closeModal('groupSelectModal')">Annuler</button>
+      <button type="button" class="btn btn-primary" onclick="confirmGroupSelection()">Confirmer</button>
     </div>
-    <div class="form-group">
-      <label for="resetConfirmPin">Confirmer le nouveau code PIN</label>
-      <input type="password" id="resetConfirmPin" maxlength="6" pattern="[0-9]*" inputmode="numeric" placeholder="••••••">
-    </div>
-    <div id="resetPinError" style="color:#c33;font-size:.9rem;margin:8px 0;display:none"></div>
-    <button class="btn-primary" onclick="saveResetPin()">Réinitialiser</button>
   </div>
 </div>
 
-<script src="lib/stats.js"></script>
+<!-- Load Supabase client library -->
+<script src="lib/supabase-client.js"></script>
+
 <script>
-const $ = s => document.querySelector(s);
-const $$ = s => [...document.querySelectorAll(s)];
-const AUTH_KEY = 'fr_auth_user';
-const BANK_KEY = 'fr_bank_data';
-const USERS_STORAGE_KEY = 'fr_users_db'; // Use consistent key name
-const FILES_INDEX_KEY = 'fr_json_files_index'; // Track all uploaded JSON files from Cloudinary
-const RESOURCES_KEY = 'fr_external_resources';
-const MESSAGES_KEY = 'fr_chat_messages';
-const PENDING_REGISTRATIONS_KEY = 'fr_pending_registrations';
-
+// Global state
 let currentUser = null;
-let bank = null;
-let editingExerciseId = null;
+let selectedRecipients = [];
+let selectedConversation = null;
 
-// Added counters and reset for form questions
-let formQcmCounter = 0;
-let formVfCounter = 0;
+// =============================================
+// Authentication
+// =============================================
 
-// Added variables for resource and chat management
-let editingResourceId = null;
-let selectedChatUserId = null;
-
-// Added variables for new QCM and passage features
-let passageImageData = null;
-let optionCounter = {}; // Used for tracking option count per QCM question
-
-// Variable to store user ID for PIN reset
-let resetPinUserId = null;
-
-let selectedRecipients = []; // Stores {id, name} for selected recipients
-
-function addFormQcmQuestion() {
-  qcmQuestionCount++;
-  const qDiv = document.createElement('div');
-  qDiv.style.cssText = 'background:#f9f9f9;padding:12px;border-radius:8px;margin:8px 0;border:1px solid #e0e0e0';
-  qDiv.dataset.formQcmId = qcmQuestionCount;
-  
-  qDiv.innerHTML = `
-    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
-      <span style="font-weight:600;color:var(--brand)">Question ${qcmQuestionCount}</span>
-      <button class="btn-danger" onclick="removeFormQcmQuestion(${qcmQuestionCount})" type="button" style="padding:6px 10px;font-size:.85rem">Supprimer</button>
-    </div>
-    <label>Question</label>
-    <input class="form-qcm-question" placeholder="Quelle est la capitale de la France ?" style="width:100%;padding:10px;border:1px solid #ddd;border-radius:8px;font-size:.95rem;box-sizing:border-box;margin-bottom:8px">
-    
-    <div class="form-qcm-options-container"></div>
-    
-    <button type="button" onclick="addFormQcmOption(${qcmQuestionCount})" style="margin-bottom:8px;padding:6px 10px;font-size:.85rem;background:#e0e0e0;color:#111;border:none;border-radius:6px;cursor:pointer">+ Ajouter une réponse</button>
-    
-    <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:8px">
-      <div>
-        <label>Bonne réponse</label>
-        <select class="form-qcm-answer" style="width:100%;padding:10px;border:1px solid #ddd;border-radius:8px;font-size:.95rem;box-sizing:border-box">
-        </select>
-      </div>
-      <div>
-        <label>Points</label>
-        <input type="number" class="form-qcm-points" value="1" min="1" style="width:100%;padding:10px;border:1px solid #ddd;border-radius:8px;font-size:.95rem;box-sizing:border-box">
-      </div>
-    </div>
-  `;
-  $('#qcmQuestions').appendChild(qDiv);
-  
-  // Add 3 default options
-  addFormQcmOption(qcmQuestionCount);
-  addFormQcmOption(qcmQuestionCount);
-  addFormQcmOption(qcmQuestionCount);
-}
-
-window.addFormQcmOption = function(questionId) {
-  const questionDiv = document.querySelector(`[data-form-qcm-id="${questionId}"]`);
-  if (!questionDiv) return;
-  
-  const container = questionDiv.querySelector('.form-qcm-options-container');
-  const existingOptions = container.querySelectorAll(':scope > div[data-option-letter]');
-  const optionIndex = existingOptions.length;
-  const optionLetter = availableLetters[optionIndex];
-  
-  const optionDiv = document.createElement('div');
-  optionDiv.dataset.optionLetter = optionLetter;
-  optionDiv.style.cssText = 'display:flex;gap:8px;margin-bottom:8px;align-items:center';
-  
-  optionDiv.innerHTML = `
-    <label style="margin:0;font-weight:600;min-width:60px">Choix ${optionLetter.toUpperCase()}</label>
-    <input class="form-qcm-option" data-option-letter="${optionLetter}" placeholder="Réponse ${letter.toUpperCase()}" style="flex:1;padding:10px;border:1px solid #ddd;border-radius:8px;font-size:.95rem">
-    <button onclick="removeFormQcmOption(${questionId}, '${optionLetter}')" type="button" style="background:#e53e3e;color:#fff;border:none;padding:8px 12px;border-radius:6px;cursor:pointer;font-size:.85rem">✕</button>
-  `;
-  container.appendChild(optionDiv);
-  
-  updateFormQcmAnswerDropdown(questionId);
-};
-
-window.removeFormQcmOption = function(questionId, optionLetter) {
-  const questionDiv = document.querySelector(`[data-form-qcm-id="${questionId}"]`);
-  if (!questionDiv) return;
-  
-  const container = questionDiv.querySelector('.form-qcm-options-container');
-  const options = container.querySelectorAll(':scope > div[data-option-letter]');
-  
-  if (options.length <= 2) {
-    alert('Vous devez avoir au moins 2 choix de réponse.');
-    return;
-  }
-  
-  const optionDiv = container.querySelector(`[data-option-letter="${optionLetter}"]`);
-  if (optionDiv) optionDiv.remove();
-  
-  relabelFormQcmOptions(questionId);
-  updateFormQcmAnswerDropdown(questionId);
-};
-
-function relabelFormQcmOptions(questionId) {
-  const questionDiv = document.querySelector(`[data-form-qcm-id="${questionId}"]`);
-  if (!questionDiv) return;
-  
-  const container = questionDiv.querySelector('.form-qcm-options-container');
-  const optionDivs = container.querySelectorAll(':scope > div[data-option-letter]');
-  
-  optionDivs.forEach((optionDiv, index) => {
-    const newLetter = availableLetters[index];
-    optionDiv.dataset.optionLetter = newLetter;
-    
-    const label = optionDiv.querySelector('label');
-    if (label) label.textContent = `Choix ${newLetter.toUpperCase()}`;
-    
-    const input = optionDiv.querySelector('.form-qcm-option');
-    if (input) {
-      input.placeholder = `Réponse ${newLetter.toUpperCase()}`;
-      input.dataset.optionLetter = newLetter;
-    }
-    
-    const button = optionDiv.querySelector('button');
-    if (button) {
-      button.setAttribute('onclick', `removeFormQcmOption(${questionId}, '${newLetter}')`);
-    }
-  });
-  
-  updateFormQcmAnswerDropdown(questionId);
-}
-
-function updateFormQcmAnswerDropdown(questionId) {
-  const questionDiv = document.querySelector(`[data-form-qcm-id="${questionId}"]`);
-  if (!questionDiv) return;
-  
-  const container = questionDiv.querySelector('.form-qcm-options-container');
-  const options = container.querySelectorAll(':scope > div[data-option-letter]');
-  const dropdown = questionDiv.querySelector('.form-qcm-answer');
-  
-  const currentValue = dropdown.value;
-  dropdown.innerHTML = '';
-  
-  options.forEach(optionDiv => {
-    const letter = optionDiv.dataset.optionLetter;
-    const option = document.createElement('option');
-    option.value = letter;
-    option.textContent = letter.toUpperCase();
-    dropdown.appendChild(option);
-  });
-  
-  if (currentValue && dropdown.querySelector(`option[value="${currentValue}"]`)) {
-    dropdown.value = currentValue;
-  }
-}
-
-window.removeFormQcmQuestion = function(id) {
-  const item = document.querySelector(`[data-form-qcm-id="${id}"]`);
-  if (item) {
-    item.remove();
-  }
-};
-
-function loadRecipientOptions() {
-  const allUsers = JSON.parse(localStorage.getItem(USERS_STORAGE_KEY) || '[]');
-  const students = allUsers.filter(u => u.role === 'student' && (!u.status || u.status === 'approved'));
-  
-  console.log('[v0] loadRecipientOptions called');
-  console.log('[v0] All users:', allUsers);
-  console.log('[v0] Filtered students:', students);
-  
-  const recipientSelect = $('#recipientSelect');
-  if (!recipientSelect) {
-    console.log('[v0] recipientSelect not found');
-    return;
-  }
-  
-  recipientSelect.innerHTML = '<option value="">-- Sélectionner un étudiant --</option>';
-  
-  students.forEach(student => {
-    const option = document.createElement('option');
-    option.value = student.id;
-    option.textContent = `${student.name} (${student.email})`;
-    recipientSelect.appendChild(option);
-  });
-  
-  console.log('[v0] Recipients loaded:', students.length);
-}
-
-async function loadBank() {
-  // Load localStorage data
-  const stored = localStorage.getItem(BANK_KEY);
-  let localData = stored ? JSON.parse(stored) : {lecture:[], ecoute:[], grammaire:[], lexique:[]};
-  
-  // Load Cloudinary files index
-  const filesIndexRaw = localStorage.getItem(FILES_INDEX_KEY);
-  
-  const filesIndex = filesIndexRaw ? JSON.parse(filesIndexRaw) : [];
-  
-  if (filesIndex.length === 0) {
-    bank = localData;
-    updateExercisesTable();
-    updateDashboard();
-    return;
-  }
-  
-  const cloudinaryExercises = {lecture:[], ecoute:[], grammaire:[], lexique:[]};
-  
-  for (const fileInfo of filesIndex) {
+async function checkAuth() {
     try {
-      const response = await fetch(fileInfo.cloudinaryUrl);
-      
-      if (!response.ok) {
-        console.error(`Failed to fetch ${fileInfo.fileName}: ${response.status}`);
-        continue;
-      }
-      
-      const data = await response.json();
-      
-      if (data.lecture)cloudinaryExercises.lecture.push(...data.lecture);
-      if (data.ecoute)cloudinaryExercises.ecoute.push(...data.ecoute);
-      if (data.grammaire)cloudinaryExercises.grammaire.push(...data.grammaire);
-      if (data.lexique)cloudinaryExercises.lexique.push(...data.lexique);
-      
+        if (!window.SupabaseDB || !window.SupabaseDB.isAvailable()) {
+            throw new Error('Base de données non disponible');
+        }
+        
+        currentUser = await window.SupabaseDB.getCurrentUser();
+        
+        if (!currentUser) {
+            window.location.href = 'login.html';
+            return;
+        }
+        
+        if (currentUser.role !== 'admin') {
+            alert('Accès non autorisé');
+            window.location.href = 'dashboard.html';
+            return;
+        }
+        
+        // Update header
+        document.getElementById('adminUserName').textContent = currentUser.name;
+        document.getElementById('adminUserEmail').textContent = currentUser.email;
+        
+        // Load all data
+        await loadAllData();
+        
     } catch (error) {
-      console.error(`Error loading ${fileInfo.fileName}:`, error);
+        console.error('Auth error:', error);
+        window.location.href = 'login.html';
     }
-  }
-  
-  // Merge with localStorage (Cloudinary takes precedence)
-  bank = {
-    lecture: [...cloudinaryExercises.lecture, ...localData.lecture],
-    ecoute: [...cloudinaryExercises.ecoute, ...localData.ecoute],
-    grammaire: [...cloudinaryExercises.grammaire, ...localData.grammaire],
-    lexique: [...cloudinaryExercises.lexique, ...localData.lexique]
-  };
-  
-  // Remove duplicates based on ID
-  for (const type in bank) {
-    const seen = new Set();
-    bank[type] = bank[type].filter(ex => {
-      if (seen.has(ex.id)) return false;
-      seen.add(ex.id);
-      return true;
-    });
-  }
-  
-  updateExercisesTable();
-  updateDashboard();
 }
 
-function updateDashboard() {
-  const users = JSON.parse(localStorage.getItem(USERS_STORAGE_KEY) || '[]').filter(u => u.role === 'student' && u.status === 'approved');
-  const allStats = JSON.parse(localStorage.getItem('fr_stats_db') || '{}');
+async function handleLogout() {
+    try {
+        await window.SupabaseDB.logout();
+        window.location.href = 'login.html';
+    } catch (error) {
+        console.error('Logout error:', error);
+        window.location.href = 'login.html';
+    }
+}
 
-  let totalAttempts = 0;
-  let totalScore = 0;
-  let attemptCount = 0;
+// =============================================
+// Data Loading
+// =============================================
 
-  Object.values(allStats).forEach(userStats => {
-    Object.values(userStats).forEach(lesson => {
-      if (lesson.attempts) {
-        totalAttempts += lesson.attempts.length;
-        lesson.attempts.forEach(a => {
-          totalScore += a.percentage;
-          attemptCount++;
+async function loadAllData() {
+    await Promise.all([
+        loadGlobalStats(),
+        loadExercises(),
+        loadUsers(),
+        loadRegistrations(),
+        loadResources(),
+        loadRecipientOptions()
+    ]);
+}
+
+async function loadGlobalStats() {
+    try {
+        const stats = await window.SupabaseDB.getGlobalStats();
+        
+        document.getElementById('statUsers').textContent = stats.totalUsers;
+        document.getElementById('statExercises').textContent = stats.totalExercises;
+        document.getElementById('statAttempts').textContent = stats.totalAttempts;
+        document.getElementById('statAvgScore').textContent = stats.averageScore + '%';
+        
+        // Load student options for stats dropdown
+        const students = await window.SupabaseDB.getStudents();
+        const select = document.getElementById('studentStatsSelect');
+        select.innerHTML = '<option value="">-- Sélectionner un étudiant --</option>';
+        students.forEach(s => {
+            select.innerHTML += `<option value="${s.id}">${s.name} (${s.email})</option>`;
         });
-      }
-    });
-  });
-
-  $('#totalUsers').textContent = users.length;
-  const totalExercises = (bank?.lecture?.length || 0) + (bank?.ecoute?.length || 0) + (bank?.grammaire?.length || 0) + (bank?.lexique?.length || 0);
-  $('#totalExercises').textContent = totalExercises;
-  $('#totalAttempts').textContent = totalAttempts;
-  $('#avgScore').textContent = attemptCount > 0 ? Math.round(totalScore / attemptCount) + '%' : '0%';
-
-  // Charts are drawn when a student is selected or on initial load.
-}
-
-function updateExercisesTable() {
-  const tbodyCE = $('#exercicesBodyCE');
-  const tbodyCO = $('#exercicesBodyCO');
-  const tbodyGrammaire = $('#exercicesBodyGrammaire');
-  const tbodyLexique = $('#exercicesBodyLexique');
-  
-  const ceExercises = (bank?.lecture || []).map(e => ({ ...e, type: 'CE' }));
-  const coExercises = (bank?.ecoute || []).map(e => ({ ...e, type: 'CO' }));
-  const grammaireExercises = (bank?.grammaire || []).map(e => ({ ...e, type: 'Grammaire' }));
-  const lexiqueExercises = (bank?.lexique || []).map(e => ({ ...e, type: 'Lexique' }));
-
-  if (ceExercises.length === 0) {
-    tbodyCE.innerHTML = '<tr><td colspan="5" class="empty-state">Aucun exercice CE</td></tr>';
-  } else {
-    tbodyCE.innerHTML = ceExercises.map(ex => renderExerciseRow(ex)).join('');
-  }
-
-  if (coExercises.length === 0) {
-    tbodyCO.innerHTML = '<tr><td colspan="5" class="empty-state">Aucun exercice CO</td></tr>';
-  } else {
-    tbodyCO.innerHTML = coExercises.map(ex => renderExerciseRow(ex)).join('');
-  }
-
-  if (grammaireExercises.length === 0) {
-    tbodyGrammaire.innerHTML = '<tr><td colspan="5" class="empty-state">Aucun exercice de grammaire</td></tr>';
-  } else {
-    tbodyGrammaire.innerHTML = grammaireExercises.map(ex => renderExerciseRow(ex)).join('');
-  }
-
-  if (lexiqueExercises.length === 0) {
-    tbodyLexique.innerHTML = '<tr><td colspan="5" class="empty-state">Aucun exercice de lexique</td></tr>';
-  } else {
-    tbodyLexique.innerHTML = lexiqueExercises.map(ex => renderExerciseRow(ex)).join('');
-  }
-}
-
-function renderExerciseRow(ex) {
-  const qCount = (ex.qcm?.length || 0) + (ex.vf?.length || 0) + (ex.cloze ? 1 : 0);
-  const levelClass = 'badge-' + (ex.niveau || 'a1').toLowerCase();
-
-  return `
-    <tr>
-      <td>${ex.titre}</td>
-      <td><span class="badge ${levelClass}">${ex.niveau}</span></td>
-      <td>${ex.theme}</td>
-      <td>${qCount}</td>
-      <td>
-        <div class="action-btns">
-          <button class="btn-secondary" onclick="editExercise('${ex.id}')">Éditer</button>
-          <button class="btn-danger" onclick="deleteExercise('${ex.id}', '${ex.type}')">Supprimer</button>
-        </div>
-      </td>
-    </tr>
-  `;
-}
-
-function deleteExercise(id, type) {
-  if (!confirm('Êtes-vous sûr de vouloir supprimer cet exercice ?')) return;
-  let arr;
-  if (type === 'CE' || type === 'lecture') arr = bank.lecture;
-  else if (type === 'CO' || type === 'ecoute') arr = bank.ecoute;
-  else if (type === 'Grammaire' || type === 'grammaire') arr = bank.grammaire;
-  else if (type === 'Lexique' || type === 'lexique') arr = bank.lexique;
-  else {
-    alert('Erreur: Type d\'exercice inconnu');
-    return;
-  }
-  
-  const idx = arr.findIndex(e => e.id === id);
-  if (idx >= 0) {
-    arr.splice(idx, 1);
-    saveBank();
-    updateExercisesTable();
-  }
-}
-
-function editExercise(id) {
-  let exercise = null;
-  let exerciseType = null;
-  for (const type in bank) {
-    const found = bank[type].find(e => e.id === id);
-    if (found) {
-      exercise = found;
-      exerciseType = type;
-      break;
+        
+    } catch (error) {
+        console.error('Error loading stats:', error);
     }
-  }
+}
 
-  if (!exercise) {
-    alert('Exercice non trouvé.');
-    return;
-  }
-
-  editingExerciseId = id;
-  $('#kind').value = exercise.type === 'CE' ? 'lecture' : exercise.type === 'CO' ? 'ecoute' : exercise.type.toLowerCase();
-  $('#niveau').value = exercise.niveau;
-  $('#theme').value = exercise.theme;
-  $('#exerciseNumber').value = exercise.exerciseNumber || '';
-  $('#id').value = exercise.id; // Set the ID
-  $('#id').setAttribute('readonly', 'true'); // Make ID field read-only during edit
-  $('#difficulty').value = exercise.difficulty || 1;
-  $('#difficultyValue').textContent = `Niveau ${exercise.difficulty || 1}`;
-
-  updateAddForm(); 
-
-  if (exerciseType === 'lecture') {
-    if (exercise.passage_image) {
-      passageImageData = exercise.passage_image;
-      $('#passageImagePreviewImg').src = passageImageData;
-      $('#passageImagePreview').style.display = 'block';
-      $('#passageImageDropZone').style.display = 'none';
-      $('input[name="passageType"][value="image"]').checked = true;
-    } else if (exercise.passage_html) {
-      const tempDiv = document.createElement('div');
-      tempDiv.innerHTML = exercise.passage_html;
-      $('#passageTitle').value = tempDiv.querySelector('h3')?.textContent || '';
-      $('#passageText').value = tempDiv.querySelector('p:not([style*="italic"])')?.textContent || '';
-      $('#passageSource').value = tempDiv.querySelector('p[style*="italic"]')?.textContent || '';
-      $('input[name="passageType"][value="text"]').checked = true;
-    }
-    togglePassageType();
-  } else if (exerciseType === 'ecoute') {
-    if (exercise.audio) {
-      $('#audio').value = exercise.audio; // Set hidden input value
-      $('#audioFileName').textContent = `Fichier sélectionné: ${exercise.audio}`;
-      $('#audioFileName').style.display = 'block';
-      $('#audioDropText').style.display = 'none';
-      $('#audioPlayer').src = exercise.audio; // Load audio into player
-      $('#audioPreview').style.display = 'block';
+async function loadStudentStats(userId) {
+    const container = document.getElementById('studentStatsContainer');
+    if (!userId) {
+        container.innerHTML = '';
+        return;
     }
     
-    if (exercise.cloze) {
-      $('#clozeText').value = exercise.cloze;
-      $('#transText').value = exercise.transcription || '';
-      if (exercise.clozePoints && exercise.clozePoints.length > 0) {
-        const config = $('#builderClozeBlanksConfig');
-        const list = $('#builderClozeBlankslist');
-        list.innerHTML = '';
+    try {
+        const stats = await window.SupabaseDB.getStudentStats(userId);
         
-        const blanksInText = [];
-        const regex = /\[([^\]]+)\]/g;
-        let match;
-        while ((match = regex.exec(exercise.cloze)) !== null) {
-          blanksInText.push(match[1]);
-        }
-
-        blanksInText.forEach((blank, i) => {
-          const div = document.createElement('div');
-          div.style.cssText = 'display:flex;gap:8px;align-items:center;margin-bottom:8px;padding:8px;background:#fff;border-radius:6px';
-          div.innerHTML = `
-            <span style="flex:1;font-weight:500">Trou ${i + 1}: "${blank}"</span>
-            <label style="display:flex;align-items:center;gap:4px">
-              Points: <input type="number" class="cloze-blank-points" value="${exercise.clozePoints[i] || 1}" min="0" step="0.5" style="width:60px;padding:4px;border:1px solid #ddd;border-radius:4px">
-            </label>
-          `;
-          list.appendChild(div);
-        });
-        config.style.display = 'block';
-      }
-    }
-  }
-
-  if (exercise.qcm && exercise.qcm.length > 0) {
-    formQcmCounter = 0; // Reset counter for editing
-    $('#qcmQuestions').innerHTML = ''; // Clear existing
-    exercise.qcm.forEach((q, index) => {
-      formQcmCounter++;
-      const qDiv = document.createElement('div');
-      qDiv.style.cssText = 'background:#f9f9f9;padding:12px;border-radius:8px;margin:8px 0;border:1px solid #e0e0e0';
-      qDiv.dataset.formQcmId = formQcmCounter;
-      
-      const isGrammar = $('#kind').value === 'grammaire';
-      
-      let optionsHtml = '';
-      const optionLetters = Object.keys(q).filter(key => key !== 'question' && key !== 'answer' && key !== 'points' && key !== 'explanation');
-      optionLetters.sort(); 
-      
-      optionLetters.forEach(letter => {
-        optionsHtml += `
-          <div style="display:flex;gap:8px;margin-bottom:8px;align-items:center" data-option-id="${letter}" data-option-letter="${letter}">
-            <label style="margin:0;font-weight:600;min-width:60px">Choix ${letter.toUpperCase()}</label>
-            <input class="form-qcm-option" data-option-letter="${letter}" value="${q[letter]}" placeholder="Réponse ${letter.toUpperCase()}" style="flex:1;padding:10px;border:1px solid #ddd;border-radius:8px;font-size:.95rem">
-            <button onclick="removeFormQcmOption(${formQcmCounter}, '${letter}')" style="background:#e53e3e;color:#fff;border:none;padding:8px 12px;border-radius:6px;cursor:pointer;font-size:.85rem">✕</button>
-          </div>
-        `;
-      });
-      
-      qDiv.innerHTML = `
-        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
-          <span style="font-weight:600;color:var(--brand)">Question ${formQcmCounter}</span>
-          <button class="btn-danger" onclick="removeFormQcmQuestion(${formQcmCounter})" style="padding:6px 10px;font-size:.85rem">Supprimer</button>
-        </div>
-        <label>Question</label>
-        <input class="form-qcm-question" value="${q.question}" placeholder="Quelle est la capitale de la France ?" style="width:100%;padding:10px;border:1px solid #ddd;border-radius:8px;font-size:.95rem;box-sizing:border-box;margin-bottom:8px">
-        
-        <div class="form-qcm-options-container">${optionsHtml}</div>
-        
-        <button class="btn-secondary" onclick="addFormQcmOption(${formQcmCounter})" style="margin-bottom:8px;padding:6px 10px;font-size:.85rem">+ Ajouter une réponse</button>
-        
-        <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:8px">
-          <div>
-            <label>Bonne réponse</label>
-            <select class="form-qcm-answer" style="width:100%;padding:10px;border:1px solid #ddd;border-radius:8px;font-size:.95rem;box-sizing:border-box">
-            </select>
-          </div>
-          <div>
-            <label>Points</label>
-            <input type="number" class="form-qcm-points" value="${q.points || 1}" min="1" style="width:100%;padding:10px;border:1px solid #ddd;border-radius:8px;font-size:.95rem;box-sizing:border-box">
-          </div>
-        </div>
-        
-        <div style="margin-top:8px;display:${isGrammar ? 'block' : 'none'}">
-          <label>Explication (affichée dans le corrigé)</label>
-          <textarea class="form-qcm-explanation" placeholder="Expliquez la règle grammaticale..." style="width:100%;padding:10px;border:1px solid #ddd;border-radius:8px;font-size:.95rem;box-sizing:border-box;min-height:60px">${q.explanation || ''}</textarea>
-        </div>
-      `;
-      $('#qcmQuestions').appendChild(qDiv);
-      updateFormQcmAnswerDropdown(formQcmCounter); 
-      $(`.form-qcm-answer[value="${q.answer}"]`).selected = true; 
-    });
-  }
-
-  if (exercise.vf && exercise.vf.length > 0) {
-    formVfCounter = 0; // Reset counter
-    $('#vfQuestions').innerHTML = ''; // Clear existing
-    exercise.vf.forEach((q, index) => {
-      formVfCounter++;
-      const div = document.createElement('div');
-      div.style.cssText = 'background:#f9f9f9;padding:12px;border-radius:8px;margin:8px 0;border:1px solid #e0e0e0';
-      div.dataset.formVfId = formVfCounter;
-      
-      const type = $('#kind').value;
-      const showKeywords = (type === 'lecture');
-      
-      div.innerHTML = `
-        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
-          <span style="font-weight:600;color:var(--brand)">Question ${formVfCounter}</span>
-          <button class="btn-danger" onclick="removeFormVfQuestion(${formVfCounter})" style="padding:6px 10px;font-size:.85rem">Supprimer</button>
-        </div>
-        <label>Énoncé</label>
-        <input class="form-vf-statement" value="${q.statement}" placeholder="La France est une île." style="width:100%;padding:10px;border:1px solid #ddd;border-radius:8px;font-size:.95rem;box-sizing:border-box;margin-bottom:8px">
-        
-        <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:8px">
-          <div>
-            <label>Réponse</label>
-            <select class="form-vf-answer" style="width:100%;padding:10px;border:1px solid #ddd;border-radius:8px;font-size:.95rem;box-sizing:border-box">
-              <option value="vrai" ${q.answer === 'vrai' ? 'selected' : ''}>Vrai</option>
-              <option value="faux" ${q.answer === 'faux' ? 'selected' : ''}>Faux</option>
-            </select>
-          </div>
-          <div>
-            <label>Points</label>
-            <input type="number" class="form-vf-points" value="${q.points || 1}" min="1" style="width:100%;padding:10px;border:1px solid #ddd;border-radius:8px;font-size:.95rem;box-sizing:border-box">
-          </div>
-        </div>
-        
-        <div style="margin-top:8px;display:${showKeywords ? 'block' : 'none'}">
-          <label>Mots-clés (pour indice ou vérification, séparés par |)</label>
-          <input class="form-vf-keywords" value="${q.keywords ? q.keywords.join('|') : ''}" placeholder="ex. France|île" style="width:100%;padding:10px;border:1px solid #ddd;border-radius:8px;font-size:.95rem;box-sizing:border-box">
-        </div>
-      `;
-      $('#vfQuestions').appendChild(div);
-    });
-  }
-  
-  $('#qcmFormBox').style.display = 'block'; 
-  $('#vfFormBox').style.display = 'block'; 
-  $('#clozeFormBox').style.display = ($('#kind').value === 'ecoute') ? 'block' : 'none'; 
-  
-  $('#addItem').textContent = 'Mettre à jour l\'exercice'; 
-}
-
-function cancelEdit() {
-  if (confirm('Annuler les modifications ?')) {
-    resetExerciseForm();
-    updateExercisesTable(); 
-  }
-}
-
-function saveBank() {
-  localStorage.setItem(BANK_KEY, JSON.stringify(bank));
-}
-
-function updateUsersTable() {
-  const container = $('#usersGroupedContainer');
-  const users = JSON.parse(localStorage.getItem(USERS_STORAGE_KEY) || '[]');
-  // CHANGE: Accept students without status field (existing accounts) or with approved status
-  const students = users.filter(u => u.role === 'student' && (!u.status || u.status === 'approved'));
-  
-  if (students.length === 0) {
-    container.innerHTML = '<p class="empty-state">Aucun étudiant inscrit</p>';
-    return;
-  }
-
-  const filieres = {
-    'Tourisme': [],
-    'Traduction-Interprétation': [],
-    'Communication': [],
-    'Idécaf': [],
-    'Droit': [],
-    'Autre': []
-  };
-
-  students.forEach(user => {
-    const filiere = user.filiere || 'Autre';
-    if (filieres[filiere]) {
-      filieres[filiere].push(user);
-    } else {
-      filieres['Autre'].push(user);
-    }
-  });
-
-  let html = '';
-  
-  Object.keys(filieres).forEach(filiere => {
-    const studentsInFiliere = filieres[filiere];
-    if (studentsInFiliere.length === 0) return;
-
-    html += `
-      <div class="filiere-group" style="margin-bottom: 24px;">
-        <h3 style="color: #2b5; margin: 16px 0 8px; font-size: 1.1rem;">🎓 ${filiere} (${studentsInFiliere.length})</h3>
-        <div class="table-container">
-          <table>
-            <thead>
-              <tr>
-                <th>Nom</th>
-                <th>Email</th>
-                <th>Leçons complétées</th>
-                <th>Score moyen</th>
-                <th>Actions</th>
-              </tr>
-            </thead>
-            <tbody>
-              ${studentsInFiliere.map(user => {
-                const userStats = JSON.parse(localStorage.getItem('fr_stats_db') || '{}')[user.id] || {};
-                const lessonCount = Object.keys(userStats).length;
-                let totalScore = 0;
-                let attemptCount = 0;
-                Object.values(userStats).forEach(lesson => {
-                  if (lesson.attempts) {
-                    lesson.attempts.forEach(a => {
-                      totalScore += a.percentage;
-                      attemptCount++;
-                    });
-                  }
-                });
-                const avgScore = attemptCount > 0 ? Math.round(totalScore / attemptCount) : 0;
-
-                return `
-                  <tr>
-                    <td>${user.name}</td>
-                    <td>${user.email}</td>
-                    <td>${lessonCount}</td>
-                    <td>${avgScore}%</td>
-                    <td>
-                      <div class="action-btns">
-                        <button class="btn-secondary" onclick="viewUserStats('${user.id}')">Statistiques</button>
-                        <button class="btn-secondary" onclick="openResetStudentPinModal('${user.id}')" style="background:#f59e0b;color:#fff">Réinit. PIN</button>
-                        <button class="btn-danger" onclick="deleteUser('${user.id}')">Supprimer</button>
-                      </div>
-                    </td>
-                  </tr>
-                `;
-              }).join('')}
-            </tbody>
-          </table>
-        </div>
-      </div>
-    `;
-  });
-
-  container.innerHTML = html;
-}
-
-
-function deleteUser(userId) {
-  if (!confirm('Êtes-vous sûr de vouloir supprimer cet utilisateur ?')) return;
-  let users = JSON.parse(localStorage.getItem(USERS_STORAGE_KEY) || '[]');
-  users = users.filter(u => u.id !== userId);
-  localStorage.setItem(USERS_STORAGE_KEY, JSON.stringify(users));
-  let stats = JSON.parse(localStorage.getItem('fr_stats_db') || '{}');
-  delete stats[userId];
-  localStorage.setItem('fr_stats_db', JSON.stringify(stats));
-  updateUsersTable();
-  alert('Utilisateur supprimé.');
-}
-
-function viewUserStats(userId) {
-  const users = JSON.parse(localStorage.getItem(USERS_STORAGE_KEY) || '[]');
-  const user = users.find(u => u.id === userId);
-  const userStats = JSON.parse(localStorage.getItem('fr_stats_db') || '{}')[userId] || {};
-
-  if (!user) {
-    alert('Utilisateur non trouvé.');
-    return;
-  }
-
-  let totalAttempts = 0;
-  let totalScore = 0;
-  let attemptCount = 0;
-  let completedLessons = 0;
-  const attemptsListHtml = [];
-
-  Object.entries(userStats).forEach(([lessonId, lessonData]) => {
-    if (lessonData.completed) {
-      completedLessons++;
-    }
-    if (lessonData.attempts) {
-      lessonData.attempts.forEach(a => {
-        totalAttempts++;
-        totalScore += a.percentage;
-        attemptCount++;
-        const exerciseTitle = bank[lessonData.type]?.find(ex => ex.id === lessonData.exerciseId)?.titre || 'Exercice inconnu';
-        attemptsListHtml.push(`
-          <div class="attempt-item">
-            <div>
-              <strong>${exerciseTitle}</strong> (${lessonData.type} - ${lessonData.level})<br>
-              <span class="attempt-date">${new Date(a.timestamp).toLocaleString()}</span>
+        container.innerHTML = `
+            <div class="grid">
+                <div class="stat-box">
+                    <div class="stat-label">Tentatives</div>
+                    <div class="stat-value">${stats.totalAttempts}</div>
+                </div>
+                <div class="stat-box">
+                    <div class="stat-label">Score moyen</div>
+                    <div class="stat-value">${stats.averageScore}%</div>
+                </div>
             </div>
-            <span class="attempt-score">${a.percentage}%</span>
-          </div>
-        `);
-      });
+            <h3>Récentes tentatives</h3>
+            <table>
+                <thead>
+                    <tr><th>Exercice</th><th>Score</th><th>Date</th></tr>
+                </thead>
+                <tbody>
+                    ${stats.recentAttempts.map(a => `
+                        <tr>
+                            <td>${a.exercises?.titre || 'N/A'}</td>
+                            <td>${a.percentage}%</td>
+                            <td>${new Date(a.completed_at).toLocaleDateString('fr-FR')}</td>
+                        </tr>
+                    `).join('') || '<tr><td colspan="3" class="empty-state">Aucune tentative</td></tr>'}
+                </tbody>
+            </table>
+        `;
+    } catch (error) {
+        console.error('Error loading student stats:', error);
+        container.innerHTML = '<div class="empty-state">Erreur de chargement</div>';
     }
-  });
-  
-  const avgScore = attemptCount > 0 ? Math.round(totalScore / attemptCount) : 0;
-
-  $('#modalUserInfo').innerHTML = `
-    <p><strong>Nom:</strong> ${user.name}</p>
-    <p><strong>Email:</strong> ${user.email}</p>
-  `;
-  $('#modalCompletedLessons').textContent = completedLessons;
-  $('#modalAvgScore').textContent = `${avgScore}%`;
-  $('#modalTotalAttempts').textContent = totalAttempts;
-  $('#modalTotalPoints').textContent = 'N/A'; 
-  $('#modalAttemptsList').innerHTML = attemptsListHtml.length > 0 ? attemptsListHtml.join('') : '<div class="empty-state">Aucune tentative enregistrée</div>';
-
-  $('#userStatsModal').classList.add('active');
 }
 
-function closeUserStatsModal() {
-  $('#userStatsModal').classList.remove('active');
-}
-
-function openChangePinModal() {
-  $('#changePinModal').classList.add('active');
-  $('#currentPin').value = '';
-  $('#newPin').value = '';
-  $('#confirmNewPin').value = '';
-  $('#changePinError').style.display = 'none';
-}
-
-function closeChangePinModal() {
-  $('#changePinModal').classList.remove('active');
-}
-
-function saveNewPin() {
-  const currentPin = $('#currentPin').value;
-  const newPin = $('#newPin').value;
-  const confirmNewPin = $('#confirmNewPin').value;
-  const errorEl = $('#changePinError');
-
-  if (!currentPin || !newPin || !confirmNewPin) {
-    errorEl.textContent = 'Veuillez remplir tous les champs.';
-    errorEl.style.display = 'block';
-    return;
-  }
-  if (newPin.length !== 6 || !/^\d{6}$/.test(newPin)) {
-    errorEl.textContent = 'Le nouveau code PIN doit contenir exactement 6 chiffres.';
-    errorEl.style.display = 'block';
-    return;
-  }
-  if (newPin !== confirmNewPin) {
-    errorEl.textContent = 'Les nouveaux codes PIN ne correspondent pas.';
-    errorEl.style.display = 'block';
-    return;
-  }
-
-  const users = JSON.parse(localStorage.getItem(USERS_STORAGE_KEY) || '[]');
-  const userIndex = users.findIndex(u => u.id === currentUser.id);
-
-  if (userIndex === -1) {
-    errorEl.textContent = 'Erreur: Utilisateur non trouvé.';
-    errorEl.style.display = 'block';
-    return;
-  }
-
-  if (users[userIndex].pin !== currentPin) {
-    errorEl.textContent = 'Le code PIN actuel est incorrect.';
-    errorEl.style.display = 'block';
-    return;
-  }
-
-  users[userIndex].pin = newPin;
-  localStorage.setItem(USERS_STORAGE_KEY, JSON.stringify(users));
-  
-  currentUser.pin = newPin; 
-
-  alert('Code PIN modifié avec succès !');
-  closeChangePinModal();
-}
-
-function openResetStudentPinModal(userId) {
-  const users = JSON.parse(localStorage.getItem(USERS_STORAGE_KEY) || '[]');
-  const student = users.find(u => u.id === userId && u.role === 'student');
-
-  if (!student) {
-    alert('Étudiant non trouvé.');
-    return;
-  }
-
-  $('#resetStudentInfo').textContent = `Réinitialisation du code PIN pour ${student.name} (${student.email}).`;
-  $('#resetStudentPinModal').classList.add('active');
-  $('#resetNewPin').value = '';
-  $('#resetConfirmPin').value = '';
-  $('#resetPinError').style.display = 'none';
-  $('#resetStudentPinModal').dataset.userId = userId; 
-}
-
-function closeResetStudentPinModal() {
-  $('#resetStudentPinModal').classList.remove('active');
-}
-
-function saveResetPin() {
-  const userId = $('#resetStudentPinModal').dataset.userId;
-  const newPin = $('#resetNewPin').value;
-  const confirmNewPin = $('#resetConfirmPin').value;
-  const errorEl = $('#resetPinError');
-
-  if (!newPin || !confirmNewPin) {
-    errorEl.textContent = 'Veuillez remplir tous les champs.';
-    errorEl.style.display = 'block';
-    return;
-  }
-  if (newPin.length !== 6 || !/^\d{6}$/.test(newPin)) {
-    errorEl.textContent = 'Le nouveau code PIN doit contenir exactement 6 chiffres.';
-    errorEl.style.display = 'block';
-    return;
-  }
-  if (newPin !== confirmNewPin) {
-    errorEl.textContent = 'Les nouveaux codes PIN ne correspondent pas.';
-    errorEl.style.display = 'block';
-    return;
-  }
-
-  const users = JSON.parse(localStorage.getItem(USERS_STORAGE_KEY) || '[]');
-  const userIndex = users.findIndex(u => u.id === userId);
-
-  if (userIndex === -1) {
-    errorEl.textContent = 'Erreur: Utilisateur non trouvé.';
-    errorEl.style.display = 'block';
-    return;
-  }
-
-  users[userIndex].pin = newPin; 
-  localStorage.setItem(USERS_STORAGE_KEY, JSON.stringify(users));
-  
-  alert('Code PIN de l\'étudiant réinitialisé avec succès !');
-  closeResetStudentPinModal();
-}
-
-let resources = []; 
-
-function addResource() {
-  const title = $('#resourceTitle').value.trim();
-  const url = $('#resourceUrl').value.trim();
-  const description = $('#resourceDescription').value.trim();
-  const level = $('#resourceLevel').value;
-  const type = $('#resourceType').value;
-
-  if (!title || !url) {
-    alert('Le titre et lURL sont obligatoires.');
-    return;
-  }
-
-  const resource = { id: editingResourceId || `res_${Date.now()}`, title, url, description, level, type };
-  
-  if (editingResourceId) {
-    const index = resources.findIndex(r => r.id === editingResourceId);
-    if (index !== -1) {
-      resources[index] = resource;
-    }
-  } else {
-    resources.push(resource);
-  }
-  
-  saveResources();
-  updateResourcesTable();
-  resetResourceForm();
-  alert(editingResourceId ? 'Ressource mise à jour.' : 'Ressource ajoutée.');
-}
-
-function saveResources() {
-  localStorage.setItem(RESOURCES_KEY, JSON.stringify(resources));
-}
-
-function loadResources() {
-  resources = JSON.parse(localStorage.getItem(RESOURCES_KEY) || '[]');
-}
-
-function updateResourcesTable() {
-  loadResources(); 
-  const tbody = $('#resourcesBody');
-  
-  if (resources.length === 0) {
-    tbody.innerHTML = '<tr><td colspan="5" class="empty-state">Aucune ressource</td></tr>';
-    return;
-  }
-  
-  tbody.innerHTML = resources.map(r => `
-    <tr>
-      <td>${r.title}</td>
-      <td>${r.type}</td>
-      <td>${r.level}</td>
-      <td><a href="${r.url}" target="_blank" rel="noopener noreferrer">${r.url}</a></td>
-      <td>
-        <div class="action-btns">
-          <button class="btn-secondary" onclick="editResource('${r.id}')">Éditer</button>
-          <button class="btn-danger" onclick="deleteResource('${r.id}')">Supprimer</button>
-        </div>
-      </td>
-    </tr>
-  `).join('');
-}
-
-function editResource(id) {
-  const resource = resources.find(r => r.id === id);
-  if (!resource) return;
-
-  editingResourceId = id;
-  $('#resourceTitle').value = resource.title;
-  $('#resourceUrl').value = resource.url;
-  $('#resourceDescription').value = resource.description;
-  $('#resourceLevel').value = resource.level;
-  $('#resourceType').value = resource.type;
-  $('#cancelResourceBtn').style.display = 'block';
-}
-
-function cancelResourceEdit() {
-  if (confirm('Annuler la modification ?')) {
-    resetResourceForm();
-  }
-}
-
-function deleteResource(id) {
-  if (!confirm('Supprimer cette ressource ?')) return;
-  resources = resources.filter(r => r.id !== id);
-  saveResources();
-  updateResourcesTable();
-}
-
-function resetResourceForm() {
-  editingResourceId = null;
-  $('#resourceTitle').value = '';
-  $('#resourceUrl').value = '';
-  $('#resourceDescription').value = '';
-  $('#resourceLevel').value = 'A1';
-  $('#resourceType').value = 'video';
-  $('#cancelResourceBtn').style.display = 'none';
-}
-
-let chatUsers = []; 
-
-function loadChatUsers() {
-  const allUsers = JSON.parse(localStorage.getItem(USERS_STORAGE_KEY) || '[]');
-  const messagesDb = JSON.parse(localStorage.getItem(MESSAGES_KEY) || '{}');
-  
-  // Collect all group messages
-  const groupMessages = {};
-  const processedGroups = new Set();
-  
-  Object.keys(messagesDb).forEach(userId => {
-    messagesDb[userId].forEach(msg => {
-      if (msg.groupId && !processedGroups.has(msg.groupId)) {
-        groupMessages[msg.groupId] = {
-          ...msg,
-          userIds: msg.recipients.map(r => r.id)
-        };
-        processedGroups.add(msg.groupId);
-      }
-    });
-  });
-  
-  // Get individual users with messages
-  const usersWithMessages = Object.keys(messagesDb).map(userId => {
-    const user = allUsers.find(u => u.id === userId);
-    if (user) {
-      return { 
-        ...user, 
-        hasUnread: messagesDb[userId].some(msg => !msg.read && msg.sender !== 'admin') 
-      };
-    }
-    return null; 
-  }).filter(Boolean);
-
-  const chatUsersList = $('#chatUsersList');
-  chatUsersList.innerHTML = '';
-
-  // Display group messages first
-  Object.values(groupMessages).forEach(groupMsg => {
-    const div = document.createElement('div');
-    div.classList.add('user-item'); 
-    div.style.cssText = 'padding:12px;border-bottom:1px solid #e0e0e0;cursor:pointer;transition:all .2s;background:#f8f9fa';
-    const recipientNames = groupMsg.recipients.map(r => r.name).join(', ');
-    div.innerHTML = `
-      <div style="display:flex;justify-content:space-between;align-items:center">
-        <span style="font-weight:600">📢 Groupe (${groupMsg.recipients.length})</span>
-      </div>
-      <small style="color:#666">${recipientNames}</small>
-    `;
-    div.onclick = () => selectGroupChat(groupMsg.groupId, groupMsg.recipients);
-    chatUsersList.appendChild(div);
-  });
-
-  if (usersWithMessages.length === 0 && Object.keys(groupMessages).length === 0) {
-    chatUsersList.innerHTML = '<div class="empty-state">Aucun message</div>';
-    return;
-  }
-  
-  chatUsers = usersWithMessages; 
-  
-  // Display individual users
-  chatUsers.forEach(user => {
-    const div = document.createElement('div');
-    div.classList.add('user-item'); 
-    div.style.cssText = 'padding:12px;border-bottom:1px solid #e0e0e0;cursor:pointer;transition:all .2s';
-    div.innerHTML = `
-      <div style="display:flex;justify-content:space-between;align-items:center">
-        <span style="font-weight:600">${user.name}</span>
-        ${user.hasUnread ? '<span style="background:var(--error);color:#fff;padding:2px 6px;border-radius:4px;font-size:.8rem">Nouveau</span>' : ''}
-      </div>
-      <small style="color:#666">${user.email}</small>
-    `;
-    div.onclick = () => selectChatUser(user.id);
-    chatUsersList.appendChild(div);
-  });
-}
-
-function selectChatUser(userId) {
-  selectedChatUserId = userId;
-  $('#chatMessagesArea').innerHTML = ''; 
-  $('#adminMessageInput').disabled = false;
-  $('#sendMessageBtn').disabled = false;
-  $('#deleteChatBtn').disabled = false;
-  
-  $$('#chatUsersList .user-item').forEach(item => item.style.background = '');
-  event.target.closest('.user-item').style.background = '#f0f0f0';
-  
-  loadChatMessages(userId);
-}
-
-function loadChatMessages(userId) {
-  const messagesDb = JSON.parse(localStorage.getItem(MESSAGES_KEY) || '{}');
-  const messages = messagesDb[userId] || [];
-  
-  const chatMessagesArea = $('#chatMessagesArea');
-  chatMessagesArea.innerHTML = ''; 
-  
-  if (messages.length === 0) {
-    chatMessagesArea.innerHTML = '<div class="empty-state">Aucun message</div>';
-    return;
-  }
-  
-  messages.forEach(msg => {
-    const isAdmin = msg.sender === 'admin';
-    const msgDiv = document.createElement('div');
-    msgDiv.style.cssText = `
-      margin-bottom:12px;padding:10px 14px;border-radius:8px;max-width:70%;
-      align-self:${isAdmin ? 'flex-end;background:var(--brand);color:#fff' : 'flex-start;background:#fff;border:1px solid #e0e0e0'};
-      word-wrap: break-word;
-    `;
-    msgDiv.innerHTML = `
-      <div style="font-size:.8rem;opacity:.8;margin-bottom:4px">${new Date(msg.timestamp).toLocaleTimeString()}</div>
-      <div>${msg.text}</div>
-    `;
-    chatMessagesArea.appendChild(msgDiv);
+async function loadExercises() {
+    const container = document.getElementById('exercisesList');
     
-    if (!isAdmin && !msg.read) {
-      msg.read = true;
-    }
-  });
-
-  if (messages.some(msg => !msg.read)) {
-    messagesDb[userId] = messages;
-    localStorage.setItem(MESSAGES_KEY, JSON.stringify(messagesDb));
-    loadChatUsers(); 
-  }
-  
-  chatMessagesArea.scrollTop = chatMessagesArea.scrollHeight;
-}
-
-// CHANGE: Modified sendAdminMessage to add groupId for messages sent to multiple recipients
-function sendAdminMessage() {
-  if (selectedRecipients.length > 0) {
-    const messageInput = $('#adminMessageInput');
-    const text = messageInput.value.trim();
-    
-    if (!text) {
-      alert('Veuillez entrer un message');
-      return;
-    }
-    
-    const messagesDb = JSON.parse(localStorage.getItem(MESSAGES_KEY) || '{}');
-    const groupId = selectedRecipients.length > 1 ? `group_${Date.now()}` : null;
-    const timestamp = Date.now();
-    
-    selectedRecipients.forEach(recipient => {
-      if (!messagesDb[recipient.id]) messagesDb[recipient.id] = [];
-      
-      const newMessage = {
-        sender: 'admin',
-        text: text,
-        timestamp: timestamp,
-        read: true,
-        groupId: groupId,
-        recipients: selectedRecipients.length > 1 ? selectedRecipients.map(r => ({ id: r.id, name: r.name, email: r.email })) : null
-      };
-      
-      messagesDb[recipient.id].push(newMessage);
-    });
-    
-    localStorage.setItem(MESSAGES_KEY, JSON.stringify(messagesDb));
-    
-    messageInput.value = '';
-    const sentCount = selectedRecipients.length;
-    selectedRecipients = []; 
-    updateSelectedRecipientsUI(); 
-    
-    alert(`Message envoyé à ${sentCount} étudiant(s)`); 
-    loadChatUsers(); 
-    return;
-  }
-  
-  if (selectedChatUserId) {
-    const messageInput = $('#adminMessageInput');
-    const text = messageInput.value.trim();
-    
-    if (!text) return;
-    
-    const messagesDb = JSON.parse(localStorage.getItem(MESSAGES_KEY) || '{}');
-    if (!messagesDb[selectedChatUserId]) messagesDb[selectedChatUserId] = [];
-    
-    const newMessage = {
-      sender: 'admin',
-      text: text,
-      timestamp: Date.now(),
-      read: true 
-    };
-    
-    messagesDb[selectedChatUserId].push(newMessage);
-    localStorage.setItem(MESSAGES_KEY, JSON.stringify(messagesDb));
-    
-    messageInput.value = '';
-    loadChatMessages(selectedChatUserId);
-  } else {
-    alert('Veuillez sélectionner un étudiant ou un groupe de destinataires.');
-  }
-}
-
-function deleteAdminChatHistory() {
-  if (!selectedChatUserId) return;
-  if (!confirm('Supprimer tout l\'historique de conversation avec cet étudiant ? Cette action est irréversible.')) return;
-  
-  const messagesDb = JSON.parse(localStorage.getItem(MESSAGES_KEY) || '{}');
-  delete messagesDb[selectedChatUserId];
-  localStorage.setItem(MESSAGES_KEY, JSON.stringify(messagesDb));
-  
-  $('#chatMessagesArea').innerHTML = '<div class="empty-state">Historique supprimé</div>';
-  $('#adminMessageInput').disabled = true;
-  $('#sendMessageBtn').disabled = true;
-  $('#deleteChatBtn').disabled = true;
-  
-  loadChatUsers(); 
-}
-
-function checkAuth() {
-  const auth = localStorage.getItem(AUTH_KEY);
-  if (!auth) {
-    window.location.href = 'login.html';
-    return;
-  }
-  currentUser = JSON.parse(auth);
-  const nameEl = $('#adminUserName');
-  const emailEl = $('#adminUserEmail');
-  if (nameEl) nameEl.textContent = currentUser.name;
-  if (emailEl) emailEl.textContent = currentUser.email;
-}
-
-function parseBulkQCM(lines) {
-  const questions = [];
-  lines.split('\n').forEach(line => {
-    const parts = line.split(';').map(p => p.trim());
-    if (parts.length >= 5) { 
-      const question = parts[0];
-      const options = {};
-      let answer = '';
-      let points = 1;
-      let explanation = '';
-      
-      if (parts.length > 1) options['a'] = parts[1];
-      if (parts.length > 2) options['b'] = parts[2];
-      if (parts.length > 3) options['c'] = parts[3];
-      if (parts.length > 4) answer = parts[4].toLowerCase();
-      if (parts.length > 5) points = parseInt(parts[5]) || 1;
-      if (parts.length > 6) explanation = parts[6];
-      
-      const q = { question, ...options, answer, points };
-      if (explanation) q.explanation = explanation;
-      questions.push(q);
-    }
-  });
-  return questions;
-}
-
-function parseVF(lines) {
-  const questions = [];
-  lines.split('\n').forEach(line => {
-    const parts = line.split(';').map(p => p.trim());
-    if (parts.length >= 3) { 
-      const statement = parts[0];
-      const answer = parts[1].toLowerCase();
-      const keywords = parts.length > 2 && parts[2] ? parts[2].split('|').map(k => k.trim()).filter(Boolean) : [];
-      const points = parts.length > 3 ? parseInt(parts[3]) || 1 : 1;
-      questions.push({ statement, answer, keywords, points });
-    }
-  });
-  return questions;
-}
-
-function handleAudioFile(file, inputElement, fileNameDisplay, hiddenAudioInput) {
-  if (!file) return;
-  if (!file.type.startsWith('audio/')) {
-    alert('Veuillez sélectionner un fichier audio.');
-    inputElement.value = ''; 
-    return;
-  }
-
-  const placeholderPath = `audio/${file.name}`; 
-  fileNameDisplay.textContent = `Fichier sélectionné: ${file.name}`;
-  fileNameDisplay.style.display = 'block';
-  hiddenAudioInput.value = placeholderPath; 
-  inputElement.value = ''; 
-}
-
-// /** rest of code here **/
-document.addEventListener('DOMContentLoaded', function() {
-  checkAuth();
-  loadBank();
-  loadUsers(); 
-  loadPendingRegistrations();
-  initStudentCharts(); 
-  
-  const logoutBtn = $('#logoutBtn');
-  if (logoutBtn) {
-    logoutBtn.addEventListener('click', function() {
-      localStorage.removeItem(AUTH_KEY);
-      window.location.href = 'login.html';
-    });
-  }
-
-  const addItemBtn = $('#addItem');
-  if (addItemBtn) {
-    addItemBtn.addEventListener('click', addExerciseFromBuilder);
-  }
-  
-  const addQcmBtn = $('#addQcmQuestion');
-  if (addQcmBtn) {
-    addQcmBtn.addEventListener('click', addFormQcmQuestion);
-  }
-  
-  const addVfBtn = $('#addVfQuestion');
-  if (addVfBtn) {
-    addVfBtn.addEventListener('click', addVfQuestion);
-  }
-
-  const difficultySlider = $('#difficulty');
-  const difficultyValue = $('#difficultyValue');
-  if (difficultySlider && difficultyValue) {
-    difficultyValue.textContent = `Niveau ${difficultySlider.value}`;
-    difficultySlider.addEventListener('input', function() {
-      difficultyValue.textContent = `Niveau ${this.value}`;
-    });
-  }
-
-  const recipientSelect = $('#recipientSelect');
-  if (recipientSelect) {
-    recipientSelect.addEventListener('change', function() {
-      const selectedId = this.value;
-      if (!selectedId) return;
-      
-      const allUsers = JSON.parse(localStorage.getItem(USERS_STORAGE_KEY) || '[]');
-      const selectedStudent = allUsers.find(u => u.id === selectedId);
-      
-      if (selectedStudent && !selectedRecipients.find(r => r.id === selectedId)) {
-        selectedRecipients.push({ id: selectedStudent.id, name: selectedStudent.name });
-        updateSelectedRecipientsUI();
-      }
-      
-      // Reset dropdown to default
-      this.value = '';
-    });
-  }
-});
-
-
-function resetExerciseForm() {
-  const form = $('#exerciseForm');
-  if (form) form.reset();
-  
-  const passageBox = $('#passageBox');
-  if (passageBox) passageBox.classList.add('hidden');
-  
-  $$('.ecoute-only').forEach(el => el.style.display = 'none');
-  
-  const qcmQuestions = $('#qcmQuestions');
-  if (qcmQuestions) qcmQuestions.innerHTML = '';
-  
-  const vfQuestions = $('#vfQuestions');
-  if (vfQuestions) vfQuestions.innerHTML = '';
-  
-  const clozeText = $('#clozeText');
-  if (clozeText) clozeText.value = '';
-  
-  const transText = $('#transText');
-  if (transText) transText.value = '';
-  
-  const clozeBlanks = $('#builderClozeBlanksConfig');
-  if (clozeBlanks) clozeBlanks.style.display = 'none';
-  
-  const audioPreview = $('#audioPreview');
-  if (audioPreview) audioPreview.style.display = 'none';
-  
-  qcmQuestionCount = 0;
-  vfQuestionCount = 0;
-  editingExerciseId = null;
-  
-  const addBtn = $('#addItem');
-  if (addBtn) addBtn.textContent = 'Ajouter à la banque';
-
-  const idInput = $('#id');
-  if (idInput) idInput.removeAttribute('readonly'); 
-
-  const addInfo = $('#addInfo');
-  if (addInfo) addInfo.textContent = '';
-}
-
-function loadStudentOptions() {
-  const allUsers = JSON.parse(localStorage.getItem(USERS_STORAGE_KEY) || '[]');
-  const students = allUsers.filter(u => u.role === 'student' && (!u.status || u.status === 'approved'));
-  
-  const selector = $('#studentSelector');
-  if (!selector) return;
-  
-  selector.innerHTML = '<option value="">-- Sélectionner un étudiant --</option>';
-  
-  students.forEach(student => {
-    const option = document.createElement('option');
-    option.value = student.id;
-    option.textContent = `${student.name} (${student.email})`;
-    selector.appendChild(option);
-  });
-}
-
-function drawAdminActivityChart(userId) {
-  const canvas = $('#adminActivityChart');
-  if (!canvas) return;
-  const ctx = canvas.getContext('2d');
-  const width = canvas.offsetWidth;
-  const height = canvas.offsetHeight;
-  canvas.width = width;
-  canvas.height = height;
-
-  if (!userId) {
-    ctx.fillStyle = '#999';
-    ctx.font = '14px system-ui';
-    ctx.textAlign = 'center';
-    ctx.fillText('Veuillez sélectionner un étudiant', width/2, height/2);
-    return;
-  }
-
-  const statsDb = JSON.parse(localStorage.getItem('fr_stats_db') || '{}');
-  const userStats = statsDb[userId] || {};
-  const attempts = [];
-  
-  Object.values(userStats).forEach(lesson => {
-    if (lesson.attempts) {
-      lesson.attempts.forEach(att => {
-        attempts.push(att);
-      });
-    }
-  });
-
-  if (attempts.length === 0) {
-    ctx.fillStyle = '#999';
-    ctx.font = '14px system-ui';
-    ctx.textAlign = 'center';
-    ctx.fillText('Aucune donnée disponible', width/2, height/2);
-    return;
-  }
-
-  const byDate = {};
-  attempts.forEach(att => {
-    const date = new Date(att.timestamp).toLocaleDateString('fr-FR');
-    if (!byDate[date]) byDate[date] = [];
-    byDate[date].push(att.percentage);
-  });
-
-  const dates = Object.keys(byDate).sort();
-  const avgScores = dates.map(d => {
-    const scores = byDate[d];
-    return scores.reduce((a,b) => a+b, 0) / scores.length;
-  });
-
-  const padding = 40;
-  const chartWidth = width - padding * 2;
-  const chartHeight = height - padding * 2;
-  const maxScore = 100;
-  const step = chartWidth / (dates.length - 1 || 1);
-
-  ctx.clearRect(0, 0, width, height); 
-
-  ctx.strokeStyle = '#e0e0e0';
-  ctx.lineWidth = 1;
-  for (let i = 0; i <= 4; i++) {
-    const y = padding + (chartHeight / 4) * i;
-    ctx.beginPath();
-    ctx.moveTo(padding, y);
-    ctx.lineTo(width - padding, y);
-    ctx.stroke();
-    
-    ctx.fillStyle = '#999';
-    ctx.font = '11px system-ui';
-    ctx.textAlign = 'right';
-    ctx.fillText((100 - i * 25) + '%', padding - 8, y + 4);
-  }
-
-  ctx.strokeStyle = '#22bb55';
-  ctx.lineWidth = 3;
-  ctx.beginPath();
-  avgScores.forEach((score, i) => {
-    const x = padding + step * i;
-    const y = padding + chartHeight - (score / maxScore) * chartHeight;
-    if (i === 0) ctx.moveTo(x, y);
-    else ctx.lineTo(x, y);
-  });
-  ctx.stroke();
-
-  ctx.fillStyle = '#22bb55';
-  avgScores.forEach((score, i) => {
-    const x = padding + step * i;
-    const y = padding + chartHeight - (score / maxScore) * chartHeight;
-    ctx.beginPath();
-    ctx.arc(x, y, 4, 0, Math.PI * 2);
-    ctx.fill();
-  });
-
-  ctx.fillStyle = '#666';
-  ctx.font = '10px system-ui';
-  ctx.textAlign = 'center';
-  dates.forEach((date, i) => {
-    if (dates.length > 10 && i % 2 !== 0) return;
-    const x = padding + step * i;
-    ctx.fillText(date.split('/').slice(0,2).join('/'), x, height - 10);
-  });
-}
-
-function drawAdminLevelChart(userId) {
-  const canvas = $('#adminLevelChart');
-  if (!canvas) return;
-  const ctx = canvas.getContext('2d');
-  const width = canvas.offsetWidth;
-  const height = canvas.offsetHeight;
-  canvas.width = width;
-  canvas.height = height;
-
-  if (!userId) {
-    ctx.fillStyle = '#999';
-    ctx.font = '14px system-ui';
-    ctx.textAlign = 'center';
-    ctx.fillText('Veuillez sélectionner un étudiant', width/2, height/2);
-    return;
-  }
-
-  const statsDb = JSON.parse(localStorage.getItem('fr_stats_db') || '{}');
-  const userStats = statsDb[userId] || {};
-  const attempts = [];
-  
-  Object.entries(userStats).forEach(([lessonId, lesson]) => {
-    if (lesson.attempts) {
-      lesson.attempts.forEach(att => {
-        attempts.push({ ...att, lessonId });
-      });
-    }
-  });
-
-  if (attempts.length === 0) {
-    ctx.fillStyle = '#999';
-    ctx.font = '14px system-ui';
-    ctx.textAlign = 'center';
-    ctx.fillText('Aucune donnée disponible', width/2, height/2);
-    return;
-  }
-
-  const levels = ['A1', 'A2', 'B1', 'B2', 'C1', 'C2'];
-  const byLevel = {};
-  levels.forEach(l => byLevel[l] = []);
-  
-  const bank = JSON.parse(localStorage.getItem(BANK_KEY) || '{}');
-  
-  attempts.forEach(att => {
-    let lesson = null;
-    for (const type of ['lecture', 'ecoute', 'grammaire', 'lexique']) {
-      if (bank[type]) {
-        const found = bank[type].find(l => l.id === att.lessonId);
-        if (found) {
-          lesson = found;
-          break;
+    try {
+        const exercises = await window.SupabaseDB.getExercises();
+        
+        if (exercises.length === 0) {
+            container.innerHTML = '<div class="empty-state">Aucun exercice. <a href="builder.html">Créer un exercice</a></div>';
+            return;
         }
-      }
+        
+        // Group by type
+        const grouped = {
+            lecture: exercises.filter(e => e.type === 'lecture'),
+            ecoute: exercises.filter(e => e.type === 'ecoute'),
+            grammaire: exercises.filter(e => e.type === 'grammaire'),
+            lexique: exercises.filter(e => e.type === 'lexique')
+        };
+        
+        const typeLabels = {
+            lecture: '📖 Compréhension Écrite (CE)',
+            ecoute: '🎧 Compréhension Orale (CO)',
+            grammaire: '📝 Grammaire',
+            lexique: '💬 Lexique'
+        };
+        
+        let html = '';
+        for (const [type, exs] of Object.entries(grouped)) {
+            html += `<h3>${typeLabels[type]}</h3>`;
+            if (exs.length === 0) {
+                html += '<p class="empty-state">Aucun exercice de ce type</p>';
+            } else {
+                html += `<table>
+                    <thead><tr><th>Titre</th><th>Niveau</th><th>Thème</th><th>Questions</th><th>Actions</th></tr></thead>
+                    <tbody>
+                        ${exs.map(e => `
+                            <tr>
+                                <td>${e.titre}</td>
+                                <td>${e.niveau}</td>
+                                <td>${e.theme || '-'}</td>
+                                <td>${e.questions?.length || 0}</td>
+                                <td>
+                                    <button class="btn btn-small btn-danger" onclick="deleteExercise('${e.id}')">Supprimer</button>
+                                </td>
+                            </tr>
+                        `).join('')}
+                    </tbody>
+                </table>`;
+            }
+        }
+        
+        container.innerHTML = html;
+        
+    } catch (error) {
+        console.error('Error loading exercises:', error);
+        container.innerHTML = '<div class="empty-state">Erreur de chargement des exercices</div>';
     }
+}
+
+async function deleteExercise(id) {
+    if (!confirm('Êtes-vous sûr de vouloir supprimer cet exercice?')) return;
     
-    if (lesson && lesson.niveau && byLevel[lesson.niveau]) {
-      byLevel[lesson.niveau].push(att.percentage);
+    try {
+        await window.SupabaseDB.deleteExercise(id);
+        await loadExercises();
+    } catch (error) {
+        console.error('Error deleting exercise:', error);
+        alert('Erreur lors de la suppression');
     }
-  });
+}
 
-  const avgByLevel = levels.map(l => {
-    const scores = byLevel[l];
-    return scores.length > 0 ? scores.reduce((a,b) => a+b, 0) / scores.length : 0;
-  });
-
-  const padding = 40;
-  const chartWidth = width - padding * 2;
-  const chartHeight = height - padding * 2;
-  const barWidth = chartWidth / levels.length - 10;
-  const colors = ['#4caf50', '#8bc34a', '#ffc107', '#ff9800', '#ff5722', '#f44336'];
-
-  ctx.clearRect(0, 0, width, height); 
-
-  levels.forEach((level, i) => {
-    const avg = avgByLevel[i];
-    const x = padding + (chartWidth / levels.length) * i + 5;
-    const barHeight = (avg / 100) * chartHeight;
-    const y = padding + chartHeight - barHeight;
-
-    ctx.fillStyle = colors[i];
-    ctx.fillRect(x, y, barWidth, barHeight);
-
-    ctx.fillStyle = '#333';
-    ctx.font = '12px system-ui';
-    ctx.textAlign = 'center';
-    ctx.fillText(level, x + barWidth/2, height - 10);
+async function loadUsers() {
+    const container = document.getElementById('usersList');
     
-    if (avg > 0) {
-      ctx.fillText(Math.round(avg) + '%', x + barWidth/2, y - 5);
+    try {
+        const users = await window.SupabaseDB.getAllUsers();
+        const students = users.filter(u => u.role === 'student' && u.status === 'approved');
+        
+        if (students.length === 0) {
+            container.innerHTML = '<div class="empty-state">Aucun étudiant inscrit</div>';
+            return;
+        }
+        
+        // Group by filiere
+        const grouped = {};
+        students.forEach(s => {
+            const filiere = s.filiere || 'Non spécifié';
+            if (!grouped[filiere]) grouped[filiere] = [];
+            grouped[filiere].push(s);
+        });
+        
+        let html = '';
+        for (const [filiere, users] of Object.entries(grouped)) {
+            html += `<h3>${filiere}</h3>`;
+            html += `<table>
+                <thead><tr><th>Nom</th><th>Email</th><th>Zalo</th><th>Actions</th></tr></thead>
+                <tbody>
+                    ${users.map(u => `
+                        <tr>
+                            <td>${u.name}</td>
+                            <td>${u.email}</td>
+                            <td>${u.zalo || '-'}</td>
+                            <td>
+                                <button class="btn btn-small btn-danger" onclick="deleteUser('${u.id}')">Supprimer</button>
+                            </td>
+                        </tr>
+                    `).join('')}
+                </tbody>
+            </table>`;
+        }
+        
+        container.innerHTML = html;
+        
+    } catch (error) {
+        console.error('Error loading users:', error);
+        container.innerHTML = '<div class="empty-state">Erreur de chargement des utilisateurs</div>';
     }
-  });
+}
 
-  ctx.strokeStyle = '#e0e0e0';
-  ctx.lineWidth = 1;
-  for (let i = 0; i <= 4; i++) {
-    const y = padding + (chartHeight / 4) * i;
-    ctx.beginPath();
-    ctx.moveTo(padding, y);
-    ctx.lineTo(width - padding, y);
-    ctx.stroke();
+async function deleteUser(id) {
+    if (!confirm('Êtes-vous sûr de vouloir supprimer cet utilisateur?')) return;
     
-    ctx.fillStyle = '#999';
-    ctx.font = '11px system-ui';
-    ctx.textAlign = 'right';
-    ctx.fillText((100 - i * 25) + '%', padding - 8, y + 4);
-  }
-}
-
-function initStudentCharts() {
-  loadStudentOptions();
-  
-  const selector = $('#studentSelector');
-  if (selector) {
-    selector.addEventListener('change', function() {
-      const userId = this.value;
-      drawAdminActivityChart(userId);
-      drawAdminLevelChart(userId);
-    });
-  }
-  
-  drawAdminActivityChart(null);
-  drawAdminLevelChart(null);
-}
-
-function loadPendingRegistrations() {
-  const pendingJson = localStorage.getItem(PENDING_REGISTRATIONS_KEY);
-  const allRegistrations = JSON.parse(pendingJson || '[]');
-  
-  const pending = allRegistrations.filter(r => r.status === 'pending');
-  const history = allRegistrations.filter(r => r.status !== 'pending');
-  
-  const badge = document.getElementById('pending-count');
-  if (pending.length > 0) {
-    badge.textContent = pending.length;
-    badge.style.display = 'inline-block';
-  } else {
-    badge.style.display = 'none';
-  }
-  
-  const pendingContainer = document.getElementById('pendingRegistrationsContainer');
-  if (pending.length === 0) {
-    pendingContainer.innerHTML = '<div class="empty-state">Aucune demande en attente</div>';
-  } else {
-    pendingContainer.innerHTML = pending.map(reg => `
-      <div class="registration-card">
-        <h3>${reg.name} <span class="status-badge pending">En attente</span></h3>
-        <div class="info-row">
-          <div class="info-item">
-            <span class="info-label">Email:</span>
-            ${reg.email}
-          </div>
-          <div class="info-item">
-            <span class="info-label">Numéro Zalo:</span>
-            ${reg.zalo}
-          </div>
-          <div class="info-item">
-            <span class="info-label">Filière:</span>
-            ${reg.filiere}
-          </div>
-          <div class="info-item">
-            <span class="info-label">Soumis le:</span>
-            ${new Date(reg.submittedAt).toLocaleString('fr-FR')}
-          </div>
-        </div>
-        <div class="explanation-box">
-          <strong>Explication:</strong><br>
-          ${reg.explanation}
-        </div>
-        <div class="actions">
-          <button class="btn-approve" onclick="approveRegistration('${reg.id}')">✓ Approuver</button>
-          <button class="btn-reject" onclick="rejectRegistration('${reg.id}')">✗ Refuser</button>
-        </div>
-      </div>
-    `).join('');
-  }
-  
-  const historyContainer = document.getElementById('registrationHistoryContainer');
-  if (history.length === 0) {
-    historyContainer.innerHTML = '<div class="empty-state">Aucun historique</div>';
-  } else {
-    historyContainer.innerHTML = history.reverse().map(reg => `
-      <div class="registration-card ${reg.status}">
-        <h3>${reg.name} <span class="status-badge ${reg.status}">${reg.status === 'approved' ? 'Approuvé' : 'Refusé'}</span></h3>
-        <div class="info-row">
-          <div class="info-item">
-            <span class="info-label">Email:</span>
-            ${reg.email}
-          </div>
-          <div class="info-item">
-            <span class="info-label">Numéro Zalo:</span>
-            ${reg.zalo}
-          </div>
-          <div class="info-item">
-            <span class="info-label">Filière:</span>
-            ${reg.filiere}
-          </div>
-          <div class="info-item">
-            <span class="info-label"> Traité le:</span>
-            ${reg.processedAt ? new Date(reg.processedAt).toLocaleString('fr-FR') : 'N/A'}
-          </div>
-        </div>
-        <div class="explanation-box">
-          <strong>Explication:</strong><br>
-          ${reg.explanation}
-        </div>
-      </div>
-    `).join('');
-  }
-}
-
-function approveRegistration(regId) {
-  if (!confirm('Voulez-vous vraiment approuver cette demande d\'inscription?')) {
-    return;
-  }
-  
-  const pendingJson = localStorage.getItem(PENDING_REGISTRATIONS_KEY);
-  const registrations = JSON.parse(pendingJson || '[]');
-  
-  const regIndex = registrations.findIndex(r => r.id === regId);
-  if (regIndex === -1) {
-    alert('Demande introuvable');
-    return;
-  }
-  
-  const registration = registrations[regIndex];
-  
-  const usersJson = localStorage.getItem(USERS_STORAGE_KEY);
-  const users = JSON.parse(usersJson || '[]');
-  
-  const userId = 'user_' + Date.now();
-  const newUser = {
-    id: userId,
-    name: registration.name,
-    email: registration.email,
-    pin: registration.pin,
-    role: 'student',
-    filiere: registration.filiere,
-    createdAt: new Date().toISOString(),
-    approvedBy: currentUser.name,
-    status: 'approved' 
-  };
-  
-  users.push(newUser);
-  localStorage.setItem(USERS_STORAGE_KEY, JSON.stringify(users));
-  
-  registrations[regIndex].status = 'approved';
-  registrations[regIndex].processedAt = new Date().toISOString();
-  registrations[regIndex].processedBy = currentUser.name;
-  localStorage.setItem(PENDING_REGISTRATIONS_KEY, JSON.stringify(registrations));
-  
-  alert(`Compte créé avec succès pour ${registration.name}!\n\nContactez l'étudiant sur Zalo (${registration.zalo}) pour l'informer de l\'approbation.`);
-  
-  loadPendingRegistrations();
-  updateUsersTable(); 
-}
-
-function rejectRegistration(regId) {
-  const reason = prompt('Raison du refus (sera affichée dans l\'historique):');
-  if (reason === null) {
-    return;
-  }
-  
-  const pendingJson = localStorage.getItem(PENDING_REGISTRATIONS_KEY);
-  const registrations = JSON.parse(pendingJson || '[]');
-  
-  const regIndex = registrations.findIndex(r => r.id === regId);
-  if (regIndex === -1) {
-    alert('Demande introuvable');
-    return;
-  }
-  
-  const registration = registrations[regIndex];
-  
-  registrations[regIndex].status = 'rejected';
-  registrations[regIndex].processedAt = new Date().toISOString();
-  registrations[regIndex].processedBy = currentUser.name;
-  registrations[regIndex].rejectionReason = reason || 'Aucune raison fournie';
-  localStorage.setItem(PENDING_REGISTRATIONS_KEY, JSON.stringify(registrations));
-  
-  alert(`Demande refusée.\n\nContactez l'étudiant sur Zalo (${registration.zalo}) pour l'informer du refus.`);
-  
-  loadPendingRegistrations();
-}
-
-function loadUsers() {
-  updateUsersTable();
-}
-
-function loadExercises() {
-  updateExercisesTable();
-}
-
-function loadMessages() {
-  loadChatUsers();
-}
-
-function selectAllStudents() {
-  const allUsers = JSON.parse(localStorage.getItem(USERS_STORAGE_KEY) || '[]');
-  const students = allUsers.filter(u => u.role === 'student' && (!u.status || u.status === 'approved'));
-  if (students.length === 0) {
-    alert('Aucun étudiant approuvé trouvé.');
-    return;
-  }
-  selectedRecipients = students.map(s => ({id: s.id, name: s.name}));
-  updateSelectedRecipientsUI();
-  alert(`Tous les ${students.length} étudiants sélectionnés.`);
-}
-
-function selectGroupStudents() {
-  const allUsers = JSON.parse(localStorage.getItem(USERS_STORAGE_KEY) || '[]');
-  const students = allUsers.filter(u => u.role === 'student' && (!u.status || u.status === 'approved'));
-  
-  if (students.length === 0) {
-    alert('Aucun étudiant disponible');
-    return;
-  }
-
-  const modal = $('#groupSelectModal');
-  const container = $('#groupStudentCheckboxes');
-  container.innerHTML = '';
-  
-  students.forEach(student => {
-    const label = document.createElement('label');
-    label.style.cssText = 'display:flex;align-items:center;gap:8px;padding:8px;cursor:pointer;border-radius:4px';
-    label.onmouseenter = function() { this.style.background = '#f0f0f0'; };
-    label.onmouseleave = function() { this.style.background = 'transparent'; };
-    
-    const checkbox = document.createElement('input');
-    checkbox.type = 'checkbox';
-    checkbox.value = student.id;
-    checkbox.dataset.studentName = student.name;
-    
-    if (selectedRecipients.find(r => r.id === student.id)) {
-      checkbox.checked = true;
+    try {
+        await window.SupabaseDB.deleteUser(id);
+        await loadUsers();
+        await loadGlobalStats();
+    } catch (error) {
+        console.error('Error deleting user:', error);
+        alert('Erreur lors de la suppression');
     }
+}
+
+async function loadRegistrations() {
+    try {
+        const all = await window.SupabaseDB.getAllRegistrations();
+        const pending = all.filter(r => r.status === 'pending');
+        const processed = all.filter(r => r.status !== 'pending');
+        
+        // Update badge
+        const badge = document.getElementById('pendingBadge');
+        if (pending.length > 0) {
+            badge.textContent = pending.length;
+            badge.style.display = 'inline';
+        } else {
+            badge.style.display = 'none';
+        }
+        
+        // Pending registrations
+        const pendingContainer = document.getElementById('pendingRegistrations');
+        if (pending.length === 0) {
+            pendingContainer.innerHTML = '<div class="empty-state">Aucune demande en attente</div>';
+        } else {
+            pendingContainer.innerHTML = `<table>
+                <thead><tr><th>Nom</th><th>Email</th><th>Filière</th><th>Zalo</th><th>Explication</th><th>Date</th><th>Actions</th></tr></thead>
+                <tbody>
+                    ${pending.map(r => `
+                        <tr>
+                            <td>${r.name}</td>
+                            <td>${r.email}</td>
+                            <td>${r.filiere}</td>
+                            <td>${r.zalo}</td>
+                            <td>${r.explanation}</td>
+                            <td>${new Date(r.created_at).toLocaleDateString('fr-FR')}</td>
+                            <td>
+                                <button class="btn btn-small btn-primary" onclick="approveRegistration('${r.id}')">Approuver</button>
+                                <button class="btn btn-small btn-danger" onclick="rejectRegistration('${r.id}')">Refuser</button>
+                            </td>
+                        </tr>
+                    `).join('')}
+                </tbody>
+            </table>`;
+        }
+        
+        // Processed registrations
+        const processedContainer = document.getElementById('processedRegistrations');
+        if (processed.length === 0) {
+            processedContainer.innerHTML = '<div class="empty-state">Aucune demande traitée</div>';
+        } else {
+            processedContainer.innerHTML = `<table>
+                <thead><tr><th>Nom</th><th>Email</th><th>Statut</th><th>Date de traitement</th></tr></thead>
+                <tbody>
+                    ${processed.map(r => `
+                        <tr>
+                            <td>${r.name}</td>
+                            <td>${r.email}</td>
+                            <td><span class="chip" style="background:${r.status === 'approved' ? 'var(--success)' : 'var(--error)'};color:#fff">${r.status === 'approved' ? 'Approuvé' : 'Refusé'}</span></td>
+                            <td>${r.processed_at ? new Date(r.processed_at).toLocaleDateString('fr-FR') : '-'}</td>
+                        </tr>
+                    `).join('')}
+                </tbody>
+            </table>`;
+        }
+        
+    } catch (error) {
+        console.error('Error loading registrations:', error);
+    }
+}
+
+async function approveRegistration(id) {
+    if (!confirm('Approuver cette demande et créer le compte étudiant?')) return;
     
-    label.appendChild(checkbox);
-    label.appendChild(document.createTextNode(`${student.name} (${student.email})`));
-    container.appendChild(label);
-  });
-  
-  modal.classList.add('active');
+    try {
+        const result = await window.SupabaseDB.approveRegistration(id);
+        alert(`Compte créé pour ${result.user.name}. N'oubliez pas de le contacter sur Zalo: ${result.request.zalo}`);
+        await loadRegistrations();
+        await loadUsers();
+        await loadGlobalStats();
+    } catch (error) {
+        console.error('Error approving registration:', error);
+        alert('Erreur: ' + error.message);
+    }
 }
 
-function closeGroupSelectModal() {
-  const modal = $('#groupSelectModal');
-  modal.classList.remove('active');
+async function rejectRegistration(id) {
+    if (!confirm('Refuser cette demande?')) return;
+    
+    try {
+        await window.SupabaseDB.rejectRegistration(id);
+        await loadRegistrations();
+    } catch (error) {
+        console.error('Error rejecting registration:', error);
+        alert('Erreur lors du refus');
+    }
 }
 
-function confirmGroupSelection() {
-  const checkboxes = document.querySelectorAll('#groupStudentCheckboxes input[type="checkbox"]:checked');
-  
-  if (checkboxes.length === 0) {
-    alert('Veuillez sélectionner au moins un étudiant.');
-    return;
-  }
-  
-  selectedRecipients = Array.from(checkboxes).map(cb => ({
-    id: cb.value,
-    name: cb.dataset.studentName
-  }));
-  
-  updateSelectedRecipientsUI();
-  closeGroupSelectModal();
-  alert(`${selectedRecipients.length} étudiant(s) sélectionné(s).`);
+async function loadResources() {
+    const container = document.getElementById('resourcesList');
+    
+    try {
+        const resources = await window.SupabaseDB.getResources();
+        
+        if (resources.length === 0) {
+            container.innerHTML = '<div class="empty-state">Aucune ressource</div>';
+            return;
+        }
+        
+        container.innerHTML = `<table>
+            <thead><tr><th>Titre</th><th>Catégorie</th><th>Description</th><th>Actions</th></tr></thead>
+            <tbody>
+                ${resources.map(r => `
+                    <tr>
+                        <td><a href="${r.url}" target="_blank">${r.titre}</a></td>
+                        <td>${r.categorie || '-'}</td>
+                        <td>${r.description || '-'}</td>
+                        <td>
+                            <button class="btn btn-small btn-danger" onclick="deleteResource('${r.id}')">Supprimer</button>
+                        </td>
+                    </tr>
+                `).join('')}
+            </tbody>
+        </table>`;
+        
+    } catch (error) {
+        console.error('Error loading resources:', error);
+        container.innerHTML = '<div class="empty-state">Erreur de chargement</div>';
+    }
+}
+
+async function addResource(event) {
+    event.preventDefault();
+    
+    try {
+        await window.SupabaseDB.createResource({
+            titre: document.getElementById('resourceTitle').value,
+            url: document.getElementById('resourceUrl').value,
+            categorie: document.getElementById('resourceCategory').value,
+            description: document.getElementById('resourceDescription').value
+        });
+        
+        document.getElementById('resourceForm').reset();
+        await loadResources();
+        
+    } catch (error) {
+        console.error('Error adding resource:', error);
+        alert('Erreur lors de l\'ajout');
+    }
+}
+
+async function deleteResource(id) {
+    if (!confirm('Supprimer cette ressource?')) return;
+    
+    try {
+        await window.SupabaseDB.deleteResource(id);
+        await loadResources();
+    } catch (error) {
+        console.error('Error deleting resource:', error);
+        alert('Erreur lors de la suppression');
+    }
+}
+
+// =============================================
+// Messages
+// =============================================
+
+async function loadRecipientOptions() {
+    try {
+        const students = await window.SupabaseDB.getStudents();
+        
+        const select = document.getElementById('recipientSelect');
+        select.innerHTML = '<option value="">-- Sélectionner un étudiant --</option>';
+        students.forEach(s => {
+            select.innerHTML += `<option value="${s.id}" data-name="${s.name}" data-email="${s.email}">${s.name} (${s.email})</option>`;
+        });
+        
+        // Add change listener
+        select.addEventListener('change', function() {
+            const selectedOption = this.options[this.selectedIndex];
+            if (selectedOption.value) {
+                const recipient = {
+                    id: selectedOption.value,
+                    name: selectedOption.dataset.name,
+                    email: selectedOption.dataset.email
+                };
+                
+                if (!selectedRecipients.find(r => r.id === recipient.id)) {
+                    selectedRecipients.push(recipient);
+                    updateSelectedRecipientsUI();
+                }
+                
+                this.value = '';
+            }
+        });
+        
+        // Load conversations
+        await loadConversations();
+        
+    } catch (error) {
+        console.error('Error loading recipients:', error);
+    }
 }
 
 function updateSelectedRecipientsUI() {
-  const container = $('#selectedRecipients');
-  container.innerHTML = '';
-  selectedRecipients.forEach((r) => { 
-    const span = document.createElement('span');
-    span.style.cssText = 'background:#e0e0e0;padding:4px 8px;border-radius:4px;font-size:.85rem;display:flex;align-items:center;gap:4px';
+    const container = document.getElementById('selectedRecipients');
+    container.innerHTML = selectedRecipients.map(r => `
+        <span class="chip">
+            ${r.name}
+            <button type="button" onclick="removeRecipient('${r.id}')">&times;</button>
+        </span>
+    `).join('');
+}
+
+function removeRecipient(id) {
+    selectedRecipients = selectedRecipients.filter(r => r.id !== id);
+    updateSelectedRecipientsUI();
+}
+
+async function selectAllStudents() {
+    try {
+        const students = await window.SupabaseDB.getStudents();
+        selectedRecipients = students.map(s => ({ id: s.id, name: s.name, email: s.email }));
+        updateSelectedRecipientsUI();
+    } catch (error) {
+        console.error('Error selecting all students:', error);
+    }
+}
+
+async function selectGroupStudents() {
+    try {
+        const students = await window.SupabaseDB.getStudents();
+        
+        const container = document.getElementById('groupStudentsList');
+        container.innerHTML = students.map(s => `
+            <label style="display:flex;align-items:center;gap:8px;padding:8px;cursor:pointer">
+                <input type="checkbox" value="${s.id}" data-name="${s.name}" data-email="${s.email}" 
+                    ${selectedRecipients.find(r => r.id === s.id) ? 'checked' : ''}>
+                ${s.name} (${s.email})
+            </label>
+        `).join('');
+        
+        document.getElementById('groupSelectModal').classList.add('active');
+        
+    } catch (error) {
+        console.error('Error loading students for group:', error);
+    }
+}
+
+function confirmGroupSelection() {
+    const checkboxes = document.querySelectorAll('#groupStudentsList input:checked');
+    selectedRecipients = Array.from(checkboxes).map(cb => ({
+        id: cb.value,
+        name: cb.dataset.name,
+        email: cb.dataset.email
+    }));
+    updateSelectedRecipientsUI();
+    closeModal('groupSelectModal');
+}
+
+async function loadConversations() {
+    const container = document.getElementById('conversationsList');
     
-    const removeBtn = document.createElement('button');
-    removeBtn.textContent = '✕';
-    removeBtn.style.cssText = 'background:none;border:none;color:red;cursor:pointer;font-weight:bold;padding:0;font-size:1rem';
-    removeBtn.dataset.recipientId = r.id;
-    removeBtn.addEventListener('click', function() {
-      selectedRecipients = selectedRecipients.filter(recipient => recipient.id !== r.id);
-      updateSelectedRecipientsUI();
-    });
+    try {
+        const messages = await window.SupabaseDB.getMessages();
+        const students = await window.SupabaseDB.getStudents();
+        
+        // Get unique conversations
+        const conversations = new Map();
+        messages.forEach(m => {
+            const recipientIds = m.recipients || [];
+            recipientIds.forEach(rid => {
+                if (!conversations.has(rid)) {
+                    const student = students.find(s => s.id === rid);
+                    if (student) {
+                        conversations.set(rid, {
+                            id: rid,
+                            name: student.name,
+                            email: student.email,
+                            lastMessage: m.content,
+                            lastDate: m.created_at
+                        });
+                    }
+                }
+            });
+        });
+        
+        if (conversations.size === 0) {
+            container.innerHTML = '<div class="empty-state">Aucun message</div>';
+            return;
+        }
+        
+        container.innerHTML = Array.from(conversations.values()).map(c => `
+            <div class="user-card ${selectedConversation === c.id ? 'selected' : ''}" onclick="selectConversation('${c.id}', '${c.name}')">
+                <div class="avatar">${c.name.charAt(0).toUpperCase()}</div>
+                <div>
+                    <div style="font-weight:600">${c.name}</div>
+                    <div style="font-size:.85rem;color:var(--muted)">${c.email}</div>
+                </div>
+            </div>
+        `).join('');
+        
+    } catch (error) {
+        console.error('Error loading conversations:', error);
+        container.innerHTML = '<div class="empty-state">Erreur de chargement</div>';
+    }
+}
+
+async function selectConversation(userId, userName) {
+    selectedConversation = userId;
+    await loadConversations();
+    await loadConversationMessages(userId);
+}
+
+async function loadConversationMessages(userId) {
+    const container = document.getElementById('conversationMessages');
     
-    const nameText = document.createTextNode(r.name + ' ');
-    span.appendChild(nameText);
-    span.appendChild(removeBtn);
-    container.appendChild(span);
-  });
+    try {
+        const messages = await window.SupabaseDB.getMessages();
+        const userMessages = messages.filter(m => 
+            m.recipients?.includes(userId) || m.sender_id === userId
+        );
+        
+        if (userMessages.length === 0) {
+            container.innerHTML = '<div class="empty-state">Aucun message</div>';
+            return;
+        }
+        
+        container.innerHTML = userMessages.map(m => {
+            const isSent = m.sender_id === currentUser.id;
+            const time = new Date(m.created_at).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' });
+            return `
+                <div class="message-bubble ${isSent ? 'message-sent' : 'message-received'}">
+                    <div style="font-size:.75rem;opacity:.8;margin-bottom:4px">${time}</div>
+                    ${m.content}
+                </div>
+            `;
+        }).join('');
+        
+        container.scrollTop = container.scrollHeight;
+        
+    } catch (error) {
+        console.error('Error loading conversation:', error);
+        container.innerHTML = '<div class="empty-state">Erreur de chargement</div>';
+    }
 }
 
-
-function switchTab(tabName) {
-  const tabs = document.querySelectorAll('.tab-btn');
-  const contents = document.querySelectorAll('.tab-content');
-  
-  tabs.forEach(t => t.classList.remove('active'));
-  contents.forEach(c => c.classList.remove('active'));
-  
-  event.target.classList.add('active');
-  document.getElementById(tabName).classList.add('active');
-  
-  if (tabName === 'registrations') {
-    loadPendingRegistrations();
-  }
-  
-  if (tabName === 'dashboard') {
-    updateDashboard(); 
-    initStudentCharts(); 
-  }
-  
-  if (tabName === 'exercises') {
-    updateExercisesTable(); 
-  }
-  
-  if (tabName === 'users') {
-    updateUsersTable(); 
-  }
-  
-  if (tabName === 'resources') {
-    updateResourcesTable(); 
-  }
-  
-  if (tabName === 'chat') {
-    loadRecipientOptions(); 
-    loadChatUsers(); 
-  }
+async function sendAdminMessage() {
+    const input = document.getElementById('adminMessageInput');
+    const content = input.value.trim();
+    
+    if (!content) {
+        alert('Veuillez entrer un message');
+        return;
+    }
+    
+    if (selectedRecipients.length === 0) {
+        alert('Veuillez sélectionner un étudiant ou un groupe de destinataires');
+        return;
+    }
+    
+    try {
+        await window.SupabaseDB.sendMessage({
+            content,
+            recipients: selectedRecipients.map(r => r.id),
+            isGroupMessage: selectedRecipients.length > 1,
+            groupId: selectedRecipients.length > 1 ? Date.now().toString() : null
+        });
+        
+        input.value = '';
+        selectedRecipients = [];
+        updateSelectedRecipientsUI();
+        await loadConversations();
+        
+        alert('Message envoyé avec succès!');
+        
+    } catch (error) {
+        console.error('Error sending message:', error);
+        alert('Erreur lors de l\'envoi');
+    }
 }
 
-// CHANGE: Added function to view group messages
-function selectGroupChat(groupId, recipients) {
-  selectedChatUserId = null;
-  $('#chatMessagesArea').innerHTML = ''; 
-  $('#adminMessageInput').disabled = true;
-  $('#sendMessageBtn').disabled = true;
-  $('#deleteChatBtn').disabled = true;
-  
-  $$('#chatUsersList .user-item').forEach(item => item.style.background = '');
-  event.target.closest('.user-item').style.background = '#f0f0f0';
-  
-  const messagesDb = JSON.parse(localStorage.getItem(MESSAGES_KEY) || '{}');
-  const groupMessages = [];
-  
-  // Find all messages with this groupId
-  Object.keys(messagesDb).forEach(userId => {
-    messagesDb[userId].forEach(msg => {
-      if (msg.groupId === groupId && !groupMessages.find(m => m.groupId === groupId)) {
-        groupMessages.push(msg);
-      }
-    });
-  });
-  
-  const chatMessagesArea = $('#chatMessagesArea');
-  chatMessagesArea.style.cssText = 'flex:1;overflow-y:auto;padding:20px;display:flex;flex-direction:column;background:#fafafa';
-  
-  if (groupMessages.length === 0) {
-    chatMessagesArea.innerHTML = '<div class="empty-state">Aucun message</div>';
-    return;
-  }
-  
-  groupMessages.forEach(msg => {
-    const msgDiv = document.createElement('div');
-    msgDiv.style.cssText = `
-      margin-bottom:12px;padding:10px 14px;border-radius:8px;max-width:70%;
-      align-self:flex-end;background:var(--brand);color:#fff;
-      word-wrap: break-word;
-    `;
-    const recipientNames = msg.recipients.map(r => r.name).join(', ');
-    msgDiv.innerHTML = `
-      <div style="font-size:.8rem;opacity:.8;margin-bottom:4px">${new Date(msg.timestamp).toLocaleString()}</div>
-      <div style="font-size:.85rem;opacity:.9;margin-bottom:6px">À: ${recipientNames}</div>
-      <div>${msg.text}</div>
-    `;
-    chatMessagesArea.appendChild(msgDiv);
-  });
-  
-  chatMessagesArea.scrollTop = chatMessagesArea.scrollHeight;
+async function deleteConversation() {
+    if (!selectedConversation) {
+        alert('Veuillez sélectionner une conversation');
+        return;
+    }
+    
+    if (!confirm('Supprimer cette conversation?')) return;
+    
+    try {
+        // Delete all messages with this recipient
+        const messages = await window.SupabaseDB.getMessages();
+        const toDelete = messages.filter(m => m.recipients?.includes(selectedConversation));
+        
+        for (const msg of toDelete) {
+            await window.SupabaseDB.deleteMessage(msg.id);
+        }
+        
+        selectedConversation = null;
+        await loadConversations();
+        document.getElementById('conversationMessages').innerHTML = '<div class="empty-state">Sélectionnez un étudiant pour voir la conversation</div>';
+        
+    } catch (error) {
+        console.error('Error deleting conversation:', error);
+        alert('Erreur lors de la suppression');
+    }
 }
+
+// =============================================
+// UI Helpers
+// =============================================
+
+function switchTab(tab) {
+    document.querySelectorAll('.tab-btn').forEach(btn => btn.classList.remove('active'));
+    document.querySelectorAll('.tab-content').forEach(content => content.classList.remove('active'));
+    
+    document.querySelector(`.tab-btn[onclick="switchTab('${tab}')"]`).classList.add('active');
+    document.getElementById(tab).classList.add('active');
+}
+
+function openChangePinModal() {
+    document.getElementById('changePinModal').classList.add('active');
+}
+
+function closeModal(id) {
+    document.getElementById(id).classList.remove('active');
+}
+
+async function changePin(event) {
+    event.preventDefault();
+    
+    const newPin = document.getElementById('newPin').value;
+    const confirmPin = document.getElementById('confirmPin').value;
+    
+    if (newPin !== confirmPin) {
+        alert('Les codes PIN ne correspondent pas');
+        return;
+    }
+    
+    if (!/^\d{4}$/.test(newPin)) {
+        alert('Le PIN doit contenir exactement 4 chiffres');
+        return;
+    }
+    
+    try {
+        await window.SupabaseDB.updateUser(currentUser.id, { pin: newPin });
+        closeModal('changePinModal');
+        alert('PIN modifié avec succès!');
+    } catch (error) {
+        console.error('Error changing PIN:', error);
+        alert('Erreur lors du changement de PIN');
+    }
+}
+
+// Initialize
+document.addEventListener('DOMContentLoaded', checkAuth);
 </script>
 </body>
 </html>
