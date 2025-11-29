@@ -1,0 +1,91 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Test Supabase Connection</title>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+</head>
+<body>
+    <h1>Test de connexion Supabase</h1>
+    <div id="results"></div>
+    
+    <script>
+        const results = document.getElementById('results');
+        
+        function log(message, data = null) {
+            console.log(message, data);
+            const p = document.createElement('p');
+            p.textContent = message + (data ? ': ' + JSON.stringify(data, null, 2) : '');
+            results.appendChild(p);
+        }
+        
+        async function testConnection() {
+            const SUPABASE_URL = "https://rroensqrqmqxreczqldd.supabase.co";
+            const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InJyb2Vuc3FycW1xeHJlY3pxbGRkIiwicm9sZSI6ImFub24iLCJpYXQiOjE3MzcwMjMxMTYsImV4cCI6MjA1MjU5OTExNn0.cKaH5fCKLZPvLdLNchowxKmUQcmZ6sS3rkBNvpCPpgM";
+            
+            log('Testing with URL', SUPABASE_URL);
+            log('Key length', SUPABASE_ANON_KEY.length);
+            
+            try {
+                // Create client
+                const client = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+                log('✓ Client created successfully');
+                
+                // Test query
+                log('Attempting to query users table...');
+                const { data, error } = await client
+                    .from('users')
+                    .select('*')
+                    .limit(5);
+                
+                if (error) {
+                    log('✗ Query error', { message: error.message, code: error.code, details: error.details });
+                } else {
+                    log('✓ Query successful', { count: data.length, users: data });
+                }
+                
+                // Test specific user
+                log('Attempting to find toanvtk account...');
+                const { data: userData, error: userError } = await client
+                    .from('users')
+                    .select('*')
+                    .eq('email', 'toanvtk@hcmue.edu.vn')
+                    .single();
+                
+                if (userError) {
+                    log('✗ User query error', { message: userError.message });
+                } else {
+                    log('✓ User found', userData);
+                }
+                
+                // Test admin creation
+                log('Testing admin account creation...');
+                const { data: newAdmin, error: adminError } = await client
+                    .from('users')
+                    .insert({
+                        email: 'test-' + Date.now() + '@test.com',
+                        name: 'Test Admin',
+                        pin: '123456',
+                        role: 'admin',
+                        status: 'approved',
+                        created_at: new Date().toISOString()
+                    })
+                    .select()
+                    .single();
+                
+                if (adminError) {
+                    log('✗ Admin creation error', { message: adminError.message, code: adminError.code });
+                } else {
+                    log('✓ Admin created successfully', newAdmin);
+                }
+                
+            } catch (err) {
+                log('✗ Exception', { message: err.message, stack: err.stack });
+            }
+        }
+        
+        testConnection();
+    </script>
+</body>
+</html>
