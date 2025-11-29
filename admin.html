@@ -675,10 +675,6 @@ const RESOURCES_KEY = 'fr_external_resources';
 const MESSAGES_KEY = 'fr_chat_messages';
 const PENDING_REGISTRATIONS_KEY = 'fr_pending_registrations';
 
-const CLOUDINARY_CLOUD_NAME = 'dvbsn45rk';
-const CLOUDINARY_UPLOAD_PRESET = 'francais_exercices';
-const CLOUDINARY_JSON_FOLDER = 'entrainement-francais';
-
 let currentUser = null;
 let bank = null;
 let editingExerciseId = null;
@@ -1924,26 +1920,18 @@ function handleAudioFile(file, inputElement, fileNameDisplay, hiddenAudioInput) 
 }
 
 // CHANGE: Fix initialization to call loadRecipientOptions
-document.addEventListener('DOMContentLoaded', function() {
-  console.log('[v0] Admin page loaded');
+// The first DOMContentLoaded listener below is the merged and corrected one.
+window.addEventListener('DOMContentLoaded', function() {
+  console.log('[v0] DOMContentLoaded - Initializing admin page');
   
-  // Check authentication
   checkAuth();
-  
-  // Load bank and update dashboard
   loadBank();
+  loadUsers(); // Calls updateUsersTable
   
-  // Load users table
-  updateUsersTable();
+  // Load pending registrations on page load to update badge and tables
+  loadPendingRegistrations();
   
-  // Load recipient options for messaging
-  loadRecipientOptions();
-  
-  // Load resources table
-  updateResourcesTable();
-  
-  // Load chat users
-  loadChatUsers();
+  initStudentCharts(); // This will draw initial empty charts and load student options
   
   // Logout button handler
   const logoutBtn = $('#logoutBtn');
@@ -1984,12 +1972,6 @@ document.addEventListener('DOMContentLoaded', function() {
       difficultyValue.textContent = `Niveau ${this.value}`;
     });
   }
-  
-  // CHANGE: Initialize student charts on page load
-  initStudentCharts(); 
-
-  // Load pending registrations on page load to update badge and tables
-  loadPendingRegistrations();
 });
 
 // Helper function to reset the exercise form
@@ -2364,7 +2346,7 @@ function loadPendingRegistrations() {
             ${reg.filiere}
           </div>
           <div class="info-item">
-            <span class="info-label">Traité le:</span>
+            <span class="info-label"> Traité le:</span>
             ${reg.processedAt ? new Date(reg.processedAt).toLocaleString('fr-FR') : 'N/A'}
           </div>
         </div>
@@ -2541,60 +2523,6 @@ function switchTab(tabName) {
     loadChatUsers(); // Refresh chat user list
   }
 }
-
-// Use the renamed functions in the DOMContentLoaded listener
-window.addEventListener('DOMContentLoaded', function() {
-  console.log('[v0] DOMContentLoaded - Initializing admin page');
-  
-  checkAuth();
-  loadBank();
-  loadUsers(); // Calls updateUsersTable
-  
-  // Load pending registrations on page load to update badge and tables
-  loadPendingRegistrations();
-  
-  initStudentCharts(); // This will draw initial empty charts and load student options
-  
-  // Logout button handler
-  const logoutBtn = $('#logoutBtn');
-  if (logoutBtn) {
-    logoutBtn.addEventListener('click', function() {
-      localStorage.removeItem(AUTH_KEY);
-      window.location.href = 'login.html';
-    });
-  }
-
-  // Add event listener for the new "Add to bank" button
-  const addItemBtn = $('#addItem');
-  if (addItemBtn) {
-    addItemBtn.addEventListener('click', addExerciseFromBuilder);
-    console.log('[v0] Add item button listener attached');
-  }
-  
-  // Add QCM button
-  const addQcmBtn = $('#addQcmQuestion');
-  if (addQcmBtn) {
-    addQcmBtn.addEventListener('click', addFormQcmQuestion);
-    console.log('[v0] QCM button listener attached');
-  }
-  
-  // Add V/F button
-  const addVfBtn = $('#addVfQuestion');
-  if (addVfBtn) {
-    addVfBtn.addEventListener('click', addVfQuestion);
-    console.log('[v0] V/F button listener attached');
-  }
-
-  // Update difficulty value display
-  const difficultySlider = $('#difficulty');
-  const difficultyValue = $('#difficultyValue');
-  if (difficultySlider && difficultyValue) {
-    difficultyValue.textContent = `Niveau ${difficultySlider.value}`;
-    difficultySlider.addEventListener('input', function() {
-      difficultyValue.textContent = `Niveau ${this.value}`;
-    });
-  }
-});
 </script>
 </body>
 </html>
