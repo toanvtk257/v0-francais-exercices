@@ -692,6 +692,264 @@ async function uploadToCloudinary(file, customFilename = null) {
     }
 }
 
+function clearAudio() {
+    audioBlob = null;
+    $('#audioFileInput').value = '';
+    $('#audioPreview').classList.add('hidden');
+    $('#audioFileName').textContent = '';
+    $('#audioPreviewPlayer').src = '';
+    $('#audioUploadStatus').textContent = '';
+}
+
+function toggleBoxes() {
+    const kind = $('#kind').value;
+    $('#passageBox').classList.add('hidden');
+    $('#audioBox').classList.add('hidden');
+    
+    if (kind === 'lecture') {
+        $('#passageBox').classList.remove('hidden');
+    } else if (kind === 'ecoute') {
+        $('#audioBox').classList.remove('hidden');
+    }
+}
+
+function showQuestionTypeModal() {
+    $('#questionTypeModal').style.display = 'flex';
+}
+
+function hideQuestionTypeModal() {
+    $('#questionTypeModal').style.display = 'none';
+}
+
+function addQuestionOfType(type) {
+    hideQuestionTypeModal();
+    questionCounter++;
+    
+    const container = $('#questionsContainer');
+    const div = document.createElement('div');
+    div.className = 'question-item';
+    div.id = `question-${questionCounter}`;
+    
+    if (type === 'qcm') {
+        div.innerHTML = `
+            <div class="question-header">
+                <span class="question-number">Question ${questionCounter}</span>
+                <button type="button" class="danger" onclick="removeQuestion(${questionCounter})">Supprimer</button>
+            </div>
+            <input type="hidden" class="question-type" value="qcm">
+            <label>Texte de la question</label>
+            <input type="text" class="question-text" placeholder="Entrez la question..." required>
+            <label style="margin-top:10px">Options (cochez la bonne réponse)</label>
+            <div class="option-list" id="options-${questionCounter}">
+                ${[1,2,3,4].map(i => `
+                    <div class="option-item">
+                        <label><input type="radio" name="correct-${questionCounter}" value="${i}"> Bonne réponse</label>
+                        <input type="text" class="option-text" placeholder="Option ${i}" required>
+                        <button type="button" class="danger" onclick="removeOption(this)">Suppr.</button>
+                    </div>
+                `).join('')}
+            </div>
+            <button type="button" class="secondary" onclick="addOption(${questionCounter})">+ Ajouter une option</button>
+        `;
+    } else if (type === 'vf') {
+        div.innerHTML = `
+            <div class="question-header">
+                <span class="question-number">Question ${questionCounter}</span>
+                <button type="button" class="danger" onclick="removeQuestion(${questionCounter})">Supprimer</button>
+            </div>
+            <input type="hidden" class="question-type" value="vf">
+            <label>Texte de la question</label>
+            <input type="text" class="question-text" placeholder="Entrez la question..." required>
+            <label style="margin-top:10px">Réponse correcte</label>
+            <select class="vf-answer">
+                <option value="true">Vrai</option>
+                <option value="false">Faux</option>
+            </select>
+        `;
+    } else if (type === 'cloze') {
+        div.innerHTML = `
+            <div class="question-header">
+                <span class="question-number">Question ${questionCounter}</span>
+                <button type="button" class="danger" onclick="removeQuestion(${questionCounter})">Supprimer</button>
+            </div>
+            <input type="hidden" class="question-type" value="cloze">
+            <div class="cloze-editor">
+                <div class="cloze-hint">Entourez les mots à masquer avec des crochets, ex: "Le [chat] mange."</div>
+                <textarea class="cloze-text" placeholder="Entrez le texte avec les mots entre [crochets]..." style="width:100%;min-height:80px" required></textarea>
+            </div>
+        `;
+    }
+    
+    container.appendChild(div);
+}
+
+function removeQuestion(id) {
+    $(`#question-${id}`).remove();
+}
+
+function addOption(questionId) {
+    const list = $(`#options-${questionId}`);
+    const optionCount = list.querySelectorAll('.option-item').length + 1;
+    const div = document.createElement('div');
+    div.className = 'option-item';
+    div.innerHTML = `
+        <label><input type="radio" name="correct-${questionId}" value="${optionCount}"> Bonne réponse</label>
+        <input type="text" class="option-text" placeholder="Option ${optionCount}" required>
+        <button type="button" class="danger" onclick="removeOption(this)">Suppr.</button>
+    `;
+    list.appendChild(div);
+}
+
+function removeOption(btn) {
+    btn.closest('.option-item').remove();
+}
+
+function updateExerciseTitleDropdown(currentCount) {
+    const dropdown = $('#titre');
+    const startNum = currentCount + 1;
+    const endNum = startNum + 9;
+    
+    dropdown.innerHTML = '<option value="">-- Sélectionnez un numéro --</option>';
+    
+    for (let i = startNum; i <= endNum; i++) {
+        const option = document.createElement('option');
+        option.value = `Exo ${i}`;
+        option.textContent = `Exo ${i}`;
+        dropdown.appendChild(option);
+    }
+}
+
+async function saveExercise(e) {
+    e.preventDefault();
+    
+    const kind = $('#kind').value;
+    const niveau = $('#niveau').value;
+    const theme = $('#theme').value;
+    const titre = $('#titre').value;
+    
+    if (!titre) {
+        alert('Veuillez sélectionner un numéro d\'exercice');
+        return;
+    }
+    
+    const typeMap = {
+        lecture: 'lecture',
+        ecoute: 'ecoute',
+        grammaire: 'grammaire',
+        lexique: 'lexique'
+    };
+    
+    let texte = '';
+    let texteImage = null;
+    let audio = null;
+    let transcription = null;
+    
+    if (kind === 'lecture') {
+        const textMode = $('#textTypeMode').classList.contains('hidden') ? 
+            ($('#textImageMode').classList.contains('hidden') ? 'paste' : 'image') : 'type';
+        
+        if (textMode === 'type') {
+            texte = $('#texte').value;
+        } else if (textMode === 'image') {
+            texteImage = textImageBlob;
+        } else if (textMode === 'paste') {
+            texte = $('#textePaste').value;
+        }
+    } else if (kind === 'ecoute') {
+        audio = audioBlob;
+        transcription = $('#transcription').value;
+    }
+    
+    const questions = [];
+    $$('.question-item').forEach((item) => {
+        const type = item.querySelector('.question-type').value;
+        const text = item.querySelector('.question-text')?.value;
+        
+        if (type === 'qcm') {
+            const options = [...item.querySelectorAll('.option-text')].map(o => o.value);
+            const correctRadio = item.querySelector('input[type="radio"]:checked');
+            const correctIndex = correctRadio ? parseInt(correctRadio.value) - 1 : 0;
+            
+            questions.push({
+                type: 'qcm',
+                question: text,
+                options,
+                correct: correctIndex
+            });
+        } else if (type === 'vf') {
+            const answer = item.querySelector('.vf-answer').value === 'true';
+            questions.push({
+                type: 'vf',
+                question: text,
+                correct: answer
+            });
+        } else if (type === 'cloze') {
+            const clozeText = item.querySelector('.cloze-text').value;
+            questions.push({
+                type: 'cloze',
+                text: clozeText
+            });
+        }
+    });
+    
+    if (questions.length === 0) {
+        alert('Ajoutez au moins une question');
+        return;
+    }
+    
+    const exercise = {
+        type: typeMap[kind],
+        niveau,
+        theme,
+        titre,
+        texte,
+        texte_image: texteImage,
+        audio,
+        transcription,
+        questions
+    };
+    
+    try {
+        $('#saveBtn').disabled = true;
+        $('#saveBtn').textContent = 'Sauvegarde...';
+        
+        await window.SupabaseDB.saveExercise(exercise);
+        
+        $('#saveStatus').innerHTML = '<div style="color:green;padding:10px;background:#e8f5e9;border-radius:6px">✅ Exercice sauvegardé avec succès!</div>';
+        
+        setTimeout(() => {
+            resetForm();
+            loadExercises();
+        }, 1500);
+        
+    } catch (error) {
+        console.error('Save error:', error);
+        $('#saveStatus').innerHTML = `<div style="color:#ef4444;padding:10px;background:#fee;border-radius:6px">❌ Erreur: ${error.message}</div>`;
+    } finally {
+        $('#saveBtn').disabled = false;
+        $('#saveBtn').textContent = 'Sauvegarder l\'exercice';
+    }
+}
+
+function resetForm() {
+    $('#exerciseForm').reset();
+    $('#questionsContainer').innerHTML = '';
+    questionCounter = 0;
+    audioBlob = null;
+    textImageBlob = null;
+    clearAudio();
+    clearTextImage();
+    $('#passageBox').classList.add('hidden');
+    $('#audioBox').classList.add('hidden');
+    $('#saveStatus').innerHTML = '';
+}
+
+if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', initAuth);
+} else {
+    initAuth();
+}
+
 </script>
 </body>
 </html>
