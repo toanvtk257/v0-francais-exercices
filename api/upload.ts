@@ -83,21 +83,19 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     const base64File = `data:application/octet-stream;base64,${fileBuffer.toString("base64")}`
 
     // Prepare Cloudinary upload data
-    const folder = process.env.CLOUDINARY_FOLDER || "entrainement-francais"
     const uploadData: any = {
       file: base64File,
       upload_preset: uploadPreset,
-      folder: folder,
     }
 
     if (customFilename) {
       // Remove extension and any path components
       const publicId = customFilename.replace(/\.[^/.]+$/, "").replace(/\//g, "_")
       uploadData.public_id = publicId
-      console.log("[v0] Setting public_id:", publicId, "in folder:", folder)
+      console.log("[v0] Setting public_id:", publicId)
     }
 
-    console.log("[v0] Uploading to Cloudinary:", resourceType, "Folder:", folder)
+    console.log("[v0] Uploading to Cloudinary:", resourceType)
 
     const cloudinaryUrl = `https://api.cloudinary.com/v1_1/${cloudName}/${resourceType}/upload`
     const response = await fetch(cloudinaryUrl, {
