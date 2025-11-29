@@ -571,13 +571,48 @@ function handleTextImageUpload(event) {
 }
 
 function processTextImage(file) {
-    textImageBlob = file;
+    console.log('[v0] Starting image upload process for:', file.name);
+    
+    // Show preview immediately
     const reader = new FileReader();
     reader.onload = (e) => {
         $('#textImagePreviewImg').src = e.target.result;
         $('#textImagePreview').classList.remove('hidden');
     };
     reader.readAsDataURL(file);
+    
+    // Upload to Cloudinary in the background
+    uploadImageToCloudinary(file);
+}
+
+async function uploadImageToCloudinary(file) {
+    try {
+        const discipline = $('#kind').value || 'image';
+        const level = $('#niveau').value || 'unknown';
+        const theme = $('#theme').value || 'theme';
+        const title = $('#titre').options[$('#titre').selectedIndex]?.text || 'exercice';
+        
+        const sanitize = (str) => str.replace(/[^a-z0-9]/gi, '_');
+        const extension = file.name.split('.').pop();
+        const customFilename = `${sanitize(discipline)}_${sanitize(level)}_${sanitize(theme)}_${sanitize(title)}.${extension}`;
+        
+        console.log('[v0] Generated image filename:', customFilename);
+        
+        const imageUrl = await uploadToCloudinary(file, customFilename);
+        
+        // Store the Cloudinary URL
+        textImageBlob = imageUrl;
+        
+        console.log('[v0] Image uploaded successfully to Cloudinary:', imageUrl);
+        
+        // Update preview to use Cloudinary URL
+        $('#textImagePreviewImg').src = imageUrl;
+        
+    } catch (error) {
+        console.error('[v0] Image upload error:', error);
+        // Keep the local preview but store the file object for fallback
+        textImageBlob = file;
+    }
 }
 
 function clearTextImage() {
