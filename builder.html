@@ -220,6 +220,25 @@ hr{border:none;border-top:1px solid #e8e8e8;margin:16px 0}
     font-size: 0.875rem;
     margin: 0.25rem 0;
 }
+
+/* Adding styles for improved exercise dropdown with search */
+#exerciseSearch {
+    width: 100%;
+    padding: 8px;
+    margin-bottom: 8px;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+    font-size: 14px;
+}
+
+#titre {
+    max-height: 300px;
+    overflow-y: auto;
+}
+
+.exercise-dropdown-container {
+    position: relative;
+}
 </style>
 </head>
 <body>
@@ -298,9 +317,16 @@ hr{border:none;border-top:1px solid #e8e8e8;margin:16px 0}
         </div>
         <div class="form-group">
           <label for="titre">Titre de l'exercice</label>
-          <select id="titre" required>
-            <option value="">-- Sélectionnez un numéro --</option>
-          </select>
+          <div class="exercise-dropdown-container">
+            <input 
+                type="text" 
+                id="exerciseSearch" 
+                placeholder="Rechercher un exercice..." 
+            />
+            <select id="titre" required>
+                <option value="">-- Sélectionnez un numéro --</option>
+            </select>
+          </div>
         </div>
       </div>
 
@@ -849,17 +875,48 @@ function removeOption(btn) {
 
 function updateExerciseTitleDropdown(currentCount) {
     const dropdown = $('#titre');
+    const searchInput = $('#exerciseSearch');
     const startNum = currentCount + 1;
-    const endNum = startNum + 9;
+    const endNum = startNum + 49; // Show 50 exercises instead of 10
     
     dropdown.innerHTML = '<option value="">-- Sélectionnez un numéro --</option>';
     
-    for (let i = startNum; i <= endNum; i++) {
-        const option = document.createElement('option');
-        option.value = `Exo ${i}`;
-        option.textContent = `Exo ${i}`;
-        dropdown.appendChild(option);
+    // Show search input if there are many exercises
+    if (endNum - startNum > 15) {
+        searchInput.style.display = 'block';
+    } else {
+        searchInput.style.display = 'none';
     }
+    
+    // Populate dropdown
+    const exerciseOptions = [];
+    for (let i = startNum; i <= endNum; i++) {
+        exerciseOptions.push(i);
+    }
+    
+    function populateDropdown(filter = '') {
+        // Keep the default option
+        const defaultOption = dropdown.querySelector('option[value=""]');
+        dropdown.innerHTML = '';
+        dropdown.appendChild(defaultOption);
+        
+        exerciseOptions.forEach(i => {
+            const optionText = `Exo ${i}`;
+            if (filter === '' || optionText.toLowerCase().includes(filter.toLowerCase())) {
+                const option = document.createElement('option');
+                option.value = optionText;
+                option.textContent = optionText;
+                dropdown.appendChild(option);
+            }
+        });
+    }
+    
+    populateDropdown();
+    
+    // Add search functionality
+    searchInput.oninput = (e) => {
+        populateDropdown(e.target.value);
+    };
 }
 
 async function saveExercise(e) {
