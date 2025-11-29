@@ -282,7 +282,9 @@ async function loadResources() {
     const container = document.getElementById('resourcesList');
     
     try {
+        console.log('[v0] loadResources: Starting to load external resources...');
         const resources = await window.SupabaseDB.getResources();
+        console.log('[v0] loadResources: Received resources:', resources);
         
         if (resources.length === 0) {
             container.innerHTML = '<div class="empty-state">Aucune ressource disponible</div>';
@@ -300,8 +302,9 @@ async function loadResources() {
         `).join('');
         
     } catch (error) {
-        console.error('Error loading resources:', error);
-        container.innerHTML = '<div class="empty-state">Erreur de chargement</div>';
+        console.error('[v0] loadResources: Error loading resources:', error);
+        console.error('[v0] loadResources: Error details:', error.message, error.stack);
+        container.innerHTML = '<div class="empty-state">Erreur de chargement: ' + error.message + '</div>';
     }
 }
 
