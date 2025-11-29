@@ -1260,7 +1260,8 @@ function saveBank() {
 function updateUsersTable() {
   const container = $('#usersGroupedContainer');
   const users = JSON.parse(localStorage.getItem(USERS_STORAGE_KEY) || '[]');
-  const students = users.filter(u => u.role === 'student' && u.status === 'approved');
+  // CHANGE: Accept students without status field (existing accounts) or with approved status
+  const students = users.filter(u => u.role === 'student' && (!u.status || u.status === 'approved'));
   
   if (students.length === 0) {
     container.innerHTML = '<p class="empty-state">Aucun étudiant inscrit</p>';
