@@ -30,11 +30,12 @@ th{background:#f5f5f5;font-weight:600}
 .badge-success{background:#e8f5e9;color:#2e7d32}
 .badge-warning{background:#fff3e0;color:#e65100}
 .badge-info{background:#e3f2fd;color:#1565c0}
+.badge-new{background:#ef4444;color:#fff;font-weight:700}
 .btn{display:inline-block;padding:10px 16px;border-radius:8px;border:none;cursor:pointer;font-weight:600;font-size:.95rem;transition:all .2s}
 .btn-primary{background:var(--brand);color:#fff}
 .btn-primary:hover{opacity:.9}
 .exercise-card{border:1px solid #e0e0e0;border-radius:10px;padding:16px;margin-bottom:12px;display:flex;justify-content:space-between;align-items:center}
-.exercise-info h3{margin:0 0 4px;font-size:1rem}
+.exercise-info h3{margin:0 0 4px;font-size:1rem;display:flex;align-items:center;gap:8px}
 .exercise-info p{margin:0;color:var(--muted);font-size:.9rem}
 .empty-state{text-align:center;padding:40px;color:var(--muted)}
 .loading{text-align:center;padding:40px;color:var(--muted)}
@@ -130,6 +131,7 @@ th{background:#f5f5f5;font-weight:600}
 <script>
 // Global state
 let currentUser = null;
+let completedExercises = new Set();
 
 // =============================================
 // Authentication
@@ -239,6 +241,9 @@ function getTypeLabel(type) {
 
 async function loadExercises() {
     try {
+        const attempts = await window.SupabaseDB.getStudentStats(currentUser.id);
+        completedExercises = new Set(attempts.recentAttempts.map(a => a.exercise_id));
+        
         const exercises = await window.SupabaseDB.getExercises();
         
         // Group by type
@@ -268,15 +273,20 @@ function renderExerciseList(containerId, exercises) {
         return;
     }
     
-    container.innerHTML = exercises.map(e => `
+    container.innerHTML = exercises.map(e => {
+        const isNew = !completedExercises.has(e.id);
+        return `
         <div class="exercise-card">
             <div class="exercise-info">
-                <h3>${e.titre}</h3>
+                <h3>
+                    ${e.titre}
+                    ${isNew ? '<span class="badge badge-new">Nouveau</span>' : ''}
+                </h3>
                 <p>Niveau: ${e.niveau} | ${e.questions?.length || 0} questions</p>
             </div>
             <button class="btn btn-primary" onclick="startExercise('${e.id}')">Commencer</button>
         </div>
-    `).join('');
+    `}).join('');
 }
 
 function startExercise(exerciseId) {
