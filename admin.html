@@ -383,11 +383,13 @@ h1 {
           <div class="form-group">
             <label>Titre</label>
             <input type="text" id="resourceTitle" required>
-            <small id="titleLoadingStatus" style="color: #10b981; display: none;">🔄 Récupération du titre...</small>
+            <!-- Added status indicator for title auto-fetch -->
+            <small id="titleLoadingStatus" style="display: none; color: #6b7280; margin-top: 4px;">⏳ Récupération du titre...</small>
           </div>
           <div class="form-group">
             <label>URL</label>
-            <input type="url" id="resourceUrl" required oninput="handleUrlInput(this.value)">
+            <!-- Removed inline oninput handler -->
+            <input type="url" id="resourceUrl" required>
           </div>
           <div class="form-group">
             <label>Catégorie</label>
@@ -1195,36 +1197,73 @@ async function changePin(event) {
     }
 }
 
-// Initialize
-document.addEventListener('DOMContentLoaded', checkAuth);
+// Moved the following functions to the global scope and attached the event listener after the DOM is ready.
 
 let fetchTitleTimeout;
+
+function isVideoUrl(url) {
+    return /youtube\.com|youtu\.be|vimeo\.com|dailymotion\.com/i.test(url);
+}
+
+async function fetchVideoTitle(url) {
+    console.log('[v0] fetchVideoTitle called with:', url);
+    
+    let oembedUrl;
+    
+    if (url.includes('youtube.com') || url.includes('youtu.be')) {
+        oembedUrl = `https://www.youtube.com/oembed?url=${encodeURIComponent(url)}&format=json`;
+    } else if (url.includes('vimeo.com')) {
+        oembedUrl = `https://vimeo.com/api/oembed.json?url=${encodeURIComponent(url)}`;
+    } else if (url.includes('dailymotion.com')) {
+        oembedUrl = `https://www.dailymotion.com/services/oembed?url=${encodeURIComponent(url)}`;
+    } else {
+        return null;
+    }
+    
+    try {
+        console.log('[v0] Fetching from oEmbed URL:', oembedUrl);
+        const response = await fetch(oembedUrl);
+        
+        if (!response.ok) {
+            console.error('[v0] oEmbed API error:', response.status, response.statusText);
+            return null;
+        }
+        
+        const data = await response.json();
+        console.log('[v0] oEmbed response:', data);
+        return data.title || null;
+    } catch (error) {
+        console.error('[v0] Error fetching video title:', error);
+        return null;
+    }
+}
 
 async function handleUrlInput(url) {
     console.log('[v0] handleUrlInput called with URL:', url);
     
-    // Clear previous timeout
     clearTimeout(fetchTitleTimeout);
     
-    // Wait 500ms after user stops typing
     fetchTitleTimeout = setTimeout(async () => {
         const titleInput = document.getElementById('resourceTitle');
         const statusElement = document.getElementById('titleLoadingStatus');
         
-        console.log('[v0] Title input value:', titleInput?.value);
-        console.log('[v0] Status element:', statusElement);
+        if (!titleInput || !statusElement) {
+            console.error('[v0] Required elements not found');
+            return;
+        }
         
-        // Only auto-fetch if title field is empty
         if (titleInput.value.trim() !== '') {
             console.log('[v0] Title field not empty, skipping auto-fetch');
             return;
         }
         
-        // Check if URL is from a supported platform
         if (isVideoUrl(url)) {
             console.log('[v0] URL is a video URL, attempting to fetch title');
             try {
                 statusElement.style.display = 'block';
+                statusElement.textContent = '⏳ Récupération du titre...';
+                statusElement.style.color = '#6b7280';
+                
                 const title = await fetchVideoTitle(url);
                 console.log('[v0] Fetched title:', title);
                 
@@ -1236,99 +1275,40 @@ async function handleUrlInput(url) {
                         statusElement.style.display = 'none';
                     }, 3000);
                 } else {
-                    console.log('[v0] No title returned');
-                    statusElement.style.display = 'none';
+                    statusElement.textContent = '⚠️ Impossible de récupérer le titre';
+                    statusElement.style.color = '#ef4444';
+                    setTimeout(() => {
+                        statusElement.style.display = 'none';
+                    }, 3000);
                 }
             } catch (error) {
-                console.error('[v0] Error fetching video title:', error);
-                statusElement.textContent = '⚠️ Impossible de récupérer le titre';
-                statusElement.style.color = '#f59e0b';
+                console.error('[v0] Error in handleUrlInput:', error);
+                statusElement.textContent = '❌ Erreur lors de la récupération';
+                statusElement.style.color = '#ef4444';
                 setTimeout(() => {
                     statusElement.style.display = 'none';
                 }, 3000);
             }
-        } else {
-            console.log('[v0] URL is not a video URL');
         }
     }, 500);
 }
 
-function isVideoUrl(url) {
-    try {
-        const urlObj = new URL(url);
-        const hostname = urlObj.hostname.toLowerCase();
-        
-        // Supported platforms
-        const isVideo = hostname.includes('youtube.com') || 
-               hostname.includes('youtu.be') ||
-               hostname.includes('vimeo.com') ||
-               hostname.includes('dailymotion.com');
-        
-        console.log('[v0] isVideoUrl check:', hostname, '→', isVideo);
-        return isVideo;
-    } catch (error) {
-        console.log('[v0] Invalid URL:', error);
-        return false;
-    }
-}
 
-async function fetchVideoTitle(url) {
-    try {
-        const urlObj = new URL(url);
-        const hostname = urlObj.hostname.toLowerCase();
-        
-        console.log('[v0] Fetching title for hostname:', hostname);
-        
-        // YouTube
-        if (hostname.includes('youtube.com') || hostname.includes('youtu.be')) {
-            // Use oEmbed API (no authentication required)
-            const oembedUrl = `https://www.youtube.com/oembed?url=${encodeURIComponent(url)}&format=json`;
-            console.log('[v0] Calling YouTube oEmbed:', oembedUrl);
-            
-            const response = await fetch(oembedUrl);
-            console.log('[v0] YouTube oEmbed response status:', response.status);
-            
-            if (response.ok) {
-                const data = await response.json();
-                console.log('[v0] YouTube oEmbed data:', data);
-                return data.title;
-            }
-        }
-        
-        // Vimeo
-        if (hostname.includes('vimeo.com')) {
-            const oembedUrl = `https://vimeo.com/api/oembed.json?url=${encodeURIComponent(url)}`;
-            console.log('[v0] Calling Vimeo oEmbed:', oembedUrl);
-            
-            const response = await fetch(oembedUrl);
-            console.log('[v0] Vimeo oEmbed response status:', response.status);
-            
-            if (response.ok) {
-                const data = await response.json();
-                return data.title;
-            }
-        }
-        
-        // Dailymotion
-        if (hostname.includes('dailymotion.com')) {
-            const oembedUrl = `https://www.dailymotion.com/services/oembed?url=${encodeURIComponent(url)}`;
-            console.log('[v0] Calling Dailymotion oEmbed:', oembedUrl);
-            
-            const response = await fetch(oembedUrl);
-            console.log('[v0] Dailymotion oEmbed response status:', response.status);
-            
-            if (response.ok) {
-                const data = await response.json();
-                return data.title;
-            }
-        }
-        
-        return null;
-    } catch (error) {
-        console.error('[v0] Error in fetchVideoTitle:', error);
-        return null;
+// Initialize
+document.addEventListener('DOMContentLoaded', () => {
+    checkAuth();
+    
+    // Attach URL input listener
+    const urlInput = document.getElementById('resourceUrl');
+    if (urlInput) {
+        console.log('[v0] Attaching input listener to resourceUrl');
+        urlInput.addEventListener('input', (e) => {
+            handleUrlInput(e.target.value);
+        });
+    } else {
+        console.error('[v0] resourceUrl input not found');
     }
-}
+});
 </script>
 </body>
 </html>
