@@ -35,7 +35,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     const buffer = Buffer.concat(chunks)
     console.log("[v0] Received buffer size:", buffer.length)
 
-    // Parse multipart form data manually to extract file and filename
+    // Parse multipart form data manually to extract file
     const boundary = req.headers["content-type"]?.split("boundary=")[1]
     if (!boundary) {
       return res.status(400).json({ error: "Invalid content-type" })
@@ -43,14 +43,10 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
     const parts = buffer.toString("binary").split(`--${boundary}`)
     let fileBuffer: Buffer | null = null
-    let customFilename: string | null = null
     let originalFilename = "file"
 
     for (const part of parts) {
-      if (part.includes('name="filename"')) {
-        const match = part.match(/\r\n\r\n(.*?)(\r\n|$)/)
-        if (match) customFilename = match[1].trim()
-      } else if (part.includes('name="file"')) {
+      if (part.includes('name="file"')) {
         const filenameMatch = part.match(/filename="(.+?)"/)
         if (filenameMatch) originalFilename = filenameMatch[1]
 
@@ -68,35 +64,25 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     }
 
     console.log("[v0] File extracted:", originalFilename, "Size:", fileBuffer.length)
-    if (customFilename) {
-      console.log("[v0] Custom filename provided (not used with unsigned upload):", customFilename)
-    }
 
     // Determine resource type
-    const fileName = (customFilename || originalFilename).toLowerCase()
+    const fileName = originalFilename.toLowerCase()
     let resourceType = "auto"
     if (fileName.match(/\.(mp3|wav|ogg|m4a)$/)) {
       resourceType = "video" // Cloudinary uses 'video' for audio
     }
 
-    // Convert buffer to base64 for Cloudinary
-    const base64File = `data:application/octet-stream;base64,${fileBuffer.toString("base64")}`
-
-    // Prepare Cloudinary upload data
-    const uploadData: any = {
-      file: base64File,
-      upload_preset: uploadPreset,
-    }
+    const formData = new FormData()
+    const blob = new Blob([fileBuffer])
+    formData.append("file", blob, originalFilename)
+    formData.append("upload_preset", uploadPreset)
 
     console.log("[v0] Uploading to Cloudinary with resource type:", resourceType)
 
     const cloudinaryUrl = `https://api.cloudinary.com/v1_1/${cloudName}/${resourceType}/upload`
     const response = await fetch(cloudinaryUrl, {
       method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify(uploadData),
+      body: formData,
     })
 
     if (!response.ok) {
