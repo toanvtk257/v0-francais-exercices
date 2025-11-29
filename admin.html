@@ -1798,14 +1798,17 @@ function sendAdminMessage() {
         read: true // Admin messages are implicitly read
       };
       
-      messagesDb[recipient.id].push(newMessage);
+      messagesDb[recipient.id].push(newMessag  e);
     });
     
     localStorage.setItem(MESSAGES_KEY, JSON.stringify(messagesDb));
     
     messageInput.value = '';
-    selectedRecipients = []; // Clear recipients after sending
-    updateSelectedRecipientsUI(); // Update UI to show no recipients selected
+    // Clear recipients after sending if it's a broadcast
+    if (selectedRecipients.length > 1) { // Only clear if it was a broadcast
+      selectedRecipients = []; 
+      updateSelectedRecipientsUI(); 
+    }
     
     alert(`Message envoyé à ${selectedRecipients.length} étudiant(s)`); // This alert might not be accurate due to reset
     loadChatUsers(); // Refresh user list to update unread status
@@ -1856,6 +1859,21 @@ function deleteAdminChatHistory() {
   // Refresh user list
   loadChatUsers();
 }
+
+// Dummy function for checkAuth()
+function checkAuth() {
+  const auth = localStorage.getItem(AUTH_KEY);
+  if (!auth) {
+    window.location.href = 'login.html';
+    return;
+  }
+  currentUser = JSON.parse(auth);
+  const nameEl = $('#adminUserName');
+  const emailEl = $('#adminUserEmail');
+  if (nameEl) nameEl.textContent = currentUser.name;
+  if (emailEl) emailEl.textContent = currentUser.email;
+}
+
 
 // Helper for parsing bulk QCM lines
 function parseBulkQCM(lines) {
