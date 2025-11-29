@@ -256,7 +256,9 @@ function renderQCM(questions) {
     questions.forEach((q, idx) => {
         const div = document.createElement('div');
         div.className = 'question-section';
-        div.dataset.answer = (q.answer || q.correcte || '').toLowerCase();
+        const correctIndex = typeof q.correct === 'number' ? q.correct : -1;
+        const correctLetter = correctIndex >= 0 ? String.fromCharCode(97 + correctIndex) : '';
+        div.dataset.answer = correctLetter || (q.answer || q.correcte || '').toLowerCase();
         div.dataset.points = q.points || 1;
         if (q.explanation) div.dataset.explanation = q.explanation;
         
