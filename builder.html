@@ -290,7 +290,9 @@ hr{border:none;border-top:1px solid #e8e8e8;margin:16px 0}
         </div>
         <div class="form-group">
           <label for="titre">Titre de l'exercice</label>
-          <input type="text" id="titre" placeholder="ex. Les salutations en français" required>
+          <select id="titre" required>
+            <option value="">-- Sélectionnez un numéro --</option>
+          </select>
         </div>
       </div>
 
@@ -469,6 +471,8 @@ async function loadExercises() {
         $('#countCO').textContent = allExercises.filter(e => e.type === 'ecoute').length;
         $('#countGrammaire').textContent = allExercises.filter(e => e.type === 'grammaire').length;
         $('#countLexique').textContent = allExercises.filter(e => e.type === 'lexique').length;
+        
+        updateExerciseTitleDropdown(allExercises.length);
         
         if (exercises.length === 0) {
             container.innerHTML = '<div style="text-align:center;padding:20px;color:#666">Aucun exercice trouvé</div>';
@@ -981,6 +985,29 @@ function markCorrect(radio) {
     const optionItem = radio.closest('.option-item');
     if (radio.checked) {
         optionItem.classList.add('correct');
+    }
+}
+
+function updateExerciseTitleDropdown(currentCount) {
+    const titleSelect = $('#titre');
+    const selectedValue = titleSelect.value;
+    
+    // Clear existing options except the first one
+    titleSelect.innerHTML = '<option value="">-- Sélectionnez un numéro --</option>';
+    
+    // Generate options for next 10 exercise numbers
+    const startNum = currentCount + 1;
+    for (let i = 0; i < 10; i++) {
+        const num = startNum + i;
+        const option = document.createElement('option');
+        option.value = `Exo ${num}`;
+        option.textContent = `Exo ${num}`;
+        titleSelect.appendChild(option);
+    }
+    
+    // Restore selection if it still exists
+    if (selectedValue) {
+        titleSelect.value = selectedValue;
     }
 }
 </script>
