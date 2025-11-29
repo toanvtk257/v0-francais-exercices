@@ -194,12 +194,7 @@ async function handleLogin(event) {
         console.error('[v0] Login error:', error);
         
         if (error.message === 'REJECTED_REGISTRATION') {
-            errorEl.innerHTML = `
-                <strong>Inscription refusée</strong><br>
-                Votre demande d'inscription a été refusée. Pour accéder à la plateforme, vous devez fournir plus d'informations permettant à l'administrateur de vous identifier.<br>
-                <br>
-                Veuillez soumettre une nouvelle demande d'inscription avec des informations plus détaillées dans la section "Expliquer votre demande".
-            `;
+            errorEl.textContent = 'Votre compte n\'a pas été créé. L\'administrateur a refusé votre demande d\'inscription.';
         } else {
             errorEl.textContent = error.message || 'Email ou PIN incorrect';
         }
