@@ -11,7 +11,7 @@
 <script>
 (function checkAuth() {
   const AUTH_KEY = 'fr_auth_user';
-  const loggedUser = localStorage.getItem(AUTH_KEY);
+  const loggedUser = sessionStorage.getItem('fr_current_user') || localStorage.getItem(AUTH_KEY);
   
   if (!loggedUser) {
     window.location.href = 'login.html';
@@ -20,8 +20,16 @@
   
   try {
     const userData = JSON.parse(loggedUser);
+    // Migrate old localStorage to sessionStorage
+    if (localStorage.getItem(AUTH_KEY)) {
+      sessionStorage.setItem('fr_current_user', loggedUser);
+      localStorage.removeItem(AUTH_KEY);
+      localStorage.removeItem('fr_current_user');
+    }
   } catch (e) {
+    sessionStorage.removeItem('fr_current_user');
     localStorage.removeItem(AUTH_KEY);
+    localStorage.removeItem('fr_current_user');
     window.location.href = 'login.html';
     return;
   }
@@ -437,8 +445,10 @@ document.getElementById('logoutBtn').addEventListener('click', function () {
   console.log('[v0] Logout button clicked');
   if (confirm('Voulez-vous vraiment vous déconnecter ?')) {
     console.log('[v0] User confirmed logout');
+    sessionStorage.removeItem('fr_current_user');
     localStorage.removeItem('fr_auth_user');
-    console.log('[v0] Removed auth user from localStorage');
+    localStorage.removeItem('fr_current_user');
+    console.log('[v0] Removed auth user from sessionStorage');
     console.log('[v0] Redirecting to login.html...');
     window.location.href = 'login.html';
   } else {
