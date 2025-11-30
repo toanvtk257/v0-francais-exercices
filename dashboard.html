@@ -98,6 +98,17 @@ th{background:#f5f5f5;font-weight:600}
 
   <!-- Exercises Tab -->
   <div id="exercises" class="tab-content">
+    <!-- Added search box for student exercises -->
+    <div class="card" style="background:#f0f9ff;border:2px solid #3b82f6">
+      <input 
+        type="text" 
+        id="exerciseSearch" 
+        placeholder="🔍 Rechercher un exercice par titre, niveau, ou type..." 
+        style="width:100%;padding:12px;border:2px solid #3b82f6;border-radius:8px;font-size:.95rem;background:#fff"
+        oninput="handleExerciseSearch(event)"
+      >
+    </div>
+    
     <div class="card">
       <h2>Compréhension Écrite (CE)</h2>
       <div id="ceExercises"><div class="loading">Chargement...</div></div>
@@ -132,6 +143,7 @@ th{background:#f5f5f5;font-weight:600}
 // Global state
 let currentUser = null;
 let completedExercises = new Set();
+let allExercises = [];
 
 // =============================================
 // Authentication
@@ -244,25 +256,28 @@ async function loadExercises() {
         const attempts = await window.SupabaseDB.getStudentStats(currentUser.id);
         completedExercises = new Set(attempts.recentAttempts.map(a => a.exercise_id));
         
-        const exercises = await window.SupabaseDB.getExercises();
-        
-        // Group by type
-        const grouped = {
-            lecture: exercises.filter(e => e.type === 'lecture'),
-            ecoute: exercises.filter(e => e.type === 'ecoute'),
-            grammaire: exercises.filter(e => e.type === 'grammaire'),
-            lexique: exercises.filter(e => e.type === 'lexique')
-        };
-        
-        // Render each type
-        renderExerciseList('ceExercises', grouped.lecture);
-        renderExerciseList('coExercises', grouped.ecoute);
-        renderExerciseList('grammaireExercises', grouped.grammaire);
-        renderExerciseList('lexiqueExercises', grouped.lexique);
+        allExercises = await window.SupabaseDB.getExercises();
+        renderAllExercises(allExercises);
         
     } catch (error) {
         console.error('Error loading exercises:', error);
     }
+}
+
+function renderAllExercises(exercises) {
+    // Group by type
+    const grouped = {
+        lecture: exercises.filter(e => e.type === 'lecture'),
+        ecoute: exercises.filter(e => e.type === 'ecoute'),
+        grammaire: exercises.filter(e => e.type === 'grammaire'),
+        lexique: exercises.filter(e => e.type === 'lexique')
+    };
+    
+    // Render each type
+    renderExerciseList('ceExercises', grouped.lecture);
+    renderExerciseList('coExercises', grouped.ecoute);
+    renderExerciseList('grammaireExercises', grouped.grammaire);
+    renderExerciseList('lexiqueExercises', grouped.lexique);
 }
 
 function renderExerciseList(containerId, exercises) {
@@ -336,6 +351,38 @@ function switchTab(tab) {
     document.querySelector(`.tab-btn[onclick="switchTab('${tab}')"]`).classList.add('active');
     document.getElementById(tab).classList.add('active');
 }
+
+function debounce(func, wait) {
+    let timeout;
+    return function executedFunction(...args) {
+        const later = () => {
+            clearTimeout(timeout);
+            func(...args);
+        };
+        clearTimeout(timeout);
+        timeout = setTimeout(later, wait);
+    };
+}
+
+const handleExerciseSearch = debounce((event) => {
+    const query = event.target.value.toLowerCase().trim();
+    
+    if (!query) {
+        renderAllExercises(allExercises);
+        return;
+    }
+    
+    const filtered = allExercises.filter(e => {
+        return (
+            e.titre?.toLowerCase().includes(query) ||
+            e.niveau?.toLowerCase().includes(query) ||
+            e.type?.toLowerCase().includes(query) ||
+            e.theme?.toLowerCase().includes(query)
+        );
+    });
+    
+    renderAllExercises(filtered);
+}, 300);
 
 // Initialize
 document.addEventListener('DOMContentLoaded', checkAuth);

@@ -432,6 +432,18 @@ h1 {
         <h2 style="margin:0">Gestion des exercices</h2>
         <a href="builder.html" class="btn btn-primary">+ Créer un exercice</a>
       </div>
+      
+      <!-- Added search box for exercises -->
+      <div style="margin-bottom:16px">
+        <input 
+          type="text" 
+          id="exerciseSearch" 
+          placeholder="🔍 Rechercher par titre, type, thème, ou niveau..." 
+          style="width:100%;padding:12px;border:2px solid #e0e0e0;border-radius:8px;font-size:.95rem"
+          oninput="handleExerciseSearch(event)"
+        >
+      </div>
+      
       <div id="exercisesList">
         <div class="loading">Chargement des exercices...</div>
       </div>
@@ -442,6 +454,18 @@ h1 {
   <div id="users" class="tab-content">
     <div class="card">
       <h2>Gestion des utilisateurs</h2>
+      
+      <!-- Added search box for users -->
+      <div style="margin-bottom:16px">
+        <input 
+          type="text" 
+          id="userSearch" 
+          placeholder="🔍 Rechercher par nom, email, filière, ou Zalo..." 
+          style="width:100%;padding:12px;border:2px solid #e0e0e0;border-radius:8px;font-size:.95rem"
+          oninput="handleUserSearch(event)"
+        >
+      </div>
+      
       <div id="usersList">
         <div class="loading">Chargement des utilisateurs...</div>
       </div>
@@ -579,6 +603,21 @@ let currentUser = null;
 let selectedRecipients = [];
 let selectedConversation = null;
 
+function debounce(func, wait) {
+    let timeout;
+    return function executedFunction(...args) {
+        const later = () => {
+            clearTimeout(timeout);
+            func(...args);
+        };
+        clearTimeout(timeout);
+        timeout = setTimeout(later, wait);
+    };
+}
+
+let allExercises = [];
+let allUsers = [];
+
 // =============================================
 // Authentication
 // =============================================
@@ -709,71 +748,78 @@ async function loadExercises() {
     const container = document.getElementById('exercisesList');
     
     try {
-        const exercises = await window.SupabaseDB.getExercises();
-        
-        if (exercises.length === 0) {
-            container.innerHTML = '<div class="empty-state">Aucun exercice. <a href="builder.html">Créer un exercice</a></div>';
-            return;
-        }
-        
-        // Group by type
-        const grouped = {
-            grammaire: exercises.filter(e => e.type === 'grammaire'),
-            lexique: exercises.filter(e => e.type === 'lexique'),
-            lecture: exercises.filter(e => e.type === 'lecture'),
-            ecoute: exercises.filter(e => e.type === 'ecoute')
-        };
-        
-        const typeLabels = {
-            grammaire: '📝 Grammaire',
-            lexique: '💬 Lexique (Vocabulaire)',
-            lecture: '📖 Compréhension Écrite (CE)',
-            ecoute: '🎧 Compréhension Orale (CO)'
-        };
-        
-        let html = '';
-        for (const [type, exs] of Object.entries(grouped)) {
-            html += `<div class="exercise-category">
-                <h3 class="category-title">${typeLabels[type]}</h3>`;
-            
-            if (exs.length === 0) {
-                html += '<p class="empty-state">Aucun exercice de ce type</p>';
-            } else {
-                html += `<table class="exercise-table">
-                    <thead>
-                        <tr>
-                            <th>Numéro</th>
-                            <th>Niveau</th>
-                            <th>Thème</th>
-                            <th>Questions</th>
-                            <th>Actions</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        ${exs.map(e => `
-                            <tr>
-                                <td><strong>${e.titre}</strong></td>
-                                <td><span class="badge badge-info">${e.niveau}</span></td>
-                                <td>${e.theme || '-'}</td>
-                                <td>${e.questions?.length || 0}</td>
-                                <td>
-                                    <button class="btn btn-small btn-danger" onclick="deleteExercise('${e.id}')">Supprimer</button>
-                                </td>
-                            </tr>
-                        `).join('')}
-                    </tbody>
-                </table>`;
-            }
-            html += '</div>';
-        }
-        
-        container.innerHTML = html;
+        allExercises = await window.SupabaseDB.getExercises();
+        renderExercises(allExercises);
         
     } catch (error) {
         console.error('Error loading exercises:', error);
         container.innerHTML = '<div class="empty-state">Erreur de chargement des exercices</div>';
     }
 }
+
+function renderExercises(exercises) {
+    const container = document.getElementById('exercisesList');
+    
+    if (exercises.length === 0) {
+        container.innerHTML = '<div class="empty-state">Aucun exercice trouvé</div>';
+        return;
+    }
+    
+    // Group by type
+    const grouped = {
+        grammaire: exercises.filter(e => e.type === 'grammaire'),
+        lexique: exercises.filter(e => e.type === 'lexique'),
+        lecture: exercises.filter(e => e.type === 'lecture'),
+        ecoute: exercises.filter(e => e.type === 'ecoute')
+    };
+    
+    const typeLabels = {
+        grammaire: '📝 Grammaire',
+        lexique: '💬 Lexique (Vocabulaire)',
+        lecture: '📖 Compréhension Écrite (CE)',
+        ecoute: '🎧 Compréhension Orale (CO)'
+    };
+    
+    let html = '';
+    for (const [type, exs] of Object.entries(grouped)) {
+        if (exs.length === 0) continue;
+        
+        html += `<div class="exercise-category">
+            <h3 class="category-title">${typeLabels[type]}</h3>
+            <table class="exercise-table">
+                <thead>
+                    <tr>
+                        <th>Numéro</th>
+                        <th>Niveau</th>
+                        <th>Thème</th>
+                        <th>Questions</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    ${exs.map(e => `
+                        <tr>
+                            <td><strong>${e.titre}</strong></td>
+                            <td><span class="badge badge-info">${e.niveau}</span></td>
+                            <td>${e.theme || '-'}</td>
+                            <td>${e.questions?.length || 0}</td>
+                            <td>
+                                <button class="btn btn-small btn-danger" onclick="deleteExercise('${e.id}')">Supprimer</button>
+                            </td>
+                        </tr>
+                    `).join('')}
+                </tbody>
+            </table>
+        </div>`;
+    }
+    
+    if (html === '') {
+        container.innerHTML = '<div class="empty-state">Aucun exercice trouvé</div>';
+    } else {
+        container.innerHTML = html;
+    }
+}
+
 
 async function deleteExercise(id) {
     if (!confirm('Êtes-vous sûr de vouloir supprimer cet exercice?')) return;
@@ -792,48 +838,54 @@ async function loadUsers() {
     
     try {
         const users = await window.SupabaseDB.getAllUsers();
-        const students = users.filter(u => u.role === 'student' && u.status === 'approved');
-        
-        if (students.length === 0) {
-            container.innerHTML = '<div class="empty-state">Aucun étudiant inscrit</div>';
-            return;
-        }
-        
-        // Group by filiere
-        const grouped = {};
-        students.forEach(s => {
-            const filiere = s.filiere || 'Non spécifié';
-            if (!grouped[filiere]) grouped[filiere] = [];
-            grouped[filiere].push(s);
-        });
-        
-        let html = '';
-        for (const [filiere, users] of Object.entries(grouped)) {
-            html += `<h3>${filiere}</h3>`;
-            html += `<table>
-                <thead><tr><th>Nom</th><th>Email</th><th>Zalo</th><th>Actions</th></tr></thead>
-                <tbody>
-                    ${users.map(u => `
-                        <tr>
-                            <td>${u.name}</td>
-                            <td>${u.email}</td>
-                            <td>${u.zalo || '-'}</td>
-                            <td>
-                                <button class="btn btn-small btn-danger" onclick="deleteUser('${u.id}')">Supprimer</button>
-                            </td>
-                        </tr>
-                    `).join('')}
-                </tbody>
-            </table>`;
-        }
-        
-        container.innerHTML = html;
+        allUsers = users.filter(u => u.role === 'student' && u.status === 'approved');
+        renderUsers(allUsers);
         
     } catch (error) {
         console.error('Error loading users:', error);
         container.innerHTML = '<div class="empty-state">Erreur de chargement des utilisateurs</div>';
     }
 }
+
+function renderUsers(users) {
+    const container = document.getElementById('usersList');
+    
+    if (users.length === 0) {
+        container.innerHTML = '<div class="empty-state">Aucun étudiant trouvé</div>';
+        return;
+    }
+    
+    // Group by filiere
+    const grouped = {};
+    users.forEach(s => {
+        const filiere = s.filiere || 'Non spécifié';
+        if (!grouped[filiere]) grouped[filiere] = [];
+        grouped[filiere].push(s);
+    });
+    
+    let html = '';
+    for (const [filiere, userList] of Object.entries(grouped)) {
+        html += `<h3>${filiere}</h3>`;
+        html += `<table>
+            <thead><tr><th>Nom</th><th>Email</th><th>Zalo</th><th>Actions</th></tr></thead>
+            <tbody>
+                ${userList.map(u => `
+                    <tr>
+                        <td>${u.name}</td>
+                        <td>${u.email}</td>
+                        <td>${u.zalo || '-'}</td>
+                        <td>
+                            <button class="btn btn-small btn-danger" onclick="deleteUser('${u.id}')">Supprimer</button>
+                        </td>
+                    </tr>
+                `).join('')}
+            </tbody>
+        </table>`;
+    }
+    
+    container.innerHTML = html;
+}
+
 
 async function deleteUser(id) {
     if (!confirm('Êtes-vous sûr de vouloir supprimer cet utilisateur?')) return;
@@ -1404,6 +1456,48 @@ document.addEventListener('DOMContentLoaded', () => {
         console.error('[v0] resourceUrl input not found');
     }
 });
+
+const handleExerciseSearch = debounce((event) => {
+    const query = event.target.value.toLowerCase().trim();
+    
+    if (!query) {
+        renderExercises(allExercises);
+        return;
+    }
+    
+    const filtered = allExercises.filter(e => {
+        return (
+            e.titre?.toLowerCase().includes(query) ||
+            e.type?.toLowerCase().includes(query) ||
+            e.theme?.toLowerCase().includes(query) ||
+            e.niveau?.toLowerCase().includes(query)
+        );
+    });
+    
+    renderExercises(filtered);
+}, 300);
+
+
+const handleUserSearch = debounce((event) => {
+    const query = event.target.value.toLowerCase().trim();
+    
+    if (!query) {
+        renderUsers(allUsers);
+        return;
+    }
+    
+    const filtered = allUsers.filter(u => {
+        return (
+            u.name?.toLowerCase().includes(query) ||
+            u.email?.toLowerCase().includes(query) ||
+            u.filiere?.toLowerCase().includes(query) ||
+            u.zalo?.toLowerCase().includes(query)
+        );
+    });
+    
+    renderUsers(filtered);
+}, 300);
+
 </script>
 </body>
 </html>
