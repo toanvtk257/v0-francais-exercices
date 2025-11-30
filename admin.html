@@ -552,7 +552,7 @@ h1 {
           <textarea id="adminMessageInput" rows="2" placeholder="Tapez votre message..."></textarea>
           <div style="display:flex;gap:8px;margin-top:8px">
             <button class="btn btn-primary" onclick="sendAdminMessage()">Envoyer</button>
-            <button class="btn btn-danger" onclick="deleteConversation()">Supprimer l'historique</button>
+            <button class="btn btn-danger" onclick="deleteConversation()">Supprimer l\'historique</button>
           </div>
         </div>
       </div>
@@ -765,13 +765,32 @@ function renderExercises(exercises) {
         return;
     }
     
+    const searchTerm = document.getElementById('exerciseSearch').value.toLowerCase().trim();
+    const filtered = exercises.filter(e => {
+        return !searchTerm || 
+            e.titre?.toLowerCase().includes(searchTerm) ||
+            e.type?.toLowerCase().includes(searchTerm) ||
+            e.niveau?.toLowerCase().includes(searchTerm) ||
+            e.theme?.toLowerCase().includes(searchTerm);
+    });
+    
+    const levelOrder = { 'A1': 1, 'A2': 2, 'B1': 3, 'B2': 4, 'C1': 5, 'C2': 6 };
+    
     // Group by type
     const grouped = {
-        grammaire: exercises.filter(e => e.type === 'grammaire'),
-        lexique: exercises.filter(e => e.type === 'lexique'),
-        lecture: exercises.filter(e => e.type === 'lecture'),
-        ecoute: exercises.filter(e => e.type === 'ecoute')
+        grammaire: filtered.filter(e => e.type === 'grammaire'),
+        lexique: filtered.filter(e => e.type === 'lexique'),
+        lecture: filtered.filter(e => e.type === 'lecture'),
+        ecoute: filtered.filter(e => e.type === 'ecoute')
     };
+    
+    Object.keys(grouped).forEach(key => {
+        grouped[key].sort((a, b) => {
+            const levelA = levelOrder[a.niveau] || 999;
+            const levelB = levelOrder[b.niveau] || 999;
+            return levelA - levelB;
+        });
+    });
     
     const typeLabels = {
         grammaire: '📝 Grammaire',
@@ -789,7 +808,7 @@ function renderExercises(exercises) {
             <table class="exercise-table">
                 <thead>
                     <tr>
-                        <th>Numéro</th>
+                        <th>Titre</th>
                         <th>Niveau</th>
                         <th>Thème</th>
                         <th>Questions</th>
