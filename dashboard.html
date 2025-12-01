@@ -107,25 +107,26 @@ th{background:#f5f5f5;font-weight:600}
       <input 
         type="text" 
         id="exerciseSearch" 
-        placeholder="🔍 Rechercher un exercice par titre, niveau, ou type..." 
+        placeholder="🔍 Rechercher un exercice par titre, niveau, type, ou thème..." 
         style="width:100%;padding:12px;border:2px solid #3b82f6;border-radius:8px;font-size:.95rem;background:#fff"
         oninput="handleExerciseSearch(event)"
       >
     </div>
     
-    <div class="card">
+    <!-- Added id to each card for show/hide control -->
+    <div class="card" id="ceCard">
       <h2>Compréhension Écrite (CE)</h2>
       <div id="ceExercises"><div class="loading">Chargement...</div></div>
     </div>
-    <div class="card">
+    <div class="card" id="coCard">
       <h2>Compréhension Orale (CO)</h2>
       <div id="coExercises"><div class="loading">Chargement...</div></div>
     </div>
-    <div class="card">
+    <div class="card" id="grammaireCard">
       <h2>Grammaire</h2>
       <div id="grammaireExercises"><div class="loading">Chargement...</div></div>
     </div>
-    <div class="card">
+    <div class="card" id="lexiqueCard">
       <h2>Lexique</h2>
       <div id="lexiqueExercises"><div class="loading">Chargement...</div></div>
     </div>
@@ -288,19 +289,23 @@ function renderAllExercises(exercises) {
     });
     
     // Render each type
-    renderExerciseList('ceExercises', grouped.lecture);
-    renderExerciseList('coExercises', grouped.ecoute);
-    renderExerciseList('grammaireExercises', grouped.grammaire);
-    renderExerciseList('lexiqueExercises', grouped.lexique);
+    renderExerciseList('ceExercises', grouped.lecture, 'ceCard');
+    renderExerciseList('coExercises', grouped.ecoute, 'coCard');
+    renderExerciseList('grammaireExercises', grouped.grammaire, 'grammaireCard');
+    renderExerciseList('lexiqueExercises', grouped.lexique, 'lexiqueCard');
 }
 
-function renderExerciseList(containerId, exercises) {
+function renderExerciseList(containerId, exercises, cardId) {
     const container = document.getElementById(containerId);
+    const card = document.getElementById(cardId);
     
     if (exercises.length === 0) {
+        if (card) card.style.display = 'none';
         container.innerHTML = '<div class="empty-state">Aucun exercice disponible</div>';
         return;
     }
+    
+    if (card) card.style.display = 'block';
     
     container.innerHTML = exercises.map(ex => {
         const isNew = !completedExercises.has(ex.id);
@@ -401,6 +406,22 @@ const handleExerciseSearch = debounce((event) => {
             e.theme?.toLowerCase().includes(query)
         );
     });
+    
+    if (filtered.length === 0) {
+        ['ceCard', 'coCard', 'grammaireCard', 'lexiqueCard'].forEach(cardId => {
+            const card = document.getElementById(cardId);
+            if (card) card.style.display = 'none';
+        });
+        
+        // Show message in first card
+        const ceCard = document.getElementById('ceCard');
+        if (ceCard) {
+            ceCard.style.display = 'block';
+            document.getElementById('ceExercises').innerHTML = 
+                '<div class="empty-state">Aucun exercice trouvé pour votre recherche</div>';
+        }
+        return;
+    }
     
     renderAllExercises(filtered);
 }, 300);
