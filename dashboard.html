@@ -134,6 +134,17 @@ th{background:#f5f5f5;font-weight:600}
 
   <!-- Resources Tab -->
   <div id="resources" class="tab-content">
+    <!-- Added search box for resources -->
+    <div class="card" style="background:#f0f9ff;border:2px solid #3b82f6">
+      <input 
+        type="text" 
+        id="resourceSearch" 
+        placeholder="🔍 Rechercher une ressource par titre, catégorie, ou description..." 
+        style="width:100%;padding:12px;border:2px solid #3b82f6;border-radius:8px;font-size:.95rem;background:#fff"
+        oninput="handleResourceSearch(event)"
+      >
+    </div>
+    
     <div class="card">
       <h2>Ressources externes</h2>
       <div id="resourcesList"><div class="loading">Chargement...</div></div>
@@ -149,6 +160,7 @@ th{background:#f5f5f5;font-weight:600}
 let currentUser = null;
 let completedExercises = new Set();
 let allExercises = [];
+let allResources = []; // Added to store all resources for filtering
 
 // =============================================
 // Authentication
@@ -344,20 +356,8 @@ async function loadResources() {
         const resources = await window.SupabaseDB.getResources();
         console.log('[v0] loadResources: Received resources:', resources);
         
-        if (resources.length === 0) {
-            container.innerHTML = '<div class="empty-state">Aucune ressource disponible</div>';
-            return;
-        }
-        
-        container.innerHTML = resources.map(r => `
-            <div class="exercise-card">
-                <div class="exercise-info">
-                    <h3>${r.titre}</h3>
-                    <p>${r.description || 'Pas de description'} | ${r.categorie || 'Général'}</p>
-                </div>
-                <a href="${r.url}" target="_blank" class="btn btn-primary">Ouvrir</a>
-            </div>
-        `).join('');
+        allResources = resources;
+        renderResources(resources);
         
     } catch (error) {
         console.error('[v0] loadResources: Error loading resources:', error);
@@ -365,6 +365,44 @@ async function loadResources() {
         container.innerHTML = '<div class="empty-state">Erreur de chargement: ' + error.message + '</div>';
     }
 }
+
+function renderResources(resources) {
+    const container = document.getElementById('resourcesList');
+    
+    if (resources.length === 0) {
+        container.innerHTML = '<div class="empty-state">Aucune ressource trouvée pour votre recherche</div>';
+        return;
+    }
+    
+    container.innerHTML = resources.map(r => `
+        <div class="exercise-card">
+            <div class="exercise-info">
+                <h3>${r.titre}</h3>
+                <p>${r.description || 'Pas de description'} | ${r.categorie || 'Général'}</p>
+            </div>
+            <a href="${r.url}" target="_blank" class="btn btn-primary">Ouvrir</a>
+        </div>
+    `).join('');
+}
+
+const handleResourceSearch = debounce((event) => {
+    const query = event.target.value.toLowerCase().trim();
+    
+    if (!query) {
+        renderResources(allResources);
+        return;
+    }
+    
+    const filtered = allResources.filter(r => {
+        return (
+            r.titre?.toLowerCase().includes(query) ||
+            r.categorie?.toLowerCase().includes(query) ||
+            r.description?.toLowerCase().includes(query)
+        );
+    });
+    
+    renderResources(filtered);
+}, 300);
 
 // =============================================
 // UI Helpers
