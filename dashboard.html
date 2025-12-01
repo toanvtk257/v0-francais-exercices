@@ -102,13 +102,13 @@ th{background:#f5f5f5;font-weight:600}
 
   <!-- Exercises Tab -->
   <div id="exercises" class="tab-content">
-    <!-- Added search box for student exercises -->
-    <div class="card" style="background:#f0f9ff;border:2px solid #3b82f6">
+    <!-- Fixed overflow by removing card padding and setting input width properly -->
+    <div style="background:#f0f9ff;border:2px solid #3b82f6;border-radius:14px;margin-bottom:20px;padding:12px">
       <input 
         type="text" 
         id="exerciseSearch" 
         placeholder="🔍 Rechercher un exercice par titre, niveau, type, ou thème..." 
-        style="width:100%;padding:12px;border:2px solid #3b82f6;border-radius:8px;font-size:.95rem;background:#fff"
+        style="width:100%;padding:12px;border:2px solid #3b82f6;border-radius:8px;font-size:.95rem;background:#fff;box-sizing:border-box"
         oninput="handleExerciseSearch(event)"
       >
     </div>
@@ -134,13 +134,13 @@ th{background:#f5f5f5;font-weight:600}
 
   <!-- Resources Tab -->
   <div id="resources" class="tab-content">
-    <!-- Added search box for resources -->
-    <div class="card" style="background:#f0f9ff;border:2px solid #3b82f6">
+    <!-- Fixed overflow by removing card padding and setting input width properly -->
+    <div style="background:#f0f9ff;border:2px solid #3b82f6;border-radius:14px;margin-bottom:20px;padding:12px">
       <input 
         type="text" 
         id="resourceSearch" 
         placeholder="🔍 Rechercher une ressource par titre, catégorie, ou description..." 
-        style="width:100%;padding:12px;border:2px solid #3b82f6;border-radius:8px;font-size:.95rem;background:#fff"
+        style="width:100%;padding:12px;border:2px solid #3b82f6;border-radius:8px;font-size:.95rem;background:#fff;box-sizing:border-box"
         oninput="handleResourceSearch(event)"
       >
     </div>
