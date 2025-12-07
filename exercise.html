@@ -201,33 +201,44 @@ async function loadExercise(exerciseId) {
 }
 
 function renderExercise() {
+    console.log('[v0] renderExercise: Rendering exercise type:', currentExercise.type);
+    
     // Show passage for lecture exercises
-    if (currentExercise.type === 'lecture' && currentExercise.texte) {
-        $('#passageBox').style.display = 'block';
-        
-        const text = currentExercise.texte;
-        const lines = text.split('\n');
-        let html = '';
-        
-        if (lines.length > 1 && lines[0].length < 100 && lines[0].trim() !== '') {
-            // First line is likely the title
-            html = `<h3 style="font-weight:bold; margin-bottom:12px; font-size:1.2rem;">${lines[0]}</h3>`;
-            html += lines.slice(1).join('\n').replace(/\n/g, '<br>');
+    if (currentExercise.type === 'lecture') {
+        if (currentExercise.texte && currentExercise.texte.trim()) {
+            $('#passageBox').style.display = 'block';
+            
+            const text = currentExercise.texte;
+            const lines = text.split('\n').filter(line => line.trim());
+            let html = '';
+            
+            // Check if first line is a title (short and doesn't end with period)
+            if (lines.length > 1 && lines[0].length < 100 && !lines[0].trim().endsWith('.')) {
+                html = `<h3 style="font-weight:bold; margin-bottom:12px; font-size:1.2rem;">${lines[0]}</h3>`;
+                html += lines.slice(1).map(line => `<p>${line}</p>`).join('');
+            } else {
+                html = lines.map(line => `<p>${line}</p>`).join('');
+            }
+            
+            $('#passageContent').innerHTML = html;
+            console.log('[v0] renderExercise: Displayed lecture text');
         } else {
-            html = text.replace(/\n/g, '<br>');
+            console.warn('[v0] renderExercise: Lecture exercise has no texte field');
+            $('#passageBox').style.display = 'none';
         }
-        
-        $('#passageContent').innerHTML = html;
     }
     
     if (currentExercise.type === 'ecoute' && currentExercise.audio) {
         $('#audioSection').style.display = 'block';
         $('#audioSource').src = currentExercise.audio;
         $('#audioPlayer').load();
+        console.log('[v0] renderExercise: Loaded audio:', currentExercise.audio);
     }
     
     // Render questions
     const questions = currentExercise.questions || [];
+    console.log('[v0] renderExercise: Processing', questions.length, 'questions');
+    
     const qcmQuestions = questions.filter(q => !q.type || q.type === 'qcm');
     const vfQuestions = questions.filter(q => q.type === 'vf');
     const clozeQuestions = questions.filter(q => q.type === 'cloze');

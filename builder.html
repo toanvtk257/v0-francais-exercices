@@ -933,7 +933,10 @@ function updateExerciseTitleDropdown(currentCount, discipline = null) {
 
 async function editExercise(id) {
     try {
+        console.log('[v0] editExercise: Loading exercise with id:', id);
         const exercise = await window.SupabaseDB.getExerciseById(id);
+        console.log('[v0] editExercise: Received exercise data:', exercise);
+        
         if (!exercise) {
             alert('Exercice non trouvé');
             return;
@@ -951,25 +954,25 @@ async function editExercise(id) {
         // Show appropriate boxes
         toggleBoxes();
         
-        // Handle CE text and title
         if (exercise.type === 'lecture') {
-            const textParts = (exercise.texte || '').split('\n');
-            if (textParts.length > 1 && textParts[0].length < 100 && textParts[0].match(/^[A-Z]/)) { // Heuristic for title
-                $('#textTitle').value = textParts[0];
-                $('#texte').value = textParts.slice(1).join('\n').trim();
+            const fullText = exercise.texte || '';
+            const lines = fullText.split('\n').filter(line => line.trim());
+            
+            // Check if first line looks like a title (short, capitalized, no punctuation at end)
+            if (lines.length > 1 && lines[0].length < 100 && !lines[0].endsWith('.') && !lines[0].endsWith('?')) {
+                $('#textTitle').value = lines[0];
+                $('#texte').value = lines.slice(1).join('\n');
             } else {
-                $('#texte').value = exercise.texte || '';
+                $('#textTitle').value = '';
+                $('#texte').value = fullText;
             }
         }
         
         // Handle CO audio and transcription
         if (exercise.type === 'ecoute') {
             if (exercise.audio) {
-                // This part needs a way to set the audio source for the preview player.
-                // Assuming audioBlob will be set by uploadToCloudinary or similar in the future.
-                // For now, we'll just log it and assume it might be handled by a subsequent upload/processing step.
-                console.log("Existing audio URL:", exercise.audio);
-                audioBlob = exercise.audio; // Pre-set audioBlob for editing
+                console.log('[v0] Setting audio URL:', exercise.audio);
+                audioBlob = exercise.audio;
                 $('#audioPreviewPlayer').src = exercise.audio;
                 $('#audioPreviewPlayer').load();
                 $('#audioPreview').classList.remove('hidden');
@@ -978,16 +981,17 @@ async function editExercise(id) {
             $('#transcription').value = exercise.texte || '';
         }
         
-        // Load questions
         questionCounter = 0;
-        $('#questionsContainer').innerHTML = '';
+        const container = $('#questionsContainer');
+        container.innerHTML = '';
+        
         (exercise.questions || []).forEach(q => {
             questionCounter++;
             const div = document.createElement('div');
             div.className = 'question-item';
             div.id = `question-${questionCounter}`;
 
-            const isGrammarDiscipline = $('#kind').value === 'grammaire';
+            const isGrammarDiscipline = exercise.type === 'grammaire';
             const explanationHtml = isGrammarDiscipline ? `
                 <div class="grammar-explanation-container" style="margin-top: 15px;">
                     <label>Explication grammaticale (optionnel)</label>
@@ -1051,13 +1055,13 @@ async function editExercise(id) {
             container.appendChild(div);
         });
         
-        // Change button text to indicate editing
-        $('#saveBtn').textContent = 'Mettre à jour l\'exercice';
-        $('#saveBtn').dataset.editingId = id;
+        const saveBtn = $('#saveBtn');
+        saveBtn.textContent = 'Mettre à jour l\'exercice';
+        saveBtn.dataset.editingId = id;
         
     } catch (error) {
-        console.error('Error loading exercise for edit:', error);
-        alert('Erreur lors du chargement de l\'exercice');
+        console.error('[v0] editExercise: Error:', error);
+        alert('Erreur lors du chargement de l\'exercice: ' + error.message);
     }
 }
 
