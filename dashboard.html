@@ -6,6 +6,8 @@
 <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net; style-src 'self' 'unsafe-inline'; img-src 'self' data: https:; font-src 'self' data:; connect-src 'self' https://*.supabase.co ws: wss:;">
 <title>Tableau de bord — Apprenant</title>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="lib/device-fingerprint.js"></script>
+<script src="lib/supabase-client.js"></script>
 <style>
 :root{--brand:#2b5;--ink:#222;--muted:#666;--bg:#f7f7f7;--card:#fff;--success:#4caf50;--warning:#ff9800}
 html,body{margin:0;padding:0;background:var(--bg);color:var(--ink);font-family:system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif}
@@ -82,6 +84,7 @@ th{background:#f5f5f5;font-weight:600}
     <button class="tab-btn active" onclick="switchTab('overview')">Vue d'ensemble</button>
     <button class="tab-btn" onclick="switchTab('exercises')">Exercices</button>
     <button class="tab-btn" onclick="switchTab('resources')">Ressources</button>
+    <button class="tab-btn" onclick="switchTab('devices')">Mes Appareils</button>
   </div>
 
   <!-- Overview Tab -->
@@ -140,6 +143,22 @@ th{background:#f5f5f5;font-weight:600}
       <div id="resourcePagination" class="pagination" style="display:none"></div>
     </div>
   </div>
+
+  <!-- Devices Tab -->
+  <div id="devices" class="tab-content">
+    <div class="card">
+      <h2>Mes Appareils Connectés</h2>
+      <div style="background:#e8f5e9;border-left:4px solid var(--brand);padding:12px;margin-bottom:16px;border-radius:6px;font-size:.9rem">
+        <strong>Limite d'appareils:</strong> Vous pouvez utiliser maximum 2 appareils différents par semaine. 
+        Si vous souhaitez vous connecter depuis un nouvel appareil, vous devez d'abord supprimer un ancien appareil.
+        <br><br>
+        <strong>Verrouillage de sécurité:</strong> Les appareils sont verrouillés pendant 7 jours après leur premier ajout et ne peuvent pas être supprimés pendant cette période.
+        <br><br>
+        <strong>Protection de compte:</strong> Cette limitation empêche le partage de compte entre étudiants.
+      </div>
+      <div id="devicesList"><div class="loading">Chargement...</div></div>
+    </div>
+  </div>
 </main>
 
 <!-- Change PIN Modal -->
@@ -166,9 +185,6 @@ th{background:#f5f5f5;font-weight:600}
     </form>
   </div>
 </div>
-
-<script src="lib/config.js"></script>
-<script src="lib/supabase-client.js"></script>
 
 <script>
 // Global state
@@ -202,7 +218,7 @@ async function checkAuth() {
         
         // Update header
         document.getElementById('userName').textContent = currentUser.name;
-        document.getElementById('userEmail').textContent = currentUser.email;
+        document.getElementById('userEmail').textContent = currentUser.email || currentUser.zalo;
         
         // Load all data
         await loadAllData();
@@ -504,12 +520,148 @@ function changeResourcePage(newPage) {
     window.scrollTo({ top: 0, behavior: 'smooth' });
 }
 
-function switchTab(tab) {
-    document.querySelectorAll('.tab-btn').forEach(btn => btn.classList.remove('active'));
-    document.querySelectorAll('.tab-content').forEach(content => content.classList.remove('active'));
+async function loadDevices() {
+  const devicesList = document.getElementById('devicesList')
+  const currentUser = await window.SupabaseDB.getCurrentUser()
+  
+  if (!currentUser) {
+    devicesList.innerHTML = '<div class="empty-state">Utilisateur non connecté</div>'
+    return
+  }
+
+  try {
+    const devices = await window.SupabaseDB.getUserDevices(currentUser.id)
+    const currentDeviceFingerprint = window.DeviceFingerprint?.getFingerprint()
     
-    document.querySelector(`.tab-btn[onclick="switchTab('${tab}')"]`).classList.add('active');
-    document.getElementById(tab).classList.add('active');
+    if (!devices || devices.length === 0) {
+      devicesList.innerHTML = '<div class="empty-state">Aucun appareil enregistré</div>'
+      return
+    }
+
+    // Sort: current device first, then by last login
+    devices.sort((a, b) => {
+      if (a.device_fingerprint === currentDeviceFingerprint) return -1
+      if (b.device_fingerprint === currentDeviceFingerprint) return 1
+      return new Date(b.last_login) - new Date(a.last_login)
+    })
+
+    const devicesWithLockStatus = await Promise.all(
+      devices.map(async (device) => {
+        const lockStatus = await window.SupabaseDB.canRemoveDevice(device.id)
+        return { ...device, lockStatus }
+      })
+    )
+
+    const html = devicesWithLockStatus.map(device => {
+      const isCurrentDevice = device.device_fingerprint === currentDeviceFingerprint
+      const lastLogin = new Date(device.last_login)
+      const now = new Date()
+      const daysSince = Math.floor((now - lastLogin) / (1000 * 60 * 60 * 24))
+      
+      let timeAgo = ''
+      if (daysSince === 0) {
+        const hoursSince = Math.floor((now - lastLogin) / (1000 * 60 * 60))
+        if (hoursSince === 0) {
+          timeAgo = 'À l\'instant'
+        } else if (hoursSince === 1) {
+          timeAgo = 'Il y a 1 heure'
+        } else {
+          timeAgo = `Il y a ${hoursSince} heures`
+        }
+      } else if (daysSince === 1) {
+        timeAgo = 'Hier'
+      } else {
+        timeAgo = `Il y a ${daysSince} jours`
+      }
+
+      const canRemove = device.lockStatus.canRemove
+      const daysRemaining = device.lockStatus.daysRemaining
+      const unlockDate = new Date(device.lockStatus.unlockDate)
+      const unlockDateStr = unlockDate.toLocaleDateString('fr-FR', { 
+        day: 'numeric', 
+        month: 'long', 
+        year: 'numeric' 
+      })
+
+      let lockStatusHTML = ''
+      if (!canRemove && !isCurrentDevice) {
+        lockStatusHTML = `<span style="background:#ff9800;color:#fff;padding:2px 8px;border-radius:4px;font-size:0.75rem;font-weight:600">🔒 VERROUILLÉ ${daysRemaining}J</span>`
+      }
+
+      return `
+        <div class="exercise-item" style="display:flex;justify-content:space-between;align-items:center;padding:16px;margin-bottom:12px;background:${isCurrentDevice ? '#e8f5e9' : '#f9f9f9'};border-radius:8px;border:${isCurrentDevice ? '2px solid var(--brand)' : '1px solid #ddd'}">
+          <div style="flex:1">
+            <div style="display:flex;align-items:center;gap:8px;margin-bottom:4px;flex-wrap:wrap">
+              <strong style="font-size:1.05rem">${device.device_name || 'Appareil inconnu'}</strong>
+              ${isCurrentDevice ? '<span style="background:var(--brand);color:#fff;padding:2px 8px;border-radius:4px;font-size:0.75rem;font-weight:600">CET APPAREIL</span>' : ''}
+              ${device.is_trusted ? '<span style="background:#4caf50;color:#fff;padding:2px 8px;border-radius:4px;font-size:0.75rem;font-weight:600">APPROUVÉ</span>' : ''}
+              ${lockStatusHTML}
+            </div>
+            <div style="color:var(--muted);font-size:0.9rem">
+              Dernière connexion: ${timeAgo}
+            </div>
+            <div style="color:var(--muted);font-size:0.85rem;margin-top:4px">
+              ${device.login_count} connexion${device.login_count > 1 ? 's' : ''}
+            </div>
+            ${!canRemove && !isCurrentDevice ? `<div style="color:#ff9800;font-size:0.85rem;margin-top:4px;font-weight:600">Déverrouillage le ${unlockDateStr}</div>` : ''}
+          </div>
+          <button 
+            onclick="removeDevice('${device.id}', ${isCurrentDevice}, ${canRemove})"
+            style="background:${isCurrentDevice || !canRemove ? '#ccc' : '#f44336'};color:#fff;border:none;padding:10px 16px;border-radius:6px;cursor:${isCurrentDevice || !canRemove ? 'not-allowed' : 'pointer'};font-weight:600;font-size:0.9rem"
+            ${isCurrentDevice || !canRemove ? 'disabled' : ''}
+          >
+            ${isCurrentDevice ? 'Appareil actuel' : !canRemove ? `Verrouillé (${daysRemaining}j)` : 'Supprimer'}
+          </button>
+        </div>
+      `
+    }).join('')
+
+    devicesList.innerHTML = html
+    
+  } catch (error) {
+    console.error('[v0] Error loading devices:', error)
+    devicesList.innerHTML = '<div class="error">Erreur lors du chargement des appareils</div>'
+  }
+}
+
+async function removeDevice(deviceId, isCurrentDevice, canRemove) {
+  if (isCurrentDevice) {
+    alert('Vous ne pouvez pas supprimer l\'appareil que vous utilisez actuellement.')
+    return
+  }
+
+  if (!canRemove) {
+    alert('Cet appareil est verrouillé et ne peut pas être supprimé pendant 7 jours après son ajout. Cette mesure de sécurité empêche le partage de compte.')
+    return
+  }
+
+  if (!confirm('Êtes-vous sûr de vouloir supprimer cet appareil? Vous devrez vous reconnecter depuis cet appareil si vous souhaitez l\'utiliser à nouveau.')) {
+    return
+  }
+
+  try {
+    await window.SupabaseDB.deleteDevice(deviceId)
+    alert('Appareil supprimé avec succès!')
+    loadDevices()
+  } catch (error) {
+    console.error('[v0] Error removing device:', error)
+    alert('Erreur lors de la suppression de l\'appareil: ' + error.message)
+  }
+}
+
+function switchTab(tabName) {
+  document.querySelectorAll('.tab-btn').forEach(btn => btn.classList.remove('active'))
+  document.querySelectorAll('.tab-content').forEach(content => content.classList.remove('active'))
+  
+  const activeButton = document.querySelector(`.tab-btn[onclick="switchTab('${tabName}')"]`);
+  if (activeButton) {
+    activeButton.classList.add('active');
+  }
+  document.getElementById(tabName).classList.add('active');
+  
+  if (tabName === 'devices') {
+    loadDevices()
+  }
 }
 
 function debounce(func, wait) {
@@ -577,7 +729,27 @@ function closeModal(modalId) {
     document.getElementById(modalId).classList.remove('active');
 }
 
-document.addEventListener('DOMContentLoaded', checkAuth);
+window.onload = async function() {
+  currentUser = await window.SupabaseDB.getCurrentUser()
+  
+  if (!currentUser) {
+    window.location.href = 'login.html'
+    return
+  }
+
+  if (currentUser.role === 'admin') {
+    window.location.href = 'admin.html'
+    return
+  }
+
+  document.getElementById('userName').textContent = currentUser.name
+  document.getElementById('userEmail').textContent = currentUser.email || currentUser.zalo
+
+  // Load dashboard data
+  loadStats()
+  loadExercises()
+  loadResources()
+}
 </script>
 </body>
 </html>

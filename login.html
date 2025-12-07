@@ -12,6 +12,8 @@
 </script>
 <!-- Load config.js before supabase-client.js -->
 <script src="lib/config.js"></script>
+<!-- Load device fingerprinting library -->
+<script src="lib/device-fingerprint.js"></script>
 <script src="lib/supabase-client.js"></script>
 <style>
 :root{--brand:#2b5;--ink:#222;--muted:#666;--bg:#f7f7f7;--card:#fff}
@@ -194,7 +196,17 @@ async function handleLogin(event) {
     } catch (error) {
         console.error('[v0] Login error:', error);
         
-        if (error.message === 'REJECTED_REGISTRATION') {
+        if (error.message === 'DEVICE_LIMIT_REACHED') {
+            errorEl.innerHTML = `
+                <strong>Trop d'appareils détectés!</strong><br>
+                Vous utilisez déjà 2 appareils différents. Pour vous connecter depuis ce nouvel appareil, 
+                vous devez d'abord supprimer un ancien appareil depuis votre tableau de bord (onglet "Mes Appareils").
+                <br><br>
+                <strong>Note:</strong> Les appareils sont verrouillés pendant 7 jours après leur ajout et ne peuvent pas être supprimés pendant cette période.
+                <br><br>
+                <em>Cette limitation empêche le partage de compte entre étudiants.</em>
+            `;
+        } else if (error.message === 'REJECTED_REGISTRATION') {
             errorEl.textContent = 'Votre compte n\'a pas été créé. L\'administrateur a refusé votre demande d\'inscription.';
         } else {
             errorEl.textContent = error.message || 'Email ou PIN incorrect';
