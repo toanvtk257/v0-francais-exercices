@@ -1087,12 +1087,12 @@ async function saveExercise(e) {
     } else if (kind === 'ecoute') {
         texte = $('#transcription').value.trim();
     } else {
-        texte = $('#texte').value.trim(); // For grammar and lexique, just use the general text area.
+        texte = $('#texte').value.trim();
     }
 
     let audio = null;
     if (kind === 'ecoute') {
-        audio = audioBlob; // Use the stored blob URL
+        audio = audioBlob;
     }
 
     const questions = [];
@@ -1106,7 +1106,6 @@ async function saveExercise(e) {
             const correctRadio = item.querySelector('input[type="radio"]:checked');
             const correctIndex = correctRadio ? parseInt(correctRadio.value) - 1 : -1;
             
-            // Ensure all options and a correct answer are provided
             if (questionText && options.every(opt => opt) && correctIndex !== -1) {
                 questions.push({
                     type: 'qcm',
@@ -1150,8 +1149,9 @@ async function saveExercise(e) {
         return;
     }
     
+    const exerciseId = $('#saveBtn').dataset.editingId;
+    
     const exerciseData = {
-        id: titre,
         titre: titre,
         niveau: $('#niveau').value,
         theme: theme,
@@ -1161,9 +1161,11 @@ async function saveExercise(e) {
         questions: questions
     };
     
+    if (!exerciseId) {
+        exerciseData.id = `${exerciseData.type}-${titre}`;
+    }
+    
     try {
-        const exerciseId = $('#saveBtn').dataset.editingId;
-        
         $('#saveBtn').disabled = true;
         $('#saveBtn').textContent = 'Sauvegarde...';
         
