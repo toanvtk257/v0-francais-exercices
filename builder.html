@@ -1151,12 +1151,11 @@ async function saveExercise(e) {
     }
     
     const exerciseData = {
-        id: titre, // Using 'titre' as unique ID for now
+        id: titre,
         titre: titre,
-        discipline: $('#kind').value,
         niveau: $('#niveau').value,
         theme: theme,
-        type: $('#kind').value, // Correctly map to the selected type
+        type: $('#kind').value,
         texte: texte,
         audio: audio,
         textImage: textImageBlob, // Include image URL if uploaded
