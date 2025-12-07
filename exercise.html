@@ -48,10 +48,19 @@ button{border:0;padding:10px 16px;border-radius:8px;cursor:pointer;font-weight:6
 .text-green-600{color:var(--success)!important;font-weight:600}
 .text-red-600{color:var(--error)!important;text-decoration:line-through}
 .correct-answer-display{color:var(--success);font-weight:600;margin-top:4px;font-size:.9rem}
-.explanation-box{background:#e3f2fd;border-left:4px solid #2196f3;padding:10px;margin-top:8px;border-radius:4px;font-size:.9rem;color:#0d47a1}
+
+/* Adding watermark and content protection styles */
+.watermark{position:fixed;top:50%;left:50%;transform:translate(-50%,-50%) rotate(-45deg);font-size:1.5rem;color:rgba(0,0,0,0.03);pointer-events:none;white-space:nowrap;z-index:9999;user-select:none;font-weight:600}
+body.protected{user-select:none;-webkit-user-select:none;-moz-user-select:none;-ms-user-select:none}
+.protected *{user-select:none;-webkit-user-select:none;-moz-user-select:none;-ms-user-select:none}
+.protected .cloze-input,.protected .justif-input{user-select:text;-webkit-user-select:text;-moz-user-select:text;-ms-user-select:text}
 </style>
 </head>
 <body>
+
+<!-- Adding watermark element -->
+<div class="watermark" id="watermark"></div>
+
 <header>
   <h1 id="lessonTitle">Exercice</h1>
   <div class="header-right">
@@ -130,6 +139,69 @@ let startTime = Date.now();
 let timerInterval = null;
 let submitted = false;
 
+function initContentProtection() {
+    // Add protected class to body
+    document.body.classList.add('protected');
+    
+    // Disable right-click
+    document.addEventListener('contextmenu', (e) => {
+        e.preventDefault();
+        return false;
+    });
+    
+    // Disable keyboard shortcuts for copy/save/print
+    document.addEventListener('keydown', (e) => {
+        // Ctrl+C, Ctrl+X, Ctrl+S, Ctrl+P, Ctrl+U, F12, Ctrl+Shift+I
+        if ((e.ctrlKey || e.metaKey) && (e.key === 'c' || e.key === 'x' || e.key === 's' || e.key === 'p' || e.key === 'u')) {
+            e.preventDefault();
+            return false;
+        }
+        // F12 and Ctrl+Shift+I (DevTools)
+        if (e.key === 'F12' || ((e.ctrlKey || e.metaKey) && e.shiftKey && e.key === 'I')) {
+            e.preventDefault();
+            return false;
+        }
+        // PrintScreen
+        if (e.key === 'PrintScreen') {
+            e.preventDefault();
+            return false;
+        }
+    });
+    
+    // Disable copy event
+    document.addEventListener('copy', (e) => {
+        e.preventDefault();
+        return false;
+    });
+    
+    // Disable cut event
+    document.addEventListener('cut', (e) => {
+        e.preventDefault();
+        return false;
+    });
+    
+    // Disable drag
+    document.addEventListener('dragstart', (e) => {
+        e.preventDefault();
+        return false;
+    });
+    
+    console.log('[v0] Content protection enabled');
+}
+
+function initWatermark() {
+    if (!currentUser) return;
+    
+    const watermark = $('#watermark');
+    if (!watermark) return;
+    
+    // Display user identifier as watermark (email or zalo)
+    const identifier = currentUser.email || currentUser.zalo || currentUser.id;
+    watermark.textContent = `${identifier} • ${new Date().toLocaleDateString('fr-FR')}`;
+    
+    console.log('[v0] Watermark initialized for user:', identifier);
+}
+
 // =============================================
 // Authentication & Loading
 // =============================================
@@ -146,6 +218,9 @@ async function checkAuth() {
             window.location.href = 'login.html';
             return;
         }
+        
+        initContentProtection();
+        initWatermark();
         
         // Get exercise ID from URL or localStorage
         const urlParams = new URLSearchParams(window.location.search);
