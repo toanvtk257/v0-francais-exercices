@@ -310,9 +310,14 @@ function handleExerciseFilter() {
     
     const [type, niveau] = filterValue.split('-');
     
-    filteredExercises = allExercises.filter(ex => 
-        ex.type === type && ex.niveau === niveau
-    );
+    filteredExercises = allExercises
+        .filter(ex => ex.type === type && ex.niveau === niveau)
+        .sort((a, b) => {
+            // Extract numeric part from id if it exists (e.g., "lecture-1" -> 1)
+            const numA = parseInt(a.id.match(/\d+/)?.[0] || '0');
+            const numB = parseInt(b.id.match(/\d+/)?.[0] || '0');
+            return numA - numB; // Ascending order: 1, 2, 3...
+        });
     
     const typeLabels = {
         'lecture': 'Compréhension Écrite (CE)',
