@@ -125,36 +125,22 @@
             { 
                 name: '009_create_device_sessions_table.sql',
                 description: 'Créer la table device_sessions pour le tracking des appareils',
-                sql: `
--- Table pour gérer les appareils connectés par utilisateur
+                sql: `-- Table pour suivre les appareils des étudiants
 CREATE TABLE IF NOT EXISTS device_sessions (
-    id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
-    user_id TEXT NOT NULL,
+    id SERIAL PRIMARY KEY,
+    user_zalo VARCHAR(20) NOT NULL,
     device_fingerprint TEXT NOT NULL,
     device_info JSONB,
-    first_seen TIMESTAMPTZ DEFAULT NOW(),
-    last_seen TIMESTAMPTZ DEFAULT NOW(),
+    first_seen TIMESTAMP DEFAULT NOW(),
+    last_seen TIMESTAMP DEFAULT NOW(),
     login_count INTEGER DEFAULT 1,
     is_locked BOOLEAN DEFAULT TRUE,
-    locked_until TIMESTAMPTZ,
-    created_at TIMESTAMPTZ DEFAULT NOW(),
-    UNIQUE(user_id, device_fingerprint)
+    locked_until TIMESTAMP DEFAULT (NOW() + INTERVAL '7 days'),
+    UNIQUE(user_zalo, device_fingerprint)
 );
 
--- Index pour améliorer les performances
-CREATE INDEX IF NOT EXISTS idx_device_sessions_user_id ON device_sessions(user_id);
-CREATE INDEX IF NOT EXISTS idx_device_sessions_fingerprint ON device_sessions(device_fingerprint);
-CREATE INDEX IF NOT EXISTS idx_device_sessions_locked ON device_sessions(is_locked, locked_until);
-
--- Fonction pour nettoyer les anciennes sessions (optionnel)
-CREATE OR REPLACE FUNCTION cleanup_old_device_sessions()
-RETURNS void AS $$
-BEGIN
-    DELETE FROM device_sessions 
-    WHERE last_seen < NOW() - INTERVAL '30 days';
-END;
-$$ LANGUAGE plpgsql;
-`
+CREATE INDEX IF NOT EXISTS idx_device_sessions_user ON device_sessions(user_zalo);
+CREATE INDEX IF NOT EXISTS idx_device_sessions_fingerprint ON device_sessions(device_fingerprint);`
             }
         ];
 
@@ -176,56 +162,99 @@ $$ LANGUAGE plpgsql;
             log(`Début de l'exécution du script: ${script.name}`, 'info');
 
             try {
-                // Utiliser l'API Supabase pour exécuter le SQL
-                const { data, error } = await window.SupabaseDB.supabase.rpc('exec_sql', {
-                    sql_query: script.sql
+                const supabase = window.SupabaseDB.supabase;
+                
+                if (!supabase) {
+                    throw new Error('Supabase client non disponible');
+                }
+
+                log('Connexion à Supabase établie', 'info');
+                
+                const response = await fetch(`${supabase.supabaseUrl}/rest/v1/rpc/exec_raw_sql`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'apikey': supabase.supabaseKey,
+                        'Authorization': `Bearer ${supabase.supabaseKey}`,
+                        'Prefer': 'return=minimal'
+                    },
+                    body: JSON.stringify({ 
+                        query: script.sql 
+                    })
                 });
 
-                if (error) {
-                    // Si la fonction RPC n'existe pas, essayer directement avec .from()
-                    log('⚠️ Fonction RPC non disponible, tentative alternative...', 'info');
+                if (!response.ok) {
+                    log('⚠️ Méthode RPC non disponible. Veuillez créer la table manuellement.', 'error');
+                    log('📋 Copiez le SQL suivant et exécutez-le dans l\'éditeur SQL de Supabase:', 'info');
+                    log('---', 'info');
+                    log(script.sql, 'info');
+                    log('---', 'info');
+                    log('🔗 Allez sur: https://supabase.com/dashboard/project/[votre-projet]/editor', 'info');
                     
-                    // Diviser le script en plusieurs requêtes si nécessaire
-                    const queries = script.sql
-                        .split(';')
-                        .map(q => q.trim())
-                        .filter(q => q.length > 0 && !q.startsWith('--'));
-
-                    for (const query of queries) {
-                        try {
-                            // Exécuter via raw SQL
-                            const result = await fetch(`${window.SupabaseDB.supabase.supabaseUrl}/rest/v1/rpc/exec_sql`, {
-                                method: 'POST',
-                                headers: {
-                                    'Content-Type': 'application/json',
-                                    'apikey': window.SupabaseDB.supabase.supabaseKey,
-                                    'Authorization': `Bearer ${window.SupabaseDB.supabase.supabaseKey}`
-                                },
-                                body: JSON.stringify({ query })
-                            });
-
-                            if (!result.ok) {
-                                throw new Error(`HTTP error! status: ${result.status}`);
-                            }
-                        } catch (execError) {
-                            log(`Tentative d'exécution directe...`, 'info');
-                        }
-                    }
+                    button.textContent = 'Voir les instructions';
+                    button.disabled = false;
+                    button.style.background = '#ff9800';
+                    
+                    const copyBtn = document.createElement('button');
+                    copyBtn.textContent = 'Copier le SQL';
+                    copyBtn.style.marginLeft = '10px';
+                    copyBtn.onclick = () => {
+                        navigator.clipboard.writeText(script.sql);
+                        log('✅ SQL copié dans le presse-papier!', 'success');
+                        copyBtn.textContent = '✓ Copié!';
+                        setTimeout(() => {
+                            copyBtn.textContent = 'Copier le SQL';
+                        }, 2000);
+                    };
+                    button.parentElement.appendChild(copyBtn);
+                    
+                    return;
                 }
 
                 log(`✅ Script ${script.name} exécuté avec succès!`, 'success');
                 button.textContent = '✓ Exécuté';
                 button.style.background = '#4caf50';
                 
-                // Marquer comme exécuté
                 const scriptItem = button.closest('.script-item');
                 scriptItem.classList.add('executed');
 
             } catch (error) {
-                log(`❌ Erreur lors de l'exécution: ${error.message}`, 'error');
-                button.textContent = 'Réessayer';
+                log(`❌ Erreur: ${error.message}`, 'error');
+                log('', 'info');
+                log('📋 Exécution manuelle requise. Copiez le SQL ci-dessous:', 'info');
+                log('---', 'info');
+                log(script.sql, 'info');
+                log('---', 'info');
+                log('Instructions:', 'info');
+                log('1. Allez sur https://supabase.com/dashboard', 'info');
+                log('2. Sélectionnez votre projet', 'info');
+                log('3. Ouvrez l\'éditeur SQL (SQL Editor)', 'info');
+                log('4. Collez le SQL ci-dessus', 'info');
+                log('5. Cliquez sur "Run" pour exécuter', 'info');
+                
+                const copyBtn = document.createElement('button');
+                copyBtn.textContent = 'Copier le SQL';
+                copyBtn.style.marginLeft = '10px';
+                copyBtn.onclick = () => {
+                    navigator.clipboard.writeText(script.sql);
+                    log('✅ SQL copié dans le presse-papier!', 'success');
+                    copyBtn.textContent = '✓ Copié!';
+                    setTimeout(() => {
+                        copyBtn.textContent = 'Copier le SQL';
+                    }, 2000);
+                };
+                
+                button.textContent = 'Copier le SQL';
                 button.disabled = false;
-                button.style.background = '#f44336';
+                button.style.background = '#2196f3';
+                button.onclick = () => {
+                    navigator.clipboard.writeText(script.sql);
+                    log('✅ SQL copié dans le presse-papier!', 'success');
+                    button.textContent = '✓ Copié!';
+                    setTimeout(() => {
+                        button.textContent = 'Copier le SQL';
+                    }, 2000);
+                };
             }
         }
 
@@ -253,7 +282,6 @@ $$ LANGUAGE plpgsql;
             });
         }
 
-        // Initialiser la page
         window.addEventListener('DOMContentLoaded', () => {
             log('Page de scripts SQL chargée', 'info');
             log('Sélectionnez un script à exécuter', 'info');
