@@ -530,7 +530,10 @@ async function loadDevices() {
   }
 
   try {
+    console.log('[v0] Loading devices for user:', currentUser.id)
     const devices = await window.SupabaseDB.getUserDevices(currentUser.id)
+    console.log('[v0] Devices loaded:', devices)
+    
     const currentDeviceFingerprint = window.DeviceFingerprint?.getFingerprint()
     
     if (!devices || devices.length === 0) {
@@ -618,9 +621,9 @@ async function loadDevices() {
 
     devicesList.innerHTML = html
     
-  } catch (error) {
-    console.error('[v0] Error loading devices:', error)
-    devicesList.innerHTML = '<div class="error">Erreur lors du chargement des appareils</div>'
+  } catch (err) {
+    console.error('[v0] Error loading devices:', err)
+    devicesList.innerHTML = `<div class="empty-state" style="color:#d32f2f">Erreur lors du chargement des appareils: ${err.message}</div>`
   }
 }
 
