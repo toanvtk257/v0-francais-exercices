@@ -552,7 +552,7 @@ h1 {
           <textarea id="adminMessageInput" rows="2" placeholder="Tapez votre message..."></textarea>
           <div style="display:flex;gap:8px;margin-top:8px">
             <button class="btn btn-primary" onclick="sendAdminMessage()">Envoyer</button>
-            <button class="btn btn-danger" onclick="deleteConversation()">Supprimer l\'historique</button>
+            <button class="btn btn-danger" onclick="deleteConversation()">Supprimer l'historique</button>
           </div>
         </div>
       </div>
@@ -894,6 +894,7 @@ function renderUsers(users) {
                         <td>${u.email}</td>
                         <td>${u.zalo || '-'}</td>
                         <td>
+                            <button class="btn btn-small btn-warning" onclick="resetUserPin('${u.id}', '${u.name}')" style="margin-right: 8px;">Réinitialiser PIN</button>
                             <button class="btn btn-small btn-danger" onclick="deleteUser('${u.id}')">Supprimer</button>
                         </td>
                     </tr>
@@ -905,6 +906,18 @@ function renderUsers(users) {
     container.innerHTML = html;
 }
 
+async function resetUserPin(userId, userName) {
+    if (!confirm(`Êtes-vous sûr de vouloir réinitialiser le code PIN de ${userName}?\n\nLe nouveau code sera: 123456`)) return;
+    
+    try {
+        await window.SupabaseDB.updateUser(userId, { pin: '123456' });
+        alert(`✓ Le code PIN de ${userName} a été réinitialisé à: 123456`);
+        await loadUsers();
+    } catch (error) {
+        console.error('Error resetting PIN:', error);
+        alert('Erreur lors de la réinitialisation du code PIN');
+    }
+}
 
 async function deleteUser(id) {
     if (!confirm('Êtes-vous sûr de vouloir supprimer cet utilisateur?')) return;
