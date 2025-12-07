@@ -50,4 +50,4 @@ Les fichiers sont automatiquement optimisés par Cloudinary pour un chargement r
 - Transformations d'images à la volée
 \`\`\`
 
-```html file="" isHidden
+\`\`\`html file="" isHidden

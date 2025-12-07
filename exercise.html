@@ -204,7 +204,20 @@ function renderExercise() {
     // Show passage for lecture exercises
     if (currentExercise.type === 'lecture' && currentExercise.texte) {
         $('#passageBox').style.display = 'block';
-        $('#passageContent').innerHTML = currentExercise.texte;
+        
+        const text = currentExercise.texte;
+        const lines = text.split('\n');
+        let html = '';
+        
+        if (lines.length > 1 && lines[0].length < 100 && lines[0].trim() !== '') {
+            // First line is likely the title
+            html = `<h3 style="font-weight:bold; margin-bottom:12px; font-size:1.2rem;">${lines[0]}</h3>`;
+            html += lines.slice(1).join('\n').replace(/\n/g, '<br>');
+        } else {
+            html = text.replace(/\n/g, '<br>');
+        }
+        
+        $('#passageContent').innerHTML = html;
     }
     
     if (currentExercise.type === 'ecoute' && currentExercise.audio) {
