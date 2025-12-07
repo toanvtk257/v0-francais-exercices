@@ -49,6 +49,12 @@ th{background:#f5f5f5;font-weight:600}
 .tab-content{display:none}
 .tab-content.active{display:block}
 .chart-container{height:200px;display:flex;align-items:center;justify-content:center;border:1px solid #e0e0e0;border-radius:8px}
+.filter-selector{background:#fff;border:2px solid var(--brand);border-radius:8px;padding:12px;font-size:1rem;width:100%;cursor:pointer;font-weight:600;color:var(--ink);margin-bottom:20px}
+.pagination{display:flex;justify-content:center;align-items:center;gap:12px;margin-top:24px;padding:16px}
+.pagination button{background:var(--brand);color:#fff;border:none;padding:10px 18px;border-radius:8px;cursor:pointer;font-weight:600;font-size:.9rem;transition:all .2s}
+.pagination button:hover:not(:disabled){opacity:.85}
+.pagination button:disabled{background:#ccc;cursor:not-allowed;opacity:.6}
+.pagination .page-info{font-weight:600;color:var(--ink);font-size:.95rem}
 </style>
 </head>
 <body>
@@ -102,52 +108,26 @@ th{background:#f5f5f5;font-weight:600}
 
   <!-- Exercises Tab -->
   <div id="exercises" class="tab-content">
-    <!-- Fixed overflow by removing card padding and setting input width properly -->
-    <div style="background:#f0f9ff;border:2px solid #3b82f6;border-radius:14px;margin-bottom:20px;padding:12px">
-      <input 
-        type="text" 
-        id="exerciseSearch" 
-        placeholder="🔍 Rechercher un exercice par titre, niveau, type, ou thème..." 
-        style="width:100%;padding:12px;border:2px solid #3b82f6;border-radius:8px;font-size:.95rem;background:#fff;box-sizing:border-box"
-        oninput="handleExerciseSearch(event)"
-      >
+    <div class="card" style="padding:16px">
+      <label style="display:block;margin-bottom:8px;font-weight:600;color:var(--ink)">Choisissez une compétence et un niveau :</label>
+      <select id="exerciseFilter" class="filter-selector" onchange="handleExerciseFilter()">
+        <option value="">-- Sélectionnez --</option>
+      </select>
     </div>
     
-    <!-- Added id to each card for show/hide control -->
-    <div class="card" id="ceCard">
-      <h2>Compréhension Écrite (CE)</h2>
-      <div id="ceExercises"><div class="loading">Chargement...</div></div>
-    </div>
-    <div class="card" id="coCard">
-      <h2>Compréhension Orale (CO)</h2>
-      <div id="coExercises"><div class="loading">Chargement...</div></div>
-    </div>
-    <div class="card" id="grammaireCard">
-      <h2>Grammaire</h2>
-      <div id="grammaireExercises"><div class="loading">Chargement...</div></div>
-    </div>
-    <div class="card" id="lexiqueCard">
-      <h2>Lexique</h2>
-      <div id="lexiqueExercises"><div class="loading">Chargement...</div></div>
+    <div class="card" id="filteredExercisesCard" style="display:none">
+      <h2 id="filteredExercisesTitle">Exercices</h2>
+      <div id="filteredExercises"><div class="empty-state">Veuillez sélectionner une compétence et un niveau ci-dessus</div></div>
+      <div id="exercisePagination" class="pagination" style="display:none"></div>
     </div>
   </div>
 
   <!-- Resources Tab -->
   <div id="resources" class="tab-content">
-    <!-- Fixed overflow by removing card padding and setting input width properly -->
-    <div style="background:#f0f9ff;border:2px solid #3b82f6;border-radius:14px;margin-bottom:20px;padding:12px">
-      <input 
-        type="text" 
-        id="resourceSearch" 
-        placeholder="🔍 Rechercher une ressource par titre, catégorie, ou description..." 
-        style="width:100%;padding:12px;border:2px solid #3b82f6;border-radius:8px;font-size:.95rem;background:#fff;box-sizing:border-box"
-        oninput="handleResourceSearch(event)"
-      >
-    </div>
-    
     <div class="card">
       <h2>Ressources externes</h2>
       <div id="resourcesList"><div class="loading">Chargement...</div></div>
+      <div id="resourcePagination" class="pagination" style="display:none"></div>
     </div>
   </div>
 </main>
@@ -160,11 +140,11 @@ th{background:#f5f5f5;font-weight:600}
 let currentUser = null;
 let completedExercises = new Set();
 let allExercises = [];
-let allResources = []; // Added to store all resources for filtering
-
-// =============================================
-// Authentication
-// =============================================
+let allResources = [];
+let currentExercisePage = 1;
+let currentResourcePage = 1;
+let filteredExercises = [];
+const ITEMS_PER_PAGE = 10;
 
 async function checkAuth() {
     try {
@@ -207,10 +187,6 @@ async function handleLogout() {
         window.location.href = 'login.html';
     }
 }
-
-// =============================================
-// Data Loading
-// =============================================
 
 async function loadAllData() {
     await Promise.all([
@@ -274,52 +250,101 @@ async function loadExercises() {
         completedExercises = new Set(attempts.recentAttempts.map(a => a.exercise_id));
         
         allExercises = await window.SupabaseDB.getExercises();
-        renderAllExercises(allExercises);
+        buildExerciseFilterOptions();
         
     } catch (error) {
         console.error('Error loading exercises:', error);
     }
 }
 
-function renderAllExercises(exercises) {
-    const levelOrder = { 'A1': 1, 'A2': 2, 'B1': 3, 'B2': 4, 'C1': 5, 'C2': 6 };
+function buildExerciseFilterOptions() {
+    const filterSelect = document.getElementById('exerciseFilter');
     
-    // Group by type
-    const grouped = {
-        lecture: exercises.filter(e => e.type === 'lecture'),
-        ecoute: exercises.filter(e => e.type === 'ecoute'),
-        grammaire: exercises.filter(e => e.type === 'grammaire'),
-        lexique: exercises.filter(e => e.type === 'lexique')
+    const typeLabels = {
+        'lecture': 'Compréhension Écrite (CE)',
+        'ecoute': 'Compréhension Orale (CO)',
+        'grammaire': 'Grammaire',
+        'lexique': 'Lexique'
     };
     
-    Object.keys(grouped).forEach(key => {
-        grouped[key].sort((a, b) => {
-            const levelA = levelOrder[a.niveau] || 999;
-            const levelB = levelOrder[b.niveau] || 999;
-            return levelA - levelB;
-        });
+    const levelOrder = ['A1', 'A2', 'B1', 'B2', 'C1', 'C2'];
+    
+    const combinations = new Map();
+    
+    allExercises.forEach(ex => {
+        const key = `${ex.type}-${ex.niveau}`;
+        if (!combinations.has(key)) {
+            combinations.set(key, {
+                type: ex.type,
+                niveau: ex.niveau,
+                label: `${typeLabels[ex.type]} - ${ex.niveau}`,
+                count: 0
+            });
+        }
+        combinations.get(key).count++;
     });
     
-    // Render each type
-    renderExerciseList('ceExercises', grouped.lecture, 'ceCard');
-    renderExerciseList('coExercises', grouped.ecoute, 'coCard');
-    renderExerciseList('grammaireExercises', grouped.grammaire, 'grammaireCard');
-    renderExerciseList('lexiqueExercises', grouped.lexique, 'lexiqueCard');
+    const sorted = Array.from(combinations.values()).sort((a, b) => {
+        const typeOrder = ['lecture', 'ecoute', 'grammaire', 'lexique'];
+        const typeCompare = typeOrder.indexOf(a.type) - typeOrder.indexOf(b.type);
+        if (typeCompare !== 0) return typeCompare;
+        return levelOrder.indexOf(a.niveau) - levelOrder.indexOf(b.niveau);
+    });
+    
+    filterSelect.innerHTML = '<option value="">-- Sélectionnez --</option>' +
+        sorted.map(opt => 
+            `<option value="${opt.type}-${opt.niveau}">${opt.label} (${opt.count} exercice${opt.count > 1 ? 's' : ''})</option>`
+        ).join('');
 }
 
-function renderExerciseList(containerId, exercises, cardId) {
-    const container = document.getElementById(containerId);
-    const card = document.getElementById(cardId);
+function handleExerciseFilter() {
+    const filterValue = document.getElementById('exerciseFilter').value;
+    const card = document.getElementById('filteredExercisesCard');
+    const container = document.getElementById('filteredExercises');
     
-    if (exercises.length === 0) {
-        if (card) card.style.display = 'none';
-        container.innerHTML = '<div class="empty-state">Aucun exercice disponible</div>';
+    if (!filterValue) {
+        card.style.display = 'none';
+        container.innerHTML = '<div class="empty-state">Veuillez sélectionner une compétence et un niveau ci-dessus</div>';
         return;
     }
     
-    if (card) card.style.display = 'block';
+    const [type, niveau] = filterValue.split('-');
     
-    container.innerHTML = exercises.map(ex => {
+    filteredExercises = allExercises.filter(ex => 
+        ex.type === type && ex.niveau === niveau
+    );
+    
+    const typeLabels = {
+        'lecture': 'Compréhension Écrite (CE)',
+        'ecoute': 'Compréhension Orale (CO)',
+        'grammaire': 'Grammaire',
+        'lexique': 'Lexique'
+    };
+    
+    document.getElementById('filteredExercisesTitle').textContent = 
+        `${typeLabels[type]} - Niveau ${niveau}`;
+    
+    currentExercisePage = 1;
+    card.style.display = 'block';
+    renderPaginatedExercises();
+}
+
+function renderPaginatedExercises() {
+    const container = document.getElementById('filteredExercises');
+    const paginationContainer = document.getElementById('exercisePagination');
+    
+    if (filteredExercises.length === 0) {
+        container.innerHTML = '<div class="empty-state">Aucun exercice disponible</div>';
+        paginationContainer.style.display = 'none';
+        return;
+    }
+    
+    const totalPages = Math.ceil(filteredExercises.length / ITEMS_PER_PAGE);
+    const startIndex = (currentExercisePage - 1) * ITEMS_PER_PAGE;
+    const endIndex = startIndex + ITEMS_PER_PAGE;
+    const pageExercises = filteredExercises.slice(startIndex, endIndex);
+    
+    container.innerHTML = pageExercises.map(ex => {
         const isNew = !completedExercises.has(ex.id);
         const themeDisplay = ex.theme ? `<div style="color: #64748b; font-size: 0.875rem; margin-top: 4px;">Thème: ${ex.theme}</div>` : '';
         
@@ -340,10 +365,34 @@ function renderExerciseList(containerId, exercises, cardId) {
             </div>
         `;
     }).join('');
+    
+    if (totalPages > 1) {
+        paginationContainer.style.display = 'flex';
+        paginationContainer.innerHTML = `
+            <button onclick="changeExercisePage(${currentExercisePage - 1})" ${currentExercisePage === 1 ? 'disabled' : ''}>
+                ← Précédent
+            </button>
+            <span class="page-info">Page ${currentExercisePage} sur ${totalPages}</span>
+            <button onclick="changeExercisePage(${currentExercisePage + 1})" ${currentExercisePage === totalPages ? 'disabled' : ''}>
+                Suivant →
+            </button>
+        `;
+    } else {
+        paginationContainer.style.display = 'none';
+    }
+}
+
+function changeExercisePage(newPage) {
+    const totalPages = Math.ceil(filteredExercises.length / ITEMS_PER_PAGE);
+    if (newPage < 1 || newPage > totalPages) return;
+    
+    currentExercisePage = newPage;
+    renderPaginatedExercises();
+    
+    window.scrollTo({ top: 0, behavior: 'smooth' });
 }
 
 function startExercise(exerciseId) {
-    // Store exercise ID and redirect
     localStorage.setItem('current_exercise_id', exerciseId);
     window.location.href = 'exercise.html?id=' + exerciseId;
 }
@@ -352,61 +401,68 @@ async function loadResources() {
     const container = document.getElementById('resourcesList');
     
     try {
-        console.log('[v0] loadResources: Starting to load external resources...');
         const resources = await window.SupabaseDB.getResources();
-        console.log('[v0] loadResources: Received resources:', resources);
         
         allResources = resources;
-        renderResources(resources);
+        currentResourcePage = 1;
+        renderPaginatedResources();
         
     } catch (error) {
-        console.error('[v0] loadResources: Error loading resources:', error);
-        console.error('[v0] loadResources: Error details:', error.message, error.stack);
+        console.error('Error loading resources:', error);
         container.innerHTML = '<div class="empty-state">Erreur de chargement: ' + error.message + '</div>';
     }
 }
 
-function renderResources(resources) {
+function renderPaginatedResources() {
     const container = document.getElementById('resourcesList');
+    const paginationContainer = document.getElementById('resourcePagination');
     
-    if (resources.length === 0) {
-        container.innerHTML = '<div class="empty-state">Aucune ressource trouvée pour votre recherche</div>';
+    if (allResources.length === 0) {
+        container.innerHTML = '<div class="empty-state">Aucune ressource disponible</div>';
+        paginationContainer.style.display = 'none';
         return;
     }
     
-    container.innerHTML = resources.map(r => `
+    const totalPages = Math.ceil(allResources.length / ITEMS_PER_PAGE);
+    const startIndex = (currentResourcePage - 1) * ITEMS_PER_PAGE;
+    const endIndex = startIndex + ITEMS_PER_PAGE;
+    const pageResources = allResources.slice(startIndex, endIndex);
+    
+    container.innerHTML = pageResources.map(r => `
         <div class="exercise-card">
             <div class="exercise-info">
                 <h3>${r.titre}</h3>
                 <p>${r.description || 'Pas de description'} | ${r.categorie || 'Général'}</p>
             </div>
-            <a href="${r.url}" target="_blank" class="btn btn-primary">Ouvrir</a>
+            <a href="${r.url}" target="_blank" class="btn btn-primary">Voir</a>
         </div>
     `).join('');
+    
+    if (totalPages > 1) {
+        paginationContainer.style.display = 'flex';
+        paginationContainer.innerHTML = `
+            <button onclick="changeResourcePage(${currentResourcePage - 1})" ${currentResourcePage === 1 ? 'disabled' : ''}>
+                ← Précédent
+            </button>
+            <span class="page-info">Page ${currentResourcePage} sur ${totalPages}</span>
+            <button onclick="changeResourcePage(${currentResourcePage + 1})" ${currentResourcePage === totalPages ? 'disabled' : ''}>
+                Suivant →
+            </button>
+        `;
+    } else {
+        paginationContainer.style.display = 'none';
+    }
 }
 
-const handleResourceSearch = debounce((event) => {
-    const query = event.target.value.toLowerCase().trim();
+function changeResourcePage(newPage) {
+    const totalPages = Math.ceil(allResources.length / ITEMS_PER_PAGE);
+    if (newPage < 1 || newPage > totalPages) return;
     
-    if (!query) {
-        renderResources(allResources);
-        return;
-    }
+    currentResourcePage = newPage;
+    renderPaginatedResources();
     
-    const filtered = allResources.filter(r => {
-        return (
-            r.titre?.toLowerCase().includes(query) ||
-            r.categorie?.toLowerCase().includes(query) ||
-            r.description?.toLowerCase().includes(query)
-        );
-    });
-    
-    renderResources(filtered);
-}, 300);
-
-// =============================================
-// UI Helpers
-// =============================================
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+}
 
 function switchTab(tab) {
     document.querySelectorAll('.tab-btn').forEach(btn => btn.classList.remove('active'));
@@ -428,43 +484,6 @@ function debounce(func, wait) {
     };
 }
 
-const handleExerciseSearch = debounce((event) => {
-    const query = event.target.value.toLowerCase().trim();
-    
-    if (!query) {
-        renderAllExercises(allExercises);
-        return;
-    }
-    
-    const filtered = allExercises.filter(e => {
-        return (
-            e.titre?.toLowerCase().includes(query) ||
-            e.niveau?.toLowerCase().includes(query) ||
-            e.type?.toLowerCase().includes(query) ||
-            e.theme?.toLowerCase().includes(query)
-        );
-    });
-    
-    if (filtered.length === 0) {
-        ['ceCard', 'coCard', 'grammaireCard', 'lexiqueCard'].forEach(cardId => {
-            const card = document.getElementById(cardId);
-            if (card) card.style.display = 'none';
-        });
-        
-        // Show message in first card
-        const ceCard = document.getElementById('ceCard');
-        if (ceCard) {
-            ceCard.style.display = 'block';
-            document.getElementById('ceExercises').innerHTML = 
-                '<div class="empty-state">Aucun exercice trouvé pour votre recherche</div>';
-        }
-        return;
-    }
-    
-    renderAllExercises(filtered);
-}, 300);
-
-// Initialize
 document.addEventListener('DOMContentLoaded', checkAuth);
 </script>
 </body>
