@@ -7,6 +7,8 @@
 <title>Dashboard - Entraînement au français</title>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="lib/config.js"></script>
+<!-- Load device fingerprinting library -->
+<script src="lib/device-fingerprint.js"></script>
 <script src="lib/supabase-client.js"></script>
 <style>
 :root{--brand:#2b5;--ink:#222;--muted:#666;--bg:#f7f7f7;--card:#fff;--success:#4caf50;--warning:#ff9800}
@@ -64,6 +66,18 @@ th{background:#f5f5f5;font-weight:600}
 .modal-content{background-color:#fefefe;margin:15% auto;padding:20px;border:1px solid #888;width:80%;max-width:500px;border-radius:12px}
 .form-group{margin-bottom:16px}
 .btn-group{display:flex;justify-content:flex-end;gap:8px}
+/* Adding device management styles */
+.device-card{background:#fff;border:1px solid #e0e0e0;border-radius:8px;padding:16px;margin-bottom:12px}
+.device-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:8px}
+.device-name{font-weight:600;font-size:1.1rem;color:var(--ink)}
+.device-status{display:inline-block;padding:4px 10px;border-radius:6px;font-size:0.85rem;font-weight:600}
+.device-status.locked{background:#ffebee;color:#c62828}
+.device-status.unlocked{background:#e8f5e9;color:#2e7d32}
+.device-status.current{background:#e3f2fd;color:#1565c0}
+.device-info{color:var(--muted);font-size:0.9rem;margin:4px 0}
+.device-actions{margin-top:12px}
+.info-box{background:#e3f2fd;border-left:4px solid #1976d2;padding:12px;margin-bottom:16px;border-radius:6px}
+.info-box strong{color:#1565c0}
 </style>
 </head>
 <body>
@@ -84,6 +98,7 @@ th{background:#f5f5f5;font-weight:600}
     <button class="tab-btn active" onclick="switchTab('overview')">Vue d'ensemble</button>
     <button class="tab-btn" onclick="switchTab('exercises')">Exercices</button>
     <button class="tab-btn" onclick="switchTab('resources')">Ressources</button>
+    <button class="tab-btn" onclick="switchTab('devices')">Mes Appareils</button>
   </div>
 
   <!-- Overview Tab -->
@@ -142,6 +157,23 @@ th{background:#f5f5f5;font-weight:600}
       <div id="resourcePagination" class="pagination" style="display:none"></div>
     </div>
   </div>
+
+  <!-- Devices Tab -->
+  <div id="devices" class="tab-content">
+    <div class="card">
+      <h2>Mes Appareils Connectés</h2>
+      
+      <div class="info-box">
+        <strong>Limite d'appareils:</strong> Vous pouvez utiliser maximum 2 appareils différents par semaine. Si vous souhaitez vous connecter depuis un nouvel appareil, vous devez d'abord supprimer un ancien appareil.
+        <br><br>
+        <strong>Verrouillage de sécurité:</strong> Les appareils sont verrouillés pendant 7 jours après leur premier ajout et ne peuvent pas être supprimés pendant cette période.
+        <br><br>
+        <strong>Protection du compte:</strong> Cette limitation empêche le partage de compte entre étudiants.
+      </div>
+      
+      <div id="devicesList"><div class="loading">Chargement...</div></div>
+    </div>
+  </div>
 </main>
 
 <!-- Change PIN Modal -->
@@ -178,6 +210,7 @@ let allResources = [];
 let currentExercisePage = 1;
 let currentResourcePage = 1;
 let filteredExercises = [];
+let allDevices = [];
 const ITEMS_PER_PAGE = 10;
 
 async function checkAuth() {
@@ -226,7 +259,8 @@ async function loadAllData() {
     await Promise.all([
         loadStats(),
         loadExercises(),
-        loadResources()
+        loadResources(),
+        loadDevices()
     ]);
 }
 
@@ -503,9 +537,110 @@ function changeResourcePage(newPage) {
     window.scrollTo({ top: 0, behavior: 'smooth' });
 }
 
+async function loadDevices() {
+    const container = document.getElementById("devicesList");
+  
+    try {
+        if (!currentUser || !currentUser.zalo) {
+            container.innerHTML = '<div class="empty-state">Utilisateur non identifié</div>';
+            return;
+        }
+
+        const devices = await window.SupabaseDB.getUserDevices(currentUser.zalo);
+    
+        if (!devices || devices.length === 0) {
+            container.innerHTML = '<div class="empty-state">Aucun appareil enregistré</div>';
+            return;
+        }
+
+        // Get current device fingerprint
+        let currentFingerprint = null;
+        if (window.DeviceFingerprint) {
+            const { fingerprint } = await window.DeviceFingerprint.generate();
+            currentFingerprint = fingerprint;
+        }
+
+        let html = '';
+    
+        devices.forEach((device, index) => {
+            const lockedUntil = new Date(device.locked_until);
+            const now = new Date();
+            const isLocked = device.is_locked && lockedUntil > now;
+            const daysRemaining = isLocked ? Math.ceil((lockedUntil - now) / (1000 * 60 * 60 * 24)) : 0;
+            const isCurrent = device.device_fingerprint === currentFingerprint;
+      
+            const deviceName = window.DeviceFingerprint 
+                ? window.DeviceFingerprint.getDeviceName(device.device_info || {})
+                : `Appareil ${index + 1}`;
+      
+            const lastSeen = new Date(device.last_seen).toLocaleDateString('fr-FR', {
+                year: 'numeric',
+                month: 'long',
+                day: 'numeric',
+                hour: '2-digit',
+                minute: '2-digit'
+            });
+      
+            const firstSeen = new Date(device.first_seen).toLocaleDateString('fr-FR', {
+                year: 'numeric',
+                month: 'long',
+                day: 'numeric'
+            });
+      
+            html += `
+                <div class="device-card">
+                    <div class="device-header">
+                        <div class="device-name">${deviceName}</div>
+                        <div>
+                            ${isCurrent ? '<span class="device-status current">Appareil actuel</span>' : ''}
+                            ${isLocked ? `<span class="device-status locked">🔒 Verrouillé (${daysRemaining}j)</span>` : '<span class="device-status unlocked">🔓 Déverrouillé</span>'}
+                        </div>
+                    </div>
+                    <div class="device-info">
+                        <div>✓ Ajouté le: ${firstSeen}</div>
+                        <div>✓ Dernière connexion: ${lastSeen}</div>
+                        <div>✓ Nombre de connexions: ${device.login_count}</div>
+                        ${isLocked ? `<div>✓ Déverrouillage le: ${lockedUntil.toLocaleDateString('fr-FR')}</div>` : ''}
+                    </div>
+                    ${!isCurrent ? `
+                        <div class="device-actions">
+                            <button onclick="removeDeviceConfirm(${device.id}, '${deviceName}')" 
+                                    ${isLocked ? 'disabled' : ''}
+                                    style="background: ${isLocked ? '#ccc' : '#f44336'}; color: #fff; border: none; padding: 8px 16px; border-radius: 6px; cursor: ${isLocked ? 'not-allowed' : 'pointer'};">
+                                ${isLocked ? `Suppression possible dans ${daysRemaining} jour(s)` : 'Supprimer cet appareil'}
+                            </button>
+                        </div>
+                    ` : ''}
+                </div>
+            `;
+        });
+    
+        container.innerHTML = html;
+    
+    } catch (error) {
+        console.error("[v0] Error loading devices:", error);
+        container.innerHTML = `<div class="empty-state" style="color: #c33;">Erreur lors du chargement des appareils: ${error.message}</div>`;
+    }
+}
+
+async function removeDeviceConfirm(deviceId, deviceName) {
+    if (!confirm(`Êtes-vous sûr de vouloir supprimer l'appareil "${deviceName}" ?\n\nVous pourrez vous reconnecter depuis cet appareil plus tard, mais il sera compté comme un nouvel appareil et sera verrouillé pendant 7 jours.`)) {
+        return;
+    }
+  
+    try {
+        await window.SupabaseDB.removeDevice(deviceId, currentUser.zalo);
+        alert('Appareil supprimé avec succès!');
+        await loadDevices();
+    } catch (error) {
+        console.error("[v0] Error removing device:", error);
+        alert(`Erreur: ${error.message}`);
+    }
+}
+
 function switchTab(tabName) {
-  document.querySelectorAll('.tab-btn').forEach(btn => btn.classList.remove('active'))
-  document.querySelectorAll('.tab-content').forEach(content => content.classList.remove('active'))
+  document.querySelectorAll('.tab-btn').forEach(btn => btn.classList.remove('active'));
+  document.querySelectorAll('.tab-content').forEach(content => content.classList.remove('active'));
   
   const activeButton = document.querySelector(`.tab-btn[onclick="switchTab('${tabName}')"]`);
   if (activeButton) {
@@ -580,25 +715,26 @@ function closeModal(modalId) {
 }
 
 window.onload = async function() {
-  currentUser = await window.SupabaseDB.getCurrentUser()
+  currentUser = await window.SupabaseDB.getCurrentUser();
   
   if (!currentUser) {
-    window.location.href = 'login.html'
-    return
+    window.location.href = 'login.html';
+    return;
   }
 
   if (currentUser.role === 'admin') {
-    window.location.href = 'admin.html'
-    return
+    window.location.href = 'admin.html';
+    return;
   }
 
-  document.getElementById('userName').textContent = currentUser.name
-  document.getElementById('userEmail').textContent = currentUser.email || currentUser.zalo
+  document.getElementById('userName').textContent = currentUser.name;
+  document.getElementById('userEmail').textContent = currentUser.email || currentUser.zalo;
 
   // Load dashboard data
-  loadStats()
-  loadExercises()
-  loadResources()
+  loadStats();
+  loadExercises();
+  loadResources();
+  loadDevices();
 }
 </script>
 </body>

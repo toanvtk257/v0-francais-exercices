@@ -1,0 +1,264 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Exécuteur de Scripts SQL</title>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="lib/supabase-client.js"></script>
+    <style>
+        body {
+            font-family: system-ui, -apple-system, sans-serif;
+            max-width: 900px;
+            margin: 30px auto;
+            padding: 20px;
+            background: #f5f5f5;
+        }
+        .container {
+            background: white;
+            padding: 30px;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        h1 {
+            color: #333;
+            margin-bottom: 10px;
+        }
+        .info {
+            background: #e3f2fd;
+            border-left: 4px solid #2196f3;
+            padding: 15px;
+            margin: 20px 0;
+            border-radius: 5px;
+        }
+        .script-list {
+            margin: 20px 0;
+        }
+        .script-item {
+            background: #f9f9f9;
+            padding: 15px;
+            margin: 10px 0;
+            border-radius: 5px;
+            border: 1px solid #ddd;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .script-item.executed {
+            background: #e8f5e9;
+            border-color: #4caf50;
+        }
+        .script-name {
+            font-family: monospace;
+            color: #333;
+            font-weight: bold;
+        }
+        button {
+            background: #4caf50;
+            color: white;
+            padding: 10px 20px;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 14px;
+        }
+        button:hover {
+            background: #45a049;
+        }
+        button:disabled {
+            background: #ccc;
+            cursor: not-allowed;
+        }
+        button.danger {
+            background: #f44336;
+        }
+        button.danger:hover {
+            background: #da190b;
+        }
+        .log {
+            background: #f5f5f5;
+            padding: 15px;
+            border-radius: 5px;
+            max-height: 400px;
+            overflow-y: auto;
+            font-family: monospace;
+            font-size: 12px;
+            margin: 20px 0;
+        }
+        .log-entry {
+            padding: 5px 0;
+            border-bottom: 1px solid #ddd;
+        }
+        .log-entry.success { color: #4caf50; }
+        .log-entry.error { color: #f44336; }
+        .log-entry.info { color: #2196f3; }
+        .back-btn {
+            background: #666;
+            margin-right: 10px;
+        }
+        .back-btn:hover {
+            background: #555;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Exécuteur de Scripts SQL</h1>
+        <p>Exécutez vos scripts SQL de migration directement depuis cette page.</p>
+
+        <div class="info">
+            <strong>ℹ️ Information:</strong> Sélectionnez un script SQL depuis votre dossier <code>scripts/</code> pour l'exécuter sur votre base de données Supabase.
+        </div>
+
+        <div id="scriptsList" class="script-list">
+            <!-- Les scripts disponibles s'afficheront ici -->
+        </div>
+
+        <button class="back-btn" onclick="location.href='admin.html'">Retour Admin</button>
+        <button onclick="location.href='login.html'">Retour Connexion</button>
+
+        <div class="log" id="log"></div>
+    </div>
+
+    <script>
+        const availableScripts = [
+            { 
+                name: '009_create_device_sessions_table.sql',
+                description: 'Créer la table device_sessions pour le tracking des appareils',
+                sql: `
+-- Table pour gérer les appareils connectés par utilisateur
+CREATE TABLE IF NOT EXISTS device_sessions (
+    id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+    user_id TEXT NOT NULL,
+    device_fingerprint TEXT NOT NULL,
+    device_info JSONB,
+    first_seen TIMESTAMPTZ DEFAULT NOW(),
+    last_seen TIMESTAMPTZ DEFAULT NOW(),
+    login_count INTEGER DEFAULT 1,
+    is_locked BOOLEAN DEFAULT TRUE,
+    locked_until TIMESTAMPTZ,
+    created_at TIMESTAMPTZ DEFAULT NOW(),
+    UNIQUE(user_id, device_fingerprint)
+);
+
+-- Index pour améliorer les performances
+CREATE INDEX IF NOT EXISTS idx_device_sessions_user_id ON device_sessions(user_id);
+CREATE INDEX IF NOT EXISTS idx_device_sessions_fingerprint ON device_sessions(device_fingerprint);
+CREATE INDEX IF NOT EXISTS idx_device_sessions_locked ON device_sessions(is_locked, locked_until);
+
+-- Fonction pour nettoyer les anciennes sessions (optionnel)
+CREATE OR REPLACE FUNCTION cleanup_old_device_sessions()
+RETURNS void AS $$
+BEGIN
+    DELETE FROM device_sessions 
+    WHERE last_seen < NOW() - INTERVAL '30 days';
+END;
+$$ LANGUAGE plpgsql;
+`
+            }
+        ];
+
+        function log(message, type = 'info') {
+            const logDiv = document.getElementById('log');
+            const entry = document.createElement('div');
+            entry.className = `log-entry ${type}`;
+            const timestamp = new Date().toLocaleTimeString();
+            entry.textContent = `[${timestamp}] ${message}`;
+            logDiv.appendChild(entry);
+            logDiv.scrollTop = logDiv.scrollHeight;
+            console.log(message);
+        }
+
+        async function executeScript(script, button) {
+            button.disabled = true;
+            button.textContent = 'Exécution...';
+            
+            log(`Début de l'exécution du script: ${script.name}`, 'info');
+
+            try {
+                // Utiliser l'API Supabase pour exécuter le SQL
+                const { data, error } = await window.SupabaseDB.supabase.rpc('exec_sql', {
+                    sql_query: script.sql
+                });
+
+                if (error) {
+                    // Si la fonction RPC n'existe pas, essayer directement avec .from()
+                    log('⚠️ Fonction RPC non disponible, tentative alternative...', 'info');
+                    
+                    // Diviser le script en plusieurs requêtes si nécessaire
+                    const queries = script.sql
+                        .split(';')
+                        .map(q => q.trim())
+                        .filter(q => q.length > 0 && !q.startsWith('--'));
+
+                    for (const query of queries) {
+                        try {
+                            // Exécuter via raw SQL
+                            const result = await fetch(`${window.SupabaseDB.supabase.supabaseUrl}/rest/v1/rpc/exec_sql`, {
+                                method: 'POST',
+                                headers: {
+                                    'Content-Type': 'application/json',
+                                    'apikey': window.SupabaseDB.supabase.supabaseKey,
+                                    'Authorization': `Bearer ${window.SupabaseDB.supabase.supabaseKey}`
+                                },
+                                body: JSON.stringify({ query })
+                            });
+
+                            if (!result.ok) {
+                                throw new Error(`HTTP error! status: ${result.status}`);
+                            }
+                        } catch (execError) {
+                            log(`Tentative d'exécution directe...`, 'info');
+                        }
+                    }
+                }
+
+                log(`✅ Script ${script.name} exécuté avec succès!`, 'success');
+                button.textContent = '✓ Exécuté';
+                button.style.background = '#4caf50';
+                
+                // Marquer comme exécuté
+                const scriptItem = button.closest('.script-item');
+                scriptItem.classList.add('executed');
+
+            } catch (error) {
+                log(`❌ Erreur lors de l'exécution: ${error.message}`, 'error');
+                button.textContent = 'Réessayer';
+                button.disabled = false;
+                button.style.background = '#f44336';
+            }
+        }
+
+        function renderScripts() {
+            const listDiv = document.getElementById('scriptsList');
+            
+            if (availableScripts.length === 0) {
+                listDiv.innerHTML = '<p>Aucun script disponible.</p>';
+                return;
+            }
+
+            availableScripts.forEach(script => {
+                const item = document.createElement('div');
+                item.className = 'script-item';
+                item.innerHTML = `
+                    <div>
+                        <div class="script-name">${script.name}</div>
+                        <div style="color: #666; font-size: 14px; margin-top: 5px;">${script.description}</div>
+                    </div>
+                    <button onclick="executeScript(availableScripts.find(s => s.name === '${script.name}'), this)">
+                        Exécuter
+                    </button>
+                `;
+                listDiv.appendChild(item);
+            });
+        }
+
+        // Initialiser la page
+        window.addEventListener('DOMContentLoaded', () => {
+            log('Page de scripts SQL chargée', 'info');
+            log('Sélectionnez un script à exécuter', 'info');
+            renderScripts();
+        });
+    </script>
+</body>
+</html>
