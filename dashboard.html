@@ -542,12 +542,12 @@ async function loadDevices() {
     const container = document.getElementById("devicesList");
   
     try {
-        if (!currentUser || !currentUser.zalo) {
+        if (!currentUser || !currentUser.id) {
             container.innerHTML = '<div class="empty-state">Utilisateur non identifié</div>';
             return;
         }
 
-        const devices = await window.SupabaseDB.getUserDevices(currentUser.zalo);
+        const devices = await window.SupabaseDB.getUserDevices(currentUser.id);
         console.log("[v0] loadDevices: Retrieved devices:", devices);
     
         if (!devices || devices.length === 0) {
@@ -659,7 +659,7 @@ async function removeDeviceConfirm(deviceId, deviceName) {
     }
   
     try {
-        await window.SupabaseDB.removeDevice(deviceId, currentUser.zalo);
+        await window.SupabaseDB.removeDevice(deviceId, currentUser.id);
         alert('Appareil supprimé avec succès!');
         await loadDevices();
     } catch (error) {
