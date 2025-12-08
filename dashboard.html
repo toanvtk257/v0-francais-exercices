@@ -549,8 +549,28 @@ async function loadDevices() {
         const devices = await window.SupabaseDB.getUserDevices(currentUser.zalo);
     
         if (!devices || devices.length === 0) {
-            container.innerHTML = '<div class="empty-state">Aucun appareil enregistré</div>';
-            return;
+            console.log("[v0] loadDevices: No devices found, auto-registering current device...");
+            
+            if (window.DeviceFingerprint) {
+                try {
+                    const { fingerprint, deviceInfo } = await window.DeviceFingerprint.generate();
+                    console.log("[v0] loadDevices: Generated fingerprint for auto-registration:", fingerprint);
+                    
+                    await window.SupabaseDB.trackDeviceLogin(currentUser.id, fingerprint, deviceInfo);
+                    console.log("[v0] loadDevices: Auto-registration successful, reloading devices...");
+                    
+                    // Reload devices after registration
+                    await loadDevices();
+                    return;
+                } catch (error) {
+                    console.error("[v0] loadDevices: Auto-registration failed:", error);
+                    container.innerHTML = '<div class="empty-state">Erreur lors de l\'enregistrement de l\'appareil</div>';
+                    return;
+                }
+            } else {
+                container.innerHTML = '<div class="empty-state">DeviceFingerprint non disponible</div>';
+                return;
+            }
         }
 
         // Get current device fingerprint
