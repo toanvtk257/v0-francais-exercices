@@ -595,9 +595,17 @@ async function loadDevices() {
         devices.forEach((device, index) => {
             const isCurrent = device.device_fingerprint === currentFingerprint;
       
-            const deviceName = window.DeviceFingerprint 
-                ? window.DeviceFingerprint.getDeviceName(device.device_info || {})
-                : `Appareil ${index + 1}`;
+            // Use device_name from database if available, otherwise try to detect from stored info
+            let deviceName = device.device_name || 'Appareil inconnu';
+            
+            // If no device_name in DB, try to generate it from browser/os or userAgent
+            if (!device.device_name && device.browser && window.DeviceFingerprint) {
+                const reconstructedInfo = {
+                    userAgent: device.browser,
+                    platform: device.os
+                };
+                deviceName = window.DeviceFingerprint.getDeviceName(reconstructedInfo);
+            }
       
             const lastSeen = new Date(device.last_seen).toLocaleDateString('fr-FR', {
                 year: 'numeric',
