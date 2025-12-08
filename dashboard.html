@@ -212,6 +212,7 @@ let currentResourcePage = 1;
 let filteredExercises = [];
 let allDevices = [];
 const ITEMS_PER_PAGE = 10;
+let isAutoRegistering = false;
 
 async function checkAuth() {
     try {
@@ -547,24 +548,33 @@ async function loadDevices() {
         }
 
         const devices = await window.SupabaseDB.getUserDevices(currentUser.zalo);
+        console.log("[v0] loadDevices: Retrieved devices:", devices);
     
         if (!devices || devices.length === 0) {
+            if (isAutoRegistering) {
+                console.log("[v0] loadDevices: Already auto-registering, skipping to prevent loop");
+                container.innerHTML = '<div class="empty-state">Enregistrement de l\'appareil en cours...</div>';
+                return;
+            }
+
             console.log("[v0] loadDevices: No devices found, auto-registering current device...");
             
             if (window.DeviceFingerprint) {
                 try {
+                    isAutoRegistering = true;
                     const { fingerprint, deviceInfo } = await window.DeviceFingerprint.generate();
                     console.log("[v0] loadDevices: Generated fingerprint for auto-registration:", fingerprint);
                     
                     await window.SupabaseDB.trackDeviceLogin(currentUser.id, fingerprint, deviceInfo);
                     console.log("[v0] loadDevices: Auto-registration successful, reloading devices...");
                     
-                    // Reload devices after registration
-                    await loadDevices();
+                    isAutoRegistering = false;
+                    setTimeout(() => loadDevices(), 500);
                     return;
                 } catch (error) {
+                    isAutoRegistering = false;
                     console.error("[v0] loadDevices: Auto-registration failed:", error);
-                    container.innerHTML = '<div class="empty-state">Erreur lors de l\'enregistrement de l\'appareil</div>';
+                    container.innerHTML = `<div class="empty-state">Erreur lors de l'enregistrement: ${error.message}</div>`;
                     return;
                 }
             } else {
