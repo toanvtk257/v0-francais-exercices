@@ -547,6 +547,10 @@ async function loadDevices() {
             return;
         }
 
+        if (window.SupabaseDB && window.SupabaseDB.updateUnknownDevices) {
+            await window.SupabaseDB.updateUnknownDevices(currentUser.id);
+        }
+
         const devices = await window.SupabaseDB.getUserDevices(currentUser.id);
         console.log("[v0] loadDevices: Retrieved devices:", devices);
     
