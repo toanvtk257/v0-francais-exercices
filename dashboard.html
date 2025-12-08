@@ -593,10 +593,6 @@ async function loadDevices() {
         let html = '';
     
         devices.forEach((device, index) => {
-            const lockedUntil = new Date(device.locked_until);
-            const now = new Date();
-            const isLocked = device.is_locked && lockedUntil > now;
-            const daysRemaining = isLocked ? Math.ceil((lockedUntil - now) / (1000 * 60 * 60 * 24)) : 0;
             const isCurrent = device.device_fingerprint === currentFingerprint;
       
             const deviceName = window.DeviceFingerprint 
@@ -614,8 +610,16 @@ async function loadDevices() {
             const firstSeen = new Date(device.first_seen).toLocaleDateString('fr-FR', {
                 year: 'numeric',
                 month: 'long',
-                day: 'numeric'
+                day: 'numeric',
+                hour: '2-digit',
+                minute: '2-digit'
             });
+
+            const firstSeenDate = new Date(device.first_seen);
+            const resetDate = new Date(firstSeenDate);
+            resetDate.setDate(resetDate.getDate() + 7);
+            const now = new Date();
+            const daysUntilReset = Math.ceil((resetDate - now) / (1000 * 60 * 60 * 24));
       
             html += `
                 <div class="device-card">
@@ -623,24 +627,15 @@ async function loadDevices() {
                         <div class="device-name">${deviceName}</div>
                         <div>
                             ${isCurrent ? '<span class="device-status current">Appareil actuel</span>' : ''}
-                            ${isLocked ? `<span class="device-status locked">🔒 Verrouillé (${daysRemaining}j)</span>` : '<span class="device-status unlocked">🔓 Déverrouillé</span>'}
+                            <span class="device-status unlocked">🔓 Déverrouillé</span>
                         </div>
                     </div>
                     <div class="device-info">
-                        <div>✓ Ajouté le: ${firstSeen}</div>
-                        <div>✓ Dernière connexion: ${lastSeen}</div>
+                        <div>✓ Ajouté le ${firstSeen} à ${new Date(device.first_seen).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })}</div>
+                        <div>✓ Dernière connexion ${lastSeen}</div>
                         <div>✓ Nombre de connexions: ${device.login_count}</div>
-                        ${isLocked ? `<div>✓ Déverrouillage le: ${lockedUntil.toLocaleDateString('fr-FR')}</div>` : ''}
+                        ${daysUntilReset > 0 ? `<div style="color: #f44336;">⏱ Réinitialisation dans ${daysUntilReset} jour${daysUntilReset > 1 ? 's' : ''}</div>` : ''}
                     </div>
-                    ${!isCurrent ? `
-                        <div class="device-actions">
-                            <button onclick="removeDeviceConfirm(${device.id}, '${deviceName}')" 
-                                    ${isLocked ? 'disabled' : ''}
-                                    style="background: ${isLocked ? '#ccc' : '#f44336'}; color: #fff; border: none; padding: 8px 16px; border-radius: 6px; cursor: ${isLocked ? 'not-allowed' : 'pointer'};">
-                                ${isLocked ? `Suppression possible dans ${daysRemaining} jour(s)` : 'Supprimer cet appareil'}
-                            </button>
-                        </div>
-                    ` : ''}
                 </div>
             `;
         });
@@ -649,22 +644,7 @@ async function loadDevices() {
     
     } catch (error) {
         console.error("[v0] Error loading devices:", error);
-        container.innerHTML = `<div class="empty-state" style="color: #c33;">Erreur lors du chargement des appareils: ${error.message}</div>`;
-    }
-}
-
-async function removeDeviceConfirm(deviceId, deviceName) {
-    if (!confirm(`Êtes-vous sûr de vouloir supprimer l'appareil "${deviceName}" ?\n\nVous pourrez vous reconnecter depuis cet appareil plus tard, mais il sera compté comme un nouvel appareil et sera verrouillé pendant 7 jours.`)) {
-        return;
-    }
-  
-    try {
-        await window.SupabaseDB.removeDevice(deviceId, currentUser.id);
-        alert('Appareil supprimé avec succès!');
-        await loadDevices();
-    } catch (error) {
-        console.error("[v0] Error removing device:", error);
-        alert(`Erreur: ${error.message}`);
+        container.innerHTML = `<div class="empty-state">Erreur: ${error.message}</div>`;
     }
 }
 
