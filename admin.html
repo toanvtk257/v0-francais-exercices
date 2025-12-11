@@ -418,6 +418,18 @@ h1 {
     
     <div class="card">
       <h2>Sélectionner un étudiant pour afficher ses statistiques :</h2>
+      <!-- Adding Zalo search field -->
+      <div style="margin-bottom: 20px;">
+        <input 
+          type="text" 
+          id="studentZaloSearch" 
+          placeholder="Rechercher par numéro Zalo..." 
+          style="width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 4px; font-size: 14px;"
+          oninput="searchStudentByZalo(this.value)"
+        />
+        <div id="zaloSearchResults" style="margin-top: 10px;"></div>
+      </div>
+      
       <select id="studentStatsSelect" onchange="loadStudentStats(this.value)">
         <option value="">-- Sélectionner un étudiant --</option>
       </select>
@@ -1025,6 +1037,99 @@ async function rejectRegistration(id) {
     }
 }
 
+let editingResourceId = null;
+
+async function editResource(id) {
+    try {
+        // Fetch all resources and find the specific one
+        const resources = await window.SupabaseDB.getResources();
+        const resource = resources.find(r => r.id === id);
+        
+        if (!resource) {
+            alert('Ressource introuvable');
+            return;
+        }
+        
+        // Populate form with existing data
+        document.getElementById('resourceTitle').value = resource.titre;
+        document.getElementById('resourceUrl').value = resource.url;
+        document.getElementById('resourceCategory').value = resource.categorie;
+        document.getElementById('resourceDescription').value = resource.description || '';
+        
+        // Store the ID being edited
+        editingResourceId = id;
+        
+        // Change button text to indicate editing mode
+        const submitBtn = document.querySelector('#resourceForm button[type="submit"]');
+        submitBtn.textContent = 'Mettre à jour';
+        submitBtn.classList.add('btn-warning'); // Use a different color for update
+        
+        // Add cancel button if it doesn't exist
+        if (!document.getElementById('cancelEditBtn')) {
+            const cancelBtn = document.createElement('button');
+            cancelBtn.id = 'cancelEditBtn';
+            cancelBtn.type = 'button';
+            cancelBtn.className = 'btn btn-secondary'; // Use a secondary style for cancel
+            cancelBtn.textContent = 'Annuler';
+            cancelBtn.style.marginLeft = '10px'; // Add some spacing
+            cancelBtn.onclick = cancelEditResource;
+            submitBtn.parentElement.appendChild(cancelBtn);
+        }
+        
+        // Scroll to form for better user experience
+        document.getElementById('resourceForm').scrollIntoView({ behavior: 'smooth' });
+        
+    } catch (error) {
+        console.error('Error loading resource for editing:', error);
+        alert('Erreur lors du chargement de la ressource pour modification');
+    }
+}
+
+function cancelEditResource() {
+    editingResourceId = null;
+    document.getElementById('resourceForm').reset();
+    
+    const submitBtn = document.querySelector('#resourceForm button[type="submit"]');
+    submitBtn.textContent = 'Ajouter';
+    submitBtn.classList.remove('btn-warning');
+    submitBtn.classList.add('btn-primary'); // Revert to primary color
+    
+    const cancelBtn = document.getElementById('cancelEditBtn');
+    if (cancelBtn) {
+        cancelBtn.remove();
+    }
+}
+
+async function addResource(event) {
+    event.preventDefault();
+    
+    try {
+        const resourceData = {
+            titre: document.getElementById('resourceTitle').value,
+            url: document.getElementById('resourceUrl').value,
+            categorie: document.getElementById('resourceCategory').value,
+            description: document.getElementById('resourceDescription').value
+        };
+        
+        if (editingResourceId) {
+            // Update existing resource
+            await window.SupabaseDB.updateResource(editingResourceId, resourceData);
+            cancelEditResource(); // Reset form and buttons after update
+        } else {
+            // Create new resource
+            await window.SupabaseDB.createResource(resourceData);
+            document.getElementById('resourceForm').reset(); // Reset form for next addition
+        }
+        
+        await loadResources(); // Reload the list to show changes
+        
+    } catch (error) {
+        console.error('Error saving resource:', error);
+        alert('Erreur lors de l\'enregistrement');
+    }
+}
+
+
 async function loadResources() {
     const container = document.getElementById('resourcesList');
     
@@ -1045,6 +1150,7 @@ async function loadResources() {
                         <td>${r.categorie || '-'}</td>
                         <td>${r.description || '-'}</td>
                         <td>
+                            <button class="btn btn-small btn-primary" onclick="editResource('${r.id}')" style="margin-right: 8px;">Modifier</button>
                             <button class="btn btn-small btn-danger" onclick="deleteResource('${r.id}')">Supprimer</button>
                         </td>
                     </tr>
@@ -1055,26 +1161,6 @@ async function loadResources() {
     } catch (error) {
         console.error('Error loading resources:', error);
         container.innerHTML = '<div class="empty-state">Erreur de chargement</div>';
-    }
-}
-
-async function addResource(event) {
-    event.preventDefault();
-    
-    try {
-        await window.SupabaseDB.createResource({
-            titre: document.getElementById('resourceTitle').value,
-            url: document.getElementById('resourceUrl').value,
-            categorie: document.getElementById('resourceCategory').value,
-            description: document.getElementById('resourceDescription').value
-        });
-        
-        document.getElementById('resourceForm').reset();
-        await loadResources();
-        
-    } catch (error) {
-        console.error('Error adding resource:', error);
-        alert('Erreur lors de l\'ajout');
     }
 }
 
@@ -1529,6 +1615,59 @@ const handleUserSearch = debounce((event) => {
     
     renderUsers(filtered);
 }, 300);
+
+let searchTimeout;
+async function searchStudentByZalo(zalo) {
+    const resultsDiv = document.getElementById('zaloSearchResults');
+    const select = document.getElementById('studentStatsSelect');
+    
+    clearTimeout(searchTimeout);
+    
+    if (!zalo || zalo.trim().length < 3) {
+        resultsDiv.innerHTML = '';
+        return;
+    }
+    
+    searchTimeout = setTimeout(async () => {
+        try {
+            const students = await window.SupabaseDB.getStudents();
+            const filtered = students.filter(s => 
+                s.zalo && s.zalo.includes(zalo.trim())
+            );
+            
+            if (filtered.length === 0) {
+                resultsDiv.innerHTML = '<div style="padding: 10px; background: #f8f9fa; border-radius: 4px; color: #666;">Aucun étudiant trouvé avec ce numéro Zalo</div>';
+            } else {
+                resultsDiv.innerHTML = `
+                    <div style="background: #f8f9fa; border-radius: 4px; padding: 10px;">
+                        <strong>Résultats (${filtered.length}):</strong>
+                        <ul style="margin: 10px 0 0 0; padding: 0; list-style: none;">
+                            ${filtered.map(s => `
+                                <li style="padding: 8px; margin: 5px 0; background: white; border-radius: 4px; cursor: pointer; border: 1px solid #ddd;" 
+                                    onclick="selectStudentFromSearch('${s.id}', '${s.name}', '${s.zalo}')">
+                                    <strong>${s.name}</strong> - ${s.email}<br>
+                                    <small style="color: #666;">Zalo: ${s.zalo}</small>
+                                </li>
+                            `).join('')}
+                        </ul>
+                    </div>
+                `;
+            }
+        } catch (error) {
+            console.error('Error searching by Zalo:', error);
+            resultsDiv.innerHTML = '<div style="padding: 10px; background: #fee; border-radius: 4px; color: #c33;">Erreur lors de la recherche</div>';
+        }
+    }, 300);
+}
+
+function selectStudentFromSearch(userId, name, zalo) {
+    const select = document.getElementById('studentStatsSelect');
+    select.value = userId;
+    loadStudentStats(userId);
+    
+    document.getElementById('studentZaloSearch').value = `${name} - ${zalo}`;
+    document.getElementById('zaloSearchResults').innerHTML = '';
+}
 
 </script>
 </body>
