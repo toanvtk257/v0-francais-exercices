@@ -365,6 +365,40 @@ h1 {
 .exercise-table tbody tr:last-child td {
     border-bottom: none;
 }
+
+/* Add level-specific subtitle */
+.level-subtitle {
+    margin-top: 24px;
+    margin-bottom: 10px;
+    font-size: 1.1rem;
+    font-weight: 600;
+    color: var(--brand);
+}
+
+/* Ensure sub-sections are visually distinct */
+.level-subsection {
+    margin-bottom: 20px;
+    padding-left: 10px; /* Add a small indent */
+    border-left: 3px solid var(--brand-dark); /* Add a subtle vertical line */
+}
+
+/* Add styling for level subsections */
+.level-subsection {
+    margin-bottom: 2rem;
+}
+
+.level-subtitle {
+    font-size: 1.1rem;
+    font-weight: 600;
+    color: #2c3e50;
+    margin: 1rem 0 0.75rem 0;
+    padding: 0.5rem 1rem;
+    background: linear-gradient(135deg, #f5f7fa 0%, #e8ecf1 100%);
+    border-left: 4px solid #3498db;
+    border-radius: 4px;
+}
+
+/* End of Style updates */
 </style>
 </head>
 <body>
@@ -788,7 +822,6 @@ function renderExercises(exercises) {
     
     const levelOrder = { 'A1': 1, 'A2': 2, 'B1': 3, 'B2': 4, 'C1': 5, 'C2': 6 };
     
-    // Group by type
     const grouped = {
         grammaire: filtered.filter(e => e.type === 'grammaire'),
         lexique: filtered.filter(e => e.type === 'lexique'),
@@ -796,11 +829,18 @@ function renderExercises(exercises) {
         ecoute: filtered.filter(e => e.type === 'ecoute')
     };
     
+    // Sort exercises within each type by level and title number
     Object.keys(grouped).forEach(key => {
         grouped[key].sort((a, b) => {
             const levelA = levelOrder[a.niveau] || 999;
             const levelB = levelOrder[b.niveau] || 999;
-            return levelA - levelB;
+            if (levelA !== levelB) {
+                return levelA - levelB;
+            }
+            // Extract number from title
+            const numA = parseInt(a.titre?.match(/^\d+/)?.[0] || a.titre?.match(/\d+/)?.[0] || '999');
+            const numB = parseInt(b.titre?.match(/^\d+/)?.[0] || b.titre?.match(/\d+/)?.[0] || '999');
+            return numA - numB;
         });
     });
     
@@ -815,33 +855,54 @@ function renderExercises(exercises) {
     for (const [type, exs] of Object.entries(grouped)) {
         if (exs.length === 0) continue;
         
+        const byLevel = {};
+        exs.forEach(ex => {
+            const level = ex.niveau || 'Autre';
+            if (!byLevel[level]) byLevel[level] = [];
+            byLevel[level].push(ex);
+        });
+        
+        // Sort levels
+        const sortedLevels = Object.keys(byLevel).sort((a, b) => {
+            return (levelOrder[a] || 999) - (levelOrder[b] || 999);
+        });
+        
         html += `<div class="exercise-category">
-            <h3 class="category-title">${typeLabels[type]}</h3>
-            <table class="exercise-table">
-                <thead>
-                    <tr>
-                        <th>Titre</th>
-                        <th>Niveau</th>
-                        <th>Thème</th>
-                        <th>Questions</th>
-                        <th>Actions</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    ${exs.map(e => `
-                        <tr>
-                            <td><strong>${e.titre}</strong></td>
-                            <td><span class="badge badge-info">${e.niveau}</span></td>
-                            <td>${e.theme || '-'}</td>
-                            <td>${e.questions?.length || 0}</td>
-                            <td>
-                                <button class="btn btn-small btn-danger" onclick="deleteExercise('${e.id}')">Supprimer</button>
-                            </td>
-                        </tr>
-                    `).join('')}
-                </tbody>
-            </table>
-        </div>`;
+            <h3 class="category-title">${typeLabels[type]}</h3>`;
+        
+        sortedLevels.forEach(level => {
+            const levelExercises = byLevel[level];
+            html += `
+                <div class="level-subsection">
+                    <h4 class="level-subtitle">Niveau ${level}</h4>
+                    <table class="exercise-table">
+                        <thead>
+                            <tr>
+                                <th>Titre</th>
+                                <th>Niveau</th>
+                                <th>Thème</th>
+                                <th>Questions</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            ${levelExercises.map(e => `
+                                <tr>
+                                    <td><strong>${e.titre}</strong></td>
+                                    <td><span class="badge badge-info">${e.niveau}</span></td>
+                                    <td>${e.theme || '-'}</td>
+                                    <td>${e.questions?.length || 0}</td>
+                                    <td>
+                                        <button class="btn btn-small btn-danger" onclick="deleteExercise('${e.id}')">Supprimer</button>
+                                    </td>
+                                </tr>
+                            `).join('')}
+                        </tbody>
+                    </table>
+                </div>`;
+        });
+        
+        html += `</div>`;
     }
     
     if (html === '') {
