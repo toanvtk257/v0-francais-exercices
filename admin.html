@@ -498,6 +498,8 @@ h1 {
     <button class="tab-btn" onclick="switchTab('registrations')">Demandes d'inscription <span id="pendingBadge" class="badge" style="display:none">0</span></button>
     <button class="tab-btn" onclick="switchTab('resources')">Ressources externes</button>
     <button class="tab-btn" onclick="switchTab('messages')">Messages</button>
+    <!-- Added settings tab for PIN management -->
+    <button class="tab-btn" onclick="switchTab('settings')">Paramètres</button>
   </div>
 
   <!-- Dashboard Tab -->
@@ -628,7 +630,7 @@ h1 {
           <div class="form-group">
             <label>URL</label>
             <!-- Removed inline oninput handler -->
-            <input type="url" id="resourceUrl" required>
+            <input type="url" id="resourceUrl" required oninput="handleUrlInput(this.value)">
           </div>
           <div class="form-group">
             <label>Catégorie</label>
@@ -683,6 +685,55 @@ h1 {
       </div>
     </div>
   </div>
+
+  <!-- Added new settings tab content -->
+  <!-- Settings Tab -->
+  <div id="settings" class="tab-content">
+    <div class="card">
+      <h2>⚙️ Paramètres administrateur</h2>
+      
+      <div style="max-width: 500px;">
+        <h3>Code PIN de sécurité</h3>
+        <p style="color: #666; margin-bottom: 20px;">
+          Ce code PIN est utilisé pour déverrouiller l'accès aux informations sensibles des utilisateurs.
+          Il doit contenir 4 ou 6 chiffres.
+        </p>
+
+        <div style="background: #f5f5f5; padding: 20px; border-radius: 8px; margin-bottom: 20px;">
+          <p style="margin: 0; font-weight: 600;">📌 Code PIN actuel:</p>
+          <p id="currentPinDisplay" style="margin: 10px 0 0 0; font-size: 24px; color: #10b981; font-family: monospace;">••••••</p>
+        </div>
+
+        <div style="margin-bottom: 15px;">
+          <label style="display: block; margin-bottom: 5px; font-weight: 600;">Ancien code PIN:</label>
+          <input type="password" id="oldPin" placeholder="Entrez votre code PIN actuel" 
+                 style="width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 4px;" 
+                 maxlength="6" pattern="[0-9]*" inputmode="numeric">
+        </div>
+
+        <div style="margin-bottom: 15px;">
+          <label style="display: block; margin-bottom: 5px; font-weight: 600;">Nouveau code PIN (4 or 6 chiffres):</label>
+          <input type="password" id="newPin" placeholder="Entrez un nouveau code PIN" 
+                 style="width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 4px;" 
+                 maxlength="6" pattern="[0-9]*" inputmode="numeric">
+        </div>
+
+        <div style="margin-bottom: 20px;">
+          <label style="display: block; margin-bottom: 5px; font-weight: 600;">Confirmer le nouveau code PIN:</label>
+          <input type="password" id="confirmPin" placeholder="Confirmez le nouveau code PIN" 
+                 style="width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 4px;" 
+                 maxlength="6" pattern="[0-9]*" inputmode="numeric">
+        </div>
+
+        <button onclick="updateAdminPin()" class="btn-primary" style="width: 100%;">
+          Modifier le code PIN
+        </button>
+
+        <div id="pinUpdateMessage" style="margin-top: 15px; padding: 10px; border-radius: 4px; display: none;"></div>
+      </div>
+    </div>
+  </div>
+
 </main>
 
 <!-- Change PIN Modal -->
@@ -1913,6 +1964,104 @@ function selectStudentFromSearch(userId, name, zalo) {
     document.getElementById('zaloSearchResults').innerHTML = '';
 }
 
+async function updateAdminPin() {
+  const oldPin = document.getElementById('oldPin').value.trim();
+  const newPin = document.getElementById('newPin').value.trim();
+  const confirmPin = document.getElementById('confirmPin').value.trim();
+  const messageDiv = document.getElementById('pinUpdateMessage');
+
+  // Validation
+  if (!oldPin || !newPin || !confirmPin) {
+    showPinMessage('Veuillez remplir tous les champs', 'error');
+    return;
+  }
+
+  if (newPin.length < 4 || newPin.length > 6) {
+    showPinMessage('Le code PIN doit contenir 4 ou 6 chiffres', 'error');
+    return;
+  }
+
+  if (!/^\d+$/.test(newPin)) {
+    showPinMessage('Le code PIN ne doit contenir que des chiffres', 'error');
+    return;
+  }
+
+  if (newPin !== confirmPin) {
+    showPinMessage('Les codes PIN ne correspondent pas', 'error');
+    return;
+  }
+
+  try {
+    // Verify old PIN first
+    const isValid = await window.SupabaseDB.verifyAdminPin(oldPin);
+    if (!isValid) {
+      showPinMessage('L\'ancien code PIN est incorrect', 'error');
+      return;
+    }
+
+    // Update PIN
+    const currentUser = await window.SupabaseDB.getCurrentUser();
+    await window.SupabaseDB.updateUser(currentUser.id, { pin: newPin });
+
+    // Clear form
+    document.getElementById('oldPin').value = '';
+    document.getElementById('newPin').value = '';
+    document.getElementById('confirmPin').value = '';
+
+    showPinMessage('✓ Code PIN modifié avec succès', 'success');
+    
+    // Update display
+    document.getElementById('currentPinDisplay').textContent = '•'.repeat(newPin.length);
+  } catch (error) {
+    console.error('Error updating PIN:', error);
+    showPinMessage('Erreur: ' + error.message, 'error');
+  }
+}
+
+function showPinMessage(message, type) {
+  const messageDiv = document.getElementById('pinUpdateMessage');
+  messageDiv.textContent = message;
+  messageDiv.style.display = 'block';
+  messageDiv.style.background = type === 'success' ? '#d1fae5' : '#fee2e2';
+  messageDiv.style.color = type === 'success' ? '#065f46' : '#991b1b';
+  messageDiv.style.border = `1px solid ${type === 'success' ? '#10b981' : '#ef4444'}`;
+
+  setTimeout(() => {
+    messageDiv.style.display = 'none';
+  }, 5000);
+}
+
+async function loadPinSettings() {
+  try {
+    const currentUser = await window.SupabaseDB.getCurrentUser();
+    if (currentUser && currentUser.role === 'admin') {
+      const client = await window.SupabaseDB.getSupabaseClient();
+      const { data } = await client
+        .from('users')
+        .select('pin')
+        .eq('id', currentUser.id)
+        .single();
+      
+      if (data && data.pin) {
+        document.getElementById('currentPinDisplay').textContent = '•'.repeat(data.pin.length);
+      }
+    }
+  } catch (error) {
+    console.error('Error loading PIN settings:', error);
+  }
+}
+
+function switchTab(tabName) {
+    document.querySelectorAll('.tab-btn').forEach(btn => btn.classList.remove('active'));
+    document.querySelectorAll('.tab-content').forEach(content => content.classList.remove('active'));
+    
+    document.querySelector(`.tab-btn[onclick="switchTab('${tabName}')"]`).classList.add('active');
+    document.getElementById(tabName).classList.add('active');
+      
+    if (tabName === 'settings') {
+      loadPinSettings();
+    }
+}
 </script>
 </body>
 </html>
