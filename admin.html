@@ -693,40 +693,47 @@ h1 {
       <h2>⚙️ Paramètres administrateur</h2>
       
       <div style="max-width: 500px;">
-        <h3>Code PIN de sécurité</h3>
+        <h3>🔐 Code PIN de visualisation</h3>
         <p style="color: #666; margin-bottom: 20px;">
-          Ce code PIN est utilisé pour déverrouiller l'accès aux informations sensibles des utilisateurs.
+          Ce code PIN est utilisé pour <strong>déverrouiller l'accès aux informations sensibles des utilisateurs</strong> (nom, email, Zalo).
           Il doit contenir 4 ou 6 chiffres.
         </p>
+        
+        <div style="background: #e3f2fd; padding: 15px; border-radius: 8px; margin-bottom: 20px; border-left: 4px solid #2196f3;">
+          <p style="margin: 0; font-size: 0.9rem; color: #1565c0;">
+            ℹ️ <strong>Remarque:</strong> Ce code est différent de votre code PIN de connexion. 
+            Pour modifier votre code de connexion, utilisez le bouton "Réinitialiser PIN" en haut à droite.
+          </p>
+        </div>
 
         <div style="background: #f5f5f5; padding: 20px; border-radius: 8px; margin-bottom: 20px;">
-          <p style="margin: 0; font-weight: 600;">📌 Code PIN actuel:</p>
-          <p id="currentPinDisplay" style="margin: 10px 0 0 0; font-size: 24px; color: #10b981; font-family: monospace;">••••••</p>
+          <p style="margin: 0; font-weight: 600;">📌 Code PIN de visualisation actuel:</p>
+          <p id="currentPinDisplay" style="margin: 10px 0 0 0; font-size: 24px; color: #10b981; font-family: monospace;">••••</p>
         </div>
 
         <div style="margin-bottom: 15px;">
-          <label style="display: block; margin-bottom: 5px; font-weight: 600;">Ancien code PIN:</label>
-          <input type="password" id="oldPin" placeholder="Entrez votre code PIN actuel" 
+          <label style="display: block; margin-bottom: 5px; font-weight: 600;">Ancien code PIN de visualisation:</label>
+          <input type="password" id="oldViewPin" placeholder="Entrez votre code actuel" 
                  style="width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 4px;" 
                  maxlength="6" pattern="[0-9]*" inputmode="numeric">
         </div>
 
         <div style="margin-bottom: 15px;">
-          <label style="display: block; margin-bottom: 5px; font-weight: 600;">Nouveau code PIN (4 or 6 chiffres):</label>
-          <input type="password" id="newPin" placeholder="Entrez un nouveau code PIN" 
+          <label style="display: block; margin-bottom: 5px; font-weight: 600;">Nouveau code PIN (4 ou 6 chiffres):</label>
+          <input type="password" id="newViewPin" placeholder="Entrez un nouveau code" 
                  style="width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 4px;" 
                  maxlength="6" pattern="[0-9]*" inputmode="numeric">
         </div>
 
         <div style="margin-bottom: 20px;">
           <label style="display: block; margin-bottom: 5px; font-weight: 600;">Confirmer le nouveau code PIN:</label>
-          <input type="password" id="confirmPin" placeholder="Confirmez le nouveau code PIN" 
+          <input type="password" id="confirmViewPin" placeholder="Confirmez le nouveau code" 
                  style="width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 4px;" 
                  maxlength="6" pattern="[0-9]*" inputmode="numeric">
         </div>
 
-        <button onclick="updateAdminPin()" class="btn-primary" style="width: 100%;">
-          Modifier le code PIN
+        <button onclick="updateAdminViewPin()" class="btn-primary" style="width: 100%;">
+          Modifier le code PIN de visualisation
         </button>
 
         <div id="pinUpdateMessage" style="margin-top: 15px; padding: 10px; border-radius: 4px; display: none;"></div>
@@ -779,7 +786,7 @@ h1 {
       id="pinInput" 
       class="pin-input" 
       placeholder="••••" 
-      maxlength="4"
+      maxlength="6"
       inputmode="numeric"
     >
     <div id="pinError" class="pin-error"></div>
@@ -833,13 +840,13 @@ async function verifyPinAndShowInfo() {
   const pin = document.getElementById('pinInput').value;
   const errorDiv = document.getElementById('pinError');
   
-  if (!pin || pin.length !== 4) {
-    errorDiv.textContent = 'Le code PIN doit contenir 4 chiffres';
+  if (!pin || (pin.length !== 4 && pin.length !== 6)) {
+    errorDiv.textContent = 'Le code PIN doit contenir 4 ou 6 chiffres';
     return;
   }
   
   try {
-    // Verify PIN with backend
+    // Verify PIN with backend (now uses view_pin)
     const isValid = await window.SupabaseDB.verifyAdminPin(pin);
     
     if (isValid) {
@@ -1964,10 +1971,10 @@ function selectStudentFromSearch(userId, name, zalo) {
     document.getElementById('zaloSearchResults').innerHTML = '';
 }
 
-async function updateAdminPin() {
-  const oldPin = document.getElementById('oldPin').value.trim();
-  const newPin = document.getElementById('newPin').value.trim();
-  const confirmPin = document.getElementById('confirmPin').value.trim();
+async function updateAdminViewPin() {
+  const oldPin = document.getElementById('oldViewPin').value;
+  const newPin = document.getElementById('newViewPin').value;
+  const confirmPin = document.getElementById('confirmViewPin').value;
   const messageDiv = document.getElementById('pinUpdateMessage');
 
   // Validation
@@ -1992,28 +1999,20 @@ async function updateAdminPin() {
   }
 
   try {
-    // Verify old PIN first
-    const isValid = await window.SupabaseDB.verifyAdminPin(oldPin);
-    if (!isValid) {
-      showPinMessage('L\'ancien code PIN est incorrect', 'error');
-      return;
-    }
-
-    // Update PIN
-    const currentUser = await window.SupabaseDB.getCurrentUser();
-    await window.SupabaseDB.updateUser(currentUser.id, { pin: newPin });
+    // Use the new updateAdminViewPin function from SupabaseDB
+    await window.SupabaseDB.updateAdminViewPin(oldPin, newPin);
 
     // Clear form
-    document.getElementById('oldPin').value = '';
-    document.getElementById('newPin').value = '';
-    document.getElementById('confirmPin').value = '';
+    document.getElementById('oldViewPin').value = '';
+    document.getElementById('newViewPin').value = '';
+    document.getElementById('confirmViewPin').value = '';
 
-    showPinMessage('✓ Code PIN modifié avec succès', 'success');
+    showPinMessage('✓ Code PIN de visualisation modifié avec succès', 'success');
     
     // Update display
     document.getElementById('currentPinDisplay').textContent = '•'.repeat(newPin.length);
   } catch (error) {
-    console.error('Error updating PIN:', error);
+    console.error('Error updating view PIN:', error);
     showPinMessage('Erreur: ' + error.message, 'error');
   }
 }
@@ -2035,15 +2034,19 @@ async function loadPinSettings() {
   try {
     const currentUser = await window.SupabaseDB.getCurrentUser();
     if (currentUser && currentUser.role === 'admin') {
-      const client = await window.SupabaseDB.getSupabaseClient();
+      // Assuming getSupabaseClient() returns the Supabase client instance
+      const client = await window.SupabaseDB.getClient(); 
       const { data } = await client
         .from('users')
-        .select('pin')
+        .select('view_pin')
         .eq('id', currentUser.id)
         .single();
       
-      if (data && data.pin) {
-        document.getElementById('currentPinDisplay').textContent = '•'.repeat(data.pin.length);
+      if (data && data.view_pin) {
+        document.getElementById('currentPinDisplay').textContent = '•'.repeat(data.view_pin.length);
+      } else {
+        // Default view_pin is 1234
+        document.getElementById('currentPinDisplay').textContent = '••••';
       }
     }
   } catch (error) {
