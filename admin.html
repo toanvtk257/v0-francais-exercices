@@ -398,6 +398,80 @@ h1 {
     border-radius: 4px;
 }
 
+/* Added styles for masked info and PIN modal */
+.masked-info {
+  color: #999;
+  font-family: monospace;
+  letter-spacing: 2px;
+}
+
+.view-info-btn {
+  background: #4CAF50;
+  color: white;
+  border: none;
+  padding: 6px 12px;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 0.85rem;
+  margin-right: 8px;
+}
+
+.view-info-btn:hover {
+  background: #45a049;
+}
+
+.pin-modal {
+  display: none;
+  position: fixed;
+  z-index: 10000;
+  left: 0;
+  top: 0;
+  width: 100%;
+  height: 100%;
+  background-color: rgba(0,0,0,0.5);
+}
+
+.pin-modal-content {
+  background-color: white;
+  margin: 15% auto;
+  padding: 30px;
+  border-radius: 12px;
+  width: 90%;
+  max-width: 400px;
+  box-shadow: 0 4px 20px rgba(0,0,0,0.3);
+}
+
+.pin-modal h3 {
+  margin-top: 0;
+  color: #333;
+  text-align: center;
+}
+
+.pin-input {
+  width: 100%;
+  padding: 12px;
+  font-size: 1.2rem;
+  text-align: center;
+  border: 2px solid #ddd;
+  border-radius: 8px;
+  margin: 20px 0;
+  letter-spacing: 8px;
+}
+
+.pin-buttons {
+  display: flex;
+  gap: 10px;
+  justify-content: center;
+}
+
+.pin-error {
+  color: #f44336;
+  text-align: center;
+  margin-top: 10px;
+  font-size: 0.9rem;
+}
+/* </CHANGE> */
+
 /* End of Style updates */
 </style>
 </head>
@@ -500,6 +574,11 @@ h1 {
   <div id="users" class="tab-content">
     <div class="card">
       <h2>Gestion des utilisateurs</h2>
+      
+      <!-- Added info about PIN protection -->
+      <div style="background:#fff3cd;padding:12px;border-radius:8px;margin-bottom:16px;border-left:4px solid #ffc107">
+        <strong>🔒 Protection des données :</strong> Les informations personnelles sont masquées. Utilisez le bouton "Voir les informations" et entrez votre code PIN pour les afficher.
+      </div>
       
       <!-- Added search box for users -->
       <div style="margin-bottom:16px">
@@ -639,6 +718,27 @@ h1 {
   </div>
 </div>
 
+<!-- Added PIN verification modal -->
+<div id="pinModal" class="pin-modal">
+  <div class="pin-modal-content">
+    <h3>🔐 Entrez votre code PIN</h3>
+    <p style="text-align:center;color:#666;font-size:0.9rem">Pour accéder aux informations de l'utilisateur</p>
+    <input 
+      type="password" 
+      id="pinInput" 
+      class="pin-input" 
+      placeholder="••••" 
+      maxlength="4"
+      inputmode="numeric"
+    >
+    <div id="pinError" class="pin-error"></div>
+    <div class="pin-buttons">
+      <button class="btn btn-secondary" onclick="closePinModal()">Annuler</button>
+      <button class="btn btn-primary" onclick="verifyPinAndShowInfo()">Valider</button>
+    </div>
+  </div>
+</div>
+
 <!-- Load Supabase client library -->
 <script src="lib/config.js"></script>
 <script src="lib/supabase-client.js"></script>
@@ -648,6 +748,82 @@ h1 {
 let currentUser = null;
 let selectedRecipients = [];
 let selectedConversation = null;
+
+let currentUserToView = null;
+const unmaskedUsers = new Set(); // Track which users have been unmasked in current session
+
+function maskString(str, type = 'text') {
+  if (!str) return '-';
+  
+  if (type === 'email') {
+    const [local, domain] = str.split('@');
+    return `${local[0]}${'*'.repeat(Math.min(local.length - 1, 5))}@${domain}`;
+  } else if (type === 'phone') {
+    return str.slice(0, 2) + '*'.repeat(str.length - 4) + str.slice(-2);
+  } else {
+    return str[0] + '*'.repeat(Math.min(str.length - 1, 8));
+  }
+}
+
+function showPinModal(userId) {
+  currentUserToView = userId;
+  document.getElementById('pinModal').style.display = 'block';
+  document.getElementById('pinInput').value = '';
+  document.getElementById('pinError').textContent = '';
+  setTimeout(() => document.getElementById('pinInput').focus(), 100);
+}
+
+function closePinModal() {
+  document.getElementById('pinModal').style.display = 'none';
+  currentUserToView = null;
+}
+
+async function verifyPinAndShowInfo() {
+  const pin = document.getElementById('pinInput').value;
+  const errorDiv = document.getElementById('pinError');
+  
+  if (!pin || pin.length !== 4) {
+    errorDiv.textContent = 'Le code PIN doit contenir 4 chiffres';
+    return;
+  }
+  
+  try {
+    // Verify PIN with backend
+    const isValid = await window.SupabaseDB.verifyAdminPin(pin);
+    
+    if (isValid) {
+      unmaskedUsers.add(currentUserToView);
+      closePinModal();
+      renderUsers(allUsers); // Re-render to show unmasked info
+    } else {
+      errorDiv.textContent = 'Code PIN incorrect';
+      document.getElementById('pinInput').value = '';
+      document.getElementById('pinInput').focus();
+    }
+  } catch (error) {
+    console.error('Error verifying PIN:', error);
+    errorDiv.textContent = 'Erreur de vérification du PIN';
+  }
+}
+
+// Allow Enter key to submit PIN
+document.addEventListener('DOMContentLoaded', () => {
+  const pinInput = document.getElementById('pinInput');
+  if (pinInput) {
+    pinInput.addEventListener('keypress', (e) => {
+      if (e.key === 'Enter') {
+        verifyPinAndShowInfo();
+      }
+    });
+  }
+  
+  // Close modal when clicking outside
+  document.getElementById('pinModal').addEventListener('click', (e) => {
+    if (e.target.id === 'pinModal') {
+      closePinModal();
+    }
+  });
+});
 
 function debounce(func, wait) {
     let timeout;
@@ -961,17 +1137,24 @@ function renderUsers(users) {
         html += `<table>
             <thead><tr><th>Nom</th><th>Email</th><th>Zalo</th><th>Actions</th></tr></thead>
             <tbody>
-                ${userList.map(u => `
+                ${userList.map(u => {
+                    const isUnmasked = unmaskedUsers.has(u.id);
+                    const displayName = isUnmasked ? u.name : `<span class="masked-info">${maskString(u.name)}</span>`;
+                    const displayEmail = isUnmasked ? u.email : `<span class="masked-info">${maskString(u.email, 'email')}</span>`;
+                    const displayZalo = isUnmasked ? (u.zalo || '-') : `<span class="masked-info">${u.zalo ? maskString(u.zalo, 'phone') : '-'}</span>`;
+                    
+                    return `
                     <tr>
-                        <td>${u.name}</td>
-                        <td>${u.email}</td>
-                        <td>${u.zalo || '-'}</td>
+                        <td>${displayName}</td>
+                        <td>${displayEmail}</td>
+                        <td>${displayZalo}</td>
                         <td>
+                            ${!isUnmasked ? `<button class="view-info-btn" onclick="showPinModal('${u.id}')">👁️ Voir les informations</button>` : ''}
                             <button class="btn btn-small btn-warning" onclick="resetUserPin('${u.id}', '${u.name}')" style="margin-right: 8px;">Réinitialiser PIN</button>
                             <button class="btn btn-small btn-danger" onclick="deleteUser('${u.id}')">Supprimer</button>
                         </td>
                     </tr>
-                `).join('')}
+                `}).join('')}
             </tbody>
         </table>`;
     }
