@@ -1997,11 +1997,28 @@ async function verifyAdminPin(targetTab) {
 }
 
 function cancelAdminPin() {
+    console.log('[v0] Cancelling PIN modal - staying on current tab');
     const modal = document.getElementById('adminPinModal');
     if (modal) {
         modal.remove();
     }
-    // No need to switch tabs - user stays where they were
+    
+    document.querySelectorAll('.tab-btn').forEach(btn => btn.classList.remove('active'));
+    document.querySelectorAll('.tab-content').forEach(content => content.classList.remove('active'));
+    
+    // Reactivate exercises tab
+    const exercisesBtn = document.querySelector('.tab-btn[onclick="switchTab(\'exercises\')"]');
+    const exercisesContent = document.getElementById('exercises');
+    
+    if (exercisesBtn) exercisesBtn.classList.add('active');
+    if (exercisesContent) {
+        exercisesContent.classList.add('active');
+        // Ensure exercises are displayed
+        if (allExercises && allExercises.length > 0) {
+            console.log('[v0] Re-rendering exercises after PIN cancel');
+            renderExercises(allExercises);
+        }
+    }
 }
 
 function openChangePinModal() {
