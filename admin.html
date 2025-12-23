@@ -1857,13 +1857,13 @@ async function deleteConversation() {
 function switchTab(tab) {
     const protectedTabs = ['dashboard', 'users', 'registrations', 'messages'];
     
-    // Check if tab requires PIN protection
+    // Check if tab requires PIN protection BEFORE changing anything
     if (protectedTabs.includes(tab) && !adminPinVerified) {
         promptAdminPin(tab);
         return;
     }
     
-    // Original tab switching logic
+    // Only execute tab switching logic if PIN is verified or tab is not protected
     document.querySelectorAll('.tab-btn').forEach(btn => btn.classList.remove('active'));
     document.querySelectorAll('.tab-content').forEach(content => content.classList.remove('active'));
     
@@ -1878,13 +1878,24 @@ function switchTab(tab) {
       loadGlobalStats(); // Changed from loadStats() to loadGlobalStats()
     }
     
+    if (tab === 'exercises') {
+      loadExercises();
+    }
+    
     if (tab === 'users') {
       loadUsers();
     }
     
     if (tab === 'registrations') {
       loadRegistrations();
-      // loadProcessedRequests(); // This was missing in the original code, assuming it should be loadRegistrations()
+    }
+
+    if (tab === 'resources') {
+      loadResources();
+    }
+
+    if (tab === 'messages') {
+      loadConversations(); // Changed from loadMessages() to loadConversations()
     }
 }
 
@@ -1990,6 +2001,7 @@ function cancelAdminPin() {
     if (modal) {
         modal.remove();
     }
+    // No need to switch tabs - user stays where they were
 }
 
 function openChangePinModal() {
@@ -2279,6 +2291,63 @@ async function updateAdminAccessPin() {
 
 function showAdminPinMessage(message, type) {
   const messageDiv = document.getElementById('adminPinUpdateMessage');
+  messageDiv.textContent = message;
+  messageDiv.style.display = 'block';
+  messageDiv.style.background = type === 'success' ? '#d1fae5' : '#fee2e2';
+  messageDiv.style.color = type === 'success' ? '#065f46' : '#991b1b';
+  messageDiv.style.border = `1px solid ${type === 'success' ? '#6ee7b7' : '#fca5a5'}`;
+  
+  setTimeout(() => {
+    messageDiv.style.display = 'none';
+  }, 5000);
+}
+
+async function updateAdminViewPin() {
+  const oldPin = document.getElementById('oldViewPin').value;
+  const newPin = document.getElementById('newViewPin').value;
+  const confirmPin = document.getElementById('confirmViewPin').value;
+
+  // Validation
+  if (!oldPin || !newPin || !confirmPin) {
+    showPinMessage('Veuillez remplir tous les champs', 'error');
+    return;
+  }
+
+  if (newPin.length < 4 || newPin.length > 6) {
+    showPinMessage('Le code PIN doit contenir 4 ou 6 chiffres', 'error');
+    return;
+  }
+
+  if (!/^\d+$/.test(newPin)) {
+    showPinMessage('Le code PIN ne doit contenir que des chiffres', 'error');
+    return;
+  }
+
+  if (newPin !== confirmPin) {
+    showPinMessage('Les codes PIN ne correspondent pas', 'error');
+    return;
+  }
+
+  try {
+    await window.SupabaseDB.updateViewPin(oldPin, newPin);
+
+    // Clear form
+    document.getElementById('oldViewPin').value = '';
+    document.getElementById('newViewPin').value = '';
+    document.getElementById('confirmViewPin').value = '';
+
+    showPinMessage('✓ Code PIN de visualisation modifié avec succès', 'success');
+    
+    // Update display
+    document.getElementById('currentPinDisplay').textContent = '•'.repeat(newPin.length);
+  } catch (error) {
+    console.error('Error updating view PIN:', error);
+    showPinMessage('Erreur: ' + error.message, 'error');
+  }
+}
+
+function showPinMessage(message, type) {
+  const messageDiv = document.getElementById('pinUpdateMessage');
   messageDiv.textContent = message;
   messageDiv.style.display = 'block';
   messageDiv.style.background = type === 'success' ? '#d1fae5' : '#fee2e2';
