@@ -686,13 +686,53 @@ h1 {
     </div>
   </div>
 
-  <!-- Added new settings tab content -->
   <!-- Settings Tab -->
   <div id="settings" class="tab-content">
     <div class="card">
       <h2>⚙️ Paramètres administrateur</h2>
       
       <div style="max-width: 500px;">
+        <!-- Added admin PIN settings section -->
+        <h3>🔒 Code PIN d'accès admin</h3>
+        <p style="color: #666; margin-bottom: 20px;">
+          Ce code PIN est utilisé pour <strong>déverrouiller l'accès aux rubriques sensibles</strong> (Tableau de bord, Utilisateurs, Demandes d'inscription).
+          Par défaut: <strong>1234</strong>
+        </p>
+        
+        <div style="background: #f5f5f5; padding: 20px; border-radius: 8px; margin-bottom: 20px;">
+          <p style="margin: 0; font-weight: 600;">🔑 Code PIN d'accès actuel:</p>
+          <p id="currentAdminPinDisplay" style="margin: 10px 0 0 0; font-size: 24px; color: #10b981; font-family: monospace;">••••</p>
+        </div>
+
+        <div style="margin-bottom: 15px;">
+          <label style="display: block; margin-bottom: 5px; font-weight: 600;">Ancien code PIN d'accès:</label>
+          <input type="password" id="oldAdminPin" placeholder="Entrez votre code actuel" 
+                 style="width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 4px;" 
+                 maxlength="6" pattern="[0-9]*" inputmode="numeric">
+        </div>
+
+        <div style="margin-bottom: 15px;">
+          <label style="display: block; margin-bottom: 5px; font-weight: 600;">Nouveau code PIN (4 ou 6 chiffres):</label>
+          <input type="password" id="newAdminPin" placeholder="Entrez un nouveau code" 
+                 style="width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 4px;" 
+                 maxlength="6" pattern="[0-9]*" inputmode="numeric">
+        </div>
+
+        <div style="margin-bottom: 20px;">
+          <label style="display: block; margin-bottom: 5px; font-weight: 600;">Confirmer le nouveau code PIN:</label>
+          <input type="password" id="confirmAdminPin" placeholder="Confirmez le nouveau code" 
+                 style="width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 4px;" 
+                 maxlength="6" pattern="[0-9]*" inputmode="numeric">
+        </div>
+
+        <button onclick="updateAdminAccessPin()" class="btn-primary" style="width: 100%; margin-bottom: 30px;">
+          Modifier le code PIN d'accès
+        </button>
+
+        <div id="adminPinUpdateMessage" style="margin-bottom: 30px; padding: 10px; border-radius: 4px; display: none;"></div>
+
+        <hr style="border: none; border-top: 1px solid #ddd; margin: 30px 0;">
+
         <h3>🔐 Code PIN de visualisation</h3>
         <p style="color: #666; margin-bottom: 20px;">
           Ce code PIN est utilisé pour <strong>déverrouiller l'accès aux informations sensibles des utilisateurs</strong> (nom, email, Zalo).
@@ -807,8 +847,12 @@ let currentUser = null;
 let selectedRecipients = [];
 let selectedConversation = null;
 
-let currentUserToView = null;
+let currentUserToView = null; // For view PIN modal
 const unmaskedUsers = new Set(); // Track which users have been unmasked in current session
+
+// Admin PIN session state
+let adminPinVerified = false;
+let adminPinSessionTimeout = null;
 
 function maskString(str, type = 'text') {
   if (!str) return '-';
@@ -1811,6 +1855,15 @@ async function deleteConversation() {
 // =============================================
 
 function switchTab(tab) {
+    const protectedTabs = ['dashboard', 'users', 'registrations'];
+    
+    // Check if tab requires PIN protection
+    if (protectedTabs.includes(tab) && !adminPinVerified) {
+        promptAdminPin(tab);
+        return;
+    }
+    
+    // Original tab switching logic
     document.querySelectorAll('.tab-btn').forEach(btn => btn.classList.remove('active'));
     document.querySelectorAll('.tab-content').forEach(content => content.classList.remove('active'));
     
@@ -1819,6 +1872,123 @@ function switchTab(tab) {
 
     if (tab === 'settings') {
       loadPinSettings();
+    }
+    
+    if (tab === 'dashboard') {
+      loadGlobalStats(); // Changed from loadStats() to loadGlobalStats()
+    }
+    
+    if (tab === 'users') {
+      loadUsers();
+    }
+    
+    if (tab === 'registrations') {
+      loadRegistrations();
+      // loadProcessedRequests(); // This was missing in the original code, assuming it should be loadRegistrations()
+    }
+}
+
+function promptAdminPin(targetTab) {
+    const modal = document.createElement('div');
+    modal.style.cssText = `
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background: rgba(0,0,0,0.5);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        z-index: 10000;
+    `;
+    
+    modal.innerHTML = `
+        <div style="background: white; padding: 30px; border-radius: 12px; max-width: 400px; width: 90%;">
+            <h2 style="margin-top: 0; color: #10b981;">🔒 Code PIN requis</h2>
+            <p style="color: #666; margin-bottom: 20px;">
+                Veuillez entrer le code PIN d'accès pour accéder à cette rubrique.
+            </p>
+            <input type="password" id="adminPinInput" placeholder="Entrez le code PIN" 
+                   style="width: 100%; padding: 12px; border: 2px solid #ddd; border-radius: 8px; font-size: 18px; 
+                          text-align: center; letter-spacing: 4px; font-family: monospace; margin-bottom: 20px;"
+                   maxlength="6" pattern="[0-9]*" inputmode="numeric">
+            <div id="pinError" style="color: #ef4444; margin-bottom: 15px; display: none; text-align: center;"></div>
+            <div style="display: flex; gap: 10px;">
+                <button onclick="cancelAdminPin()" style="flex: 1; padding: 12px; border: 1px solid #ddd; 
+                        background: white; border-radius: 8px; cursor: pointer; font-weight: 600;">
+                    Annuler
+                </button>
+                <button onclick="verifyAdminPin('${targetTab}')" style="flex: 1; padding: 12px; border: none; 
+                        background: #10b981; color: white; border-radius: 8px; cursor: pointer; font-weight: 600;">
+                    Valider
+                </button>
+            </div>
+        </div>
+    `;
+    
+    modal.id = 'adminPinModal';
+    document.body.appendChild(modal);
+    
+    // Focus input and allow Enter key
+    setTimeout(() => {
+        const input = document.getElementById('adminPinInput');
+        input.focus();
+        input.addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') {
+                verifyAdminPin(targetTab);
+            }
+        });
+    }, 100);
+}
+
+async function verifyAdminPin(targetTab) {
+    const input = document.getElementById('adminPinInput');
+    const errorDiv = document.getElementById('pinError');
+    const enteredPin = input.value;
+    
+    if (!enteredPin) {
+        errorDiv.textContent = 'Veuillez entrer un code PIN';
+        errorDiv.style.display = 'block';
+        return;
+    }
+    
+    try {
+        // Get the admin PIN from database
+        const isValid = await window.SupabaseDB.verifyAdminAccessPin(enteredPin);
+        
+        if (isValid) {
+            adminPinVerified = true;
+            
+            // Set session timeout (30 minutes)
+            if (adminPinSessionTimeout) {
+                clearTimeout(adminPinSessionTimeout);
+            }
+            adminPinSessionTimeout = setTimeout(() => {
+                adminPinVerified = false;
+                alert('Votre session a expiré. Veuillez entrer à nouveau votre code PIN.');
+            }, 30 * 60 * 1000);
+            
+            // Close modal and switch to target tab
+            cancelAdminPin();
+            switchTab(targetTab);
+        } else {
+            errorDiv.textContent = 'Code PIN incorrect';
+            errorDiv.style.display = 'block';
+            input.value = '';
+            input.focus();
+        }
+    } catch (error) {
+        console.error('Error verifying admin PIN:', error);
+        errorDiv.textContent = 'Erreur de vérification';
+        errorDiv.style.display = 'block';
+    }
+}
+
+function cancelAdminPin() {
+    const modal = document.getElementById('adminPinModal');
+    if (modal) {
+        modal.remove();
     }
 }
 
@@ -2057,60 +2227,64 @@ function selectStudentFromSearch(userId, name, zalo) {
     document.getElementById('zaloSearchResults').innerHTML = '';
 }
 
-async function updateAdminViewPin() {
-  const oldPin = document.getElementById('oldViewPin').value;
-  const newPin = document.getElementById('newViewPin').value;
-  const confirmPin = document.getElementById('confirmViewPin').value;
-  const messageDiv = document.getElementById('pinUpdateMessage');
+async function updateAdminAccessPin() {
+  const oldPin = document.getElementById('oldAdminPin').value;
+  const newPin = document.getElementById('newAdminPin').value;
+  const confirmPin = document.getElementById('confirmAdminPin').value;
 
   // Validation
   if (!oldPin || !newPin || !confirmPin) {
-    showPinMessage('Veuillez remplir tous les champs', 'error');
+    showAdminPinMessage('Veuillez remplir tous les champs', 'error');
     return;
   }
 
   if (newPin.length < 4 || newPin.length > 6) {
-    showPinMessage('Le code PIN doit contenir 4 ou 6 chiffres', 'error');
+    showAdminPinMessage('Le code PIN doit contenir 4 ou 6 chiffres', 'error');
     return;
   }
 
   if (!/^\d+$/.test(newPin)) {
-    showPinMessage('Le code PIN ne doit contenir que des chiffres', 'error');
+    showAdminPinMessage('Le code PIN ne doit contenir que des chiffres', 'error');
     return;
   }
 
   if (newPin !== confirmPin) {
-    showPinMessage('Les codes PIN ne correspondent pas', 'error');
+    showAdminPinMessage('Les codes PIN ne correspondent pas', 'error');
     return;
   }
 
   try {
-    // Use the new updateAdminViewPin function from SupabaseDB
-    await window.SupabaseDB.updateAdminViewPin(oldPin, newPin);
+    await window.SupabaseDB.updateAdminAccessPin(oldPin, newPin);
 
     // Clear form
-    document.getElementById('oldViewPin').value = '';
-    document.getElementById('newViewPin').value = '';
-    document.getElementById('confirmViewPin').value = '';
+    document.getElementById('oldAdminPin').value = '';
+    document.getElementById('newAdminPin').value = '';
+    document.getElementById('confirmAdminPin').value = '';
 
-    showPinMessage('✓ Code PIN de visualisation modifié avec succès', 'success');
+    showAdminPinMessage('✓ Code PIN d\'accès modifié avec succès', 'success');
     
     // Update display
-    document.getElementById('currentPinDisplay').textContent = '•'.repeat(newPin.length);
+    document.getElementById('currentAdminPinDisplay').textContent = '•'.repeat(newPin.length);
+    
+    // Invalidate current session
+    adminPinVerified = false;
+    if (adminPinSessionTimeout) {
+      clearTimeout(adminPinSessionTimeout);
+    }
   } catch (error) {
-    console.error('Error updating view PIN:', error);
-    showPinMessage('Erreur: ' + error.message, 'error');
+    console.error('Error updating admin PIN:', error);
+    showAdminPinMessage('Erreur: ' + error.message, 'error');
   }
 }
 
-function showPinMessage(message, type) {
-  const messageDiv = document.getElementById('pinUpdateMessage');
+function showAdminPinMessage(message, type) {
+  const messageDiv = document.getElementById('adminPinUpdateMessage');
   messageDiv.textContent = message;
   messageDiv.style.display = 'block';
   messageDiv.style.background = type === 'success' ? '#d1fae5' : '#fee2e2';
   messageDiv.style.color = type === 'success' ? '#065f46' : '#991b1b';
-  messageDiv.style.border = `1px solid ${type === 'success' ? '#10b981' : '#ef4444'}`;
-
+  messageDiv.style.border = `1px solid ${type === 'success' ? '#6ee7b7' : '#fca5a5'}`;
+  
   setTimeout(() => {
     messageDiv.style.display = 'none';
   }, 5000);
@@ -2118,22 +2292,22 @@ function showPinMessage(message, type) {
 
 async function loadPinSettings() {
   try {
-    const currentUser = await window.SupabaseDB.getCurrentUser();
-    if (currentUser && currentUser.role === 'admin') {
-      // Assuming getSupabaseClient() returns the Supabase client instance
-      const client = await window.SupabaseDB.getClient(); 
-      const { data } = await client
-        .from('users')
-        .select('view_pin')
-        .eq('id', currentUser.id)
-        .single();
-      
-      if (data && data.view_pin) {
-        document.getElementById('currentPinDisplay').textContent = '•'.repeat(data.view_pin.length);
-      } else {
-        // Default view_pin is 1234
-        document.getElementById('currentPinDisplay').textContent = '••••';
-      }
+    const pins = await window.SupabaseDB.getAdminPins();
+    
+    // Display admin access PIN length
+    if (pins.adminPin) {
+      document.getElementById('currentAdminPinDisplay').textContent = '•'.repeat(pins.adminPin.length);
+    } else {
+      // Default if not set
+      document.getElementById('currentAdminPinDisplay').textContent = '••••';
+    }
+    
+    // Display view PIN length
+    if (pins.viewPin) {
+      document.getElementById('currentPinDisplay').textContent = '•'.repeat(pins.viewPin.length);
+    } else {
+      // Default if not set
+      document.getElementById('currentPinDisplay').textContent = '••••';
     }
   } catch (error) {
     console.error('Error loading PIN settings:', error);
