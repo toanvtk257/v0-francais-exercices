@@ -555,7 +555,7 @@ h1 {
         <a href="builder.html" class="btn btn-primary">+ Créer un exercice</a>
       </div>
       
-      <!-- Added search box for exercises -->
+      <!-- Added autocomplete="off" to prevent browser from suggesting emails -->
       <div style="margin-bottom:16px">
         <input 
           type="text" 
@@ -563,6 +563,7 @@ h1 {
           placeholder="🔍 Rechercher par titre, type, thème, ou niveau..." 
           style="width:100%;padding:12px;border:2px solid #e0e0e0;border-radius:8px;font-size:.95rem"
           oninput="handleExerciseSearch(event)"
+          autocomplete="off"
         >
       </div>
       
@@ -2006,18 +2007,21 @@ function cancelAdminPin() {
     document.querySelectorAll('.tab-btn').forEach(btn => btn.classList.remove('active'));
     document.querySelectorAll('.tab-content').forEach(content => content.classList.remove('active'));
     
-    // Reactivate exercises tab
     const exercisesBtn = document.querySelector('.tab-btn[onclick="switchTab(\'exercises\')"]');
     const exercisesContent = document.getElementById('exercises');
     
     if (exercisesBtn) exercisesBtn.classList.add('active');
-    if (exercisesContent) {
-        exercisesContent.classList.add('active');
-        // Ensure exercises are displayed
-        if (allExercises && allExercises.length > 0) {
-            console.log('[v0] Re-rendering exercises after PIN cancel');
-            renderExercises(allExercises);
-        }
+    if (exercisesContent) exercisesContent.classList.add('active');
+    
+    const exerciseSearchInput = document.getElementById('exerciseSearch');
+    if (exerciseSearchInput && exerciseSearchInput.value) {
+        exerciseSearchInput.value = '';
+    }
+    
+    if (allExercises && allExercises.length > 0) {
+        renderExercises(allExercises);
+    } else {
+        loadExercises();
     }
 }
 
