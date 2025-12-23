@@ -278,8 +278,10 @@ async function handleSignup(event) {
             successEl.style.display = 'block';
             
             // Reset form and switch to login tab after 2 seconds
-            document.getElementById('signupForm').reset();
-            setTimeout(() => switchTab('login'), 2000);
+            setTimeout(() => {
+                document.getElementById('signupForm').reset();
+                switchTab('login');
+            }, 2000);
             
         } catch (error) {
             console.error('[v0] Admin signup error:', error);
@@ -296,26 +298,19 @@ async function handleSignup(event) {
         return;
     }
     
-    // Validate student fields
-    if (explanation.length < 20) {
-        errorEl.textContent = 'L\'explication doit contenir au moins 20 caractères';
-        errorEl.style.display = 'block';
-        return;
-    }
-    
+    // Student registration request
     btn.disabled = true;
-    btn.textContent = 'Vérification en cours...';
     
     try {
         if (!window.SupabaseDB || !window.SupabaseDB.isAvailable()) {
             throw new Error('Base de données non disponible. Veuillez réessayer.');
         }
         
+        // Check if email already exists
         const emailCheck = await window.SupabaseDB.checkEmailExists(email);
         
-        if (emailCheck.existsInUsers || emailCheck.existsInRequests) {
-            let message = 'Cet email est déjà utilisé dans le système. ';
-            
+        if (emailCheck.exists) {
+            let message = 'Cet email ne peut pas être utilisé. ';
             if (emailCheck.existsInRequests && emailCheck.requestStatus === 'pending') {
                 message += 'Une demande d\'inscription est déjà en attente de traitement pour cet email.';
             } else if (emailCheck.existsInRequests && emailCheck.requestStatus === 'rejected') {
@@ -344,11 +339,14 @@ async function handleSignup(event) {
             explanation
         });
         
+        document.getElementById('signupForm').reset();
+        
         successEl.textContent = 'Votre demande a été soumise avec succès! Un administrateur examinera votre demande et vous contactera sur Zalo.';
         successEl.style.display = 'block';
         
-        // Reset form
-        document.getElementById('signupForm').reset();
+        setTimeout(() => {
+            successEl.style.display = 'none';
+        }, 5000);
         
     } catch (error) {
         console.error('[v0] Signup error:', error);
