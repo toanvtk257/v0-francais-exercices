@@ -897,6 +897,14 @@ function debounce(func, wait) {
 
 let allExercises = [];
 let allUsers = [];
+let currentlyViewedUser = null; // Global variable to track the user whose info is being viewed
+
+// Helper function to mask text
+function maskText(text) {
+  if (!text) return '-';
+  if (text.length <= 3) return '*'.repeat(text.length);
+  return text[0] + '*'.repeat(text.length - 2) + text[text.length - 1];
+}
 
 // =============================================
 // Authentication
@@ -1173,51 +1181,124 @@ async function loadUsers() {
     }
 }
 
+// Modified renderUsers function to incorporate new logic
 function renderUsers(users) {
-    const container = document.getElementById('usersList');
-    
-    if (users.length === 0) {
-        container.innerHTML = '<div class="empty-state">Aucun étudiant trouvé</div>';
-        return;
+  const container = document.getElementById('usersList');
+  
+  if (!users || users.length === 0) {
+    container.innerHTML = '<div class="empty-state">Aucun étudiant trouvé</div>';
+    return;
+  }
+
+  // Group users by filiere
+  const groupedByFiliere = {};
+  users.forEach(user => {
+    const filiere = user.filiere || 'Non spécifié';
+    if (!groupedByFiliere[filiere]) {
+      groupedByFiliere[filiere] = [];
     }
-    
-    // Group by filiere
-    const grouped = {};
-    users.forEach(s => {
-        const filiere = s.filiere || 'Non spécifié';
-        if (!grouped[filiere]) grouped[filiere] = [];
-        grouped[filiere].push(s);
+    groupedByFiliere[filiere].push(user);
+  });
+
+  let html = '';
+
+  // Iterate over each filiere group
+  for (const filiere in groupedByFiliere) {
+    html += `
+      <h3>${filiere}</h3>
+      <table style="width: 100%; border-collapse: collapse; margin-bottom: 30px;">
+        <thead style="background: #f0f0f0;">
+          <tr>
+            <th style="padding: 12px; text-align: left; border-bottom: 2px solid #ddd;">Nom</th>
+            <th style="padding: 12px; text-align: left; border-bottom: 2px solid #ddd;">Email</th>
+            <th style="padding: 12px; text-align: left; border-bottom: 2px solid #ddd;">Zalo</th>
+            <th style="padding: 12px; text-align: left; border-bottom: 2px solid #ddd;">Actions</th>
+          </tr>
+        </thead>
+        <tbody>
+    `;
+
+    groupedByFiliere[filiere].forEach(user => {
+      const isCurrentlyViewed = currentlyViewedUser === user.id;
+      const maskedName = isCurrentlyViewed ? user.name : maskString(user.name);
+      const maskedEmail = isCurrentlyViewed ? user.email : maskString(user.email, 'email');
+      const maskedZalo = isCurrentlyViewed ? user.zalo : (user.zalo ? maskString(user.zalo, 'phone') : '-');
+      
+      const statusBadge = user.suspended 
+        ? '<span style="background: #f44336; color: white; padding: 4px 8px; border-radius: 4px; font-size: 0.85rem; margin-left: 8px;">Suspendu</span>'
+        : '';
+      
+      const viewButtonText = isCurrentlyViewed ? '👁️ Masquer les informations' : '👁️ Voir les informations';
+      const viewButtonAction = isCurrentlyViewed ? `hideUserInfo('${user.id}')` : `showUserInfo('${user.id}')`;
+      
+      const suspendButtonText = user.suspended ? '✓ Réactiver' : '⏸ Suspendre';
+      const suspendButtonAction = user.suspended ? `unsuspendUser('${user.id}', '${user.name}')` : `suspendUser('${user.id}', '${user.name}')`;
+      
+      html += `
+        <tr style="border-bottom: 1px solid #eee;">
+          <td style="padding: 12px;">${maskedName}${statusBadge}</td>
+          <td style="padding: 12px;">${maskedEmail}</td>
+          <td style="padding: 12px;">${maskedZalo}</td>
+          <td style="padding: 12px;">
+            <button onclick="${viewButtonAction}" style="background: ${isCurrentlyViewed ? '#666' : '#2b5'}; padding: 6px 12px; border: none; border-radius: 6px; color: white; cursor: pointer; font-size: 0.85rem; margin-right: 8px;">${viewButtonText}</button>
+            <button onclick="${suspendButtonAction}" style="background: ${user.suspended ? '#4CAF50' : '#FF9800'}; padding: 6px 12px; border: none; border-radius: 6px; color: white; cursor: pointer; font-size: 0.85rem; margin-right: 8px;">${suspendButtonText}</button>
+            <button onclick="resetUserPin('${user.id}', '${user.email}')" style="background: #ff9800; padding: 6px 12px; border: none; border-radius: 6px; color: white; cursor: pointer; font-size: 0.85rem; margin-right: 8px;">Réinitialiser PIN</button>
+            <button onclick="deleteUser('${user.id}', '${user.name}')" style="background: #c33; padding: 6px 12px; border: none; border-radius: 6px; color: white; cursor: pointer; font-size: 0.85rem;">Supprimer</button>
+          </td>
+        </tr>
+      `;
     });
-    
-    let html = '';
-    for (const [filiere, userList] of Object.entries(grouped)) {
-        html += `<h3>${filiere}</h3>`;
-        html += `<table>
-            <thead><tr><th>Nom</th><th>Email</th><th>Zalo</th><th>Actions</th></tr></thead>
-            <tbody>
-                ${userList.map(u => {
-                    const isUnmasked = unmaskedUsers.has(u.id);
-                    const displayName = isUnmasked ? u.name : `<span class="masked-info">${maskString(u.name)}</span>`;
-                    const displayEmail = isUnmasked ? u.email : `<span class="masked-info">${maskString(u.email, 'email')}</span>`;
-                    const displayZalo = isUnmasked ? (u.zalo || '-') : `<span class="masked-info">${u.zalo ? maskString(u.zalo, 'phone') : '-'}</span>`;
-                    
-                    return `
-                    <tr>
-                        <td>${displayName}</td>
-                        <td>${displayEmail}</td>
-                        <td>${displayZalo}</td>
-                        <td>
-                            ${!isUnmasked ? `<button class="view-info-btn" onclick="showPinModal('${u.id}')">👁️ Voir les informations</button>` : ''}
-                            <button class="btn btn-small btn-warning" onclick="resetUserPin('${u.id}', '${u.name}')" style="margin-right: 8px;">Réinitialiser PIN</button>
-                            <button class="btn btn-small btn-danger" onclick="deleteUser('${u.id}')">Supprimer</button>
-                        </td>
-                    </tr>
-                `}).join('')}
-            </tbody>
-        </table>`;
-    }
-    
-    container.innerHTML = html;
+
+    html += `
+        </tbody>
+      </table>
+    `;
+  }
+  
+  container.innerHTML = html;
+}
+
+// Function to show user info (unmask)
+function showUserInfo(userId) {
+  currentlyViewedUser = userId;
+  renderUsers(allUsers);
+}
+
+// Function to hide user info (mask)
+function hideUserInfo(userId) {
+  currentlyViewedUser = null;
+  renderUsers(allUsers);
+}
+
+
+async function suspendUser(userId, userName) {
+  if (!confirm(`Voulez-vous vraiment suspendre le compte de ${userName}? L'utilisateur ne pourra plus se connecter.`)) {
+    return
+  }
+
+  try {
+    await window.SupabaseDB.suspendUser(userId)
+    alert(`Le compte de ${userName} a été suspendu avec succès.`)
+    await loadUsers()
+  } catch (error) {
+    console.error('Error suspending user:', error)
+    alert('Erreur lors de la suspension du compte: ' + error.message)
+  }
+}
+
+async function unsuspendUser(userId, userName) {
+  if (!confirm(`Voulez-vous vraiment réactiver le compte de ${userName}?`)) {
+    return
+  }
+
+  try {
+    await window.SupabaseDB.unsuspendUser(userId)
+    alert(`Le compte de ${userName} a été réactivé avec succès.`)
+    await loadUsers()
+  } catch (error) {
+    console.error('Error unsuspending user:', error)
+    alert('Erreur lors de la réactivation du compte: ' + error.message)
+  }
 }
 
 async function resetUserPin(userId, userName) {
@@ -1233,16 +1314,17 @@ async function resetUserPin(userId, userName) {
     }
 }
 
-async function deleteUser(id) {
-    if (!confirm('Êtes-vous sûr de vouloir supprimer cet utilisateur?')) return;
+async function deleteUser(id, name) {
+    if (!confirm(`Êtes-vous sûr de vouloir supprimer l'utilisateur ${name}? Cette action est irréversible.`)) return;
     
     try {
         await window.SupabaseDB.deleteUser(id);
         await loadUsers();
         await loadGlobalStats();
+        alert(`Utilisateur ${name} supprimé avec succès.`);
     } catch (error) {
         console.error('Error deleting user:', error);
-        alert('Erreur lors de la suppression');
+        alert('Erreur lors de la suppression: ' + error.message);
     }
 }
 
@@ -1734,6 +1816,10 @@ function switchTab(tab) {
     
     document.querySelector(`.tab-btn[onclick="switchTab('${tab}')"]`).classList.add('active');
     document.getElementById(tab).classList.add('active');
+
+    if (tab === 'settings') {
+      loadPinSettings();
+    }
 }
 
 function openChangePinModal() {
@@ -2052,18 +2138,6 @@ async function loadPinSettings() {
   } catch (error) {
     console.error('Error loading PIN settings:', error);
   }
-}
-
-function switchTab(tabName) {
-    document.querySelectorAll('.tab-btn').forEach(btn => btn.classList.remove('active'));
-    document.querySelectorAll('.tab-content').forEach(content => content.classList.remove('active'));
-    
-    document.querySelector(`.tab-btn[onclick="switchTab('${tabName}')"]`).classList.add('active');
-    document.getElementById(tabName).classList.add('active');
-      
-    if (tabName === 'settings') {
-      loadPinSettings();
-    }
 }
 </script>
 </body>
