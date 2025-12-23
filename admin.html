@@ -1880,6 +1880,10 @@ function switchTab(tab) {
     }
     
     if (tab === 'exercises') {
+      const exerciseSearchInput = document.getElementById('exerciseSearch');
+      if (exerciseSearchInput) {
+        exerciseSearchInput.value = '';
+      }
       loadExercises();
     }
     
@@ -2153,6 +2157,11 @@ async function handleUrlInput(url) {
 // Initialize
 document.addEventListener('DOMContentLoaded', () => {
     checkAuth();
+    
+    const exerciseSearchInput = document.getElementById('exerciseSearch');
+    if (exerciseSearchInput) {
+        exerciseSearchInput.value = '';
+    }
     
     // Attach URL input listener
     const urlInput = document.getElementById('resourceUrl');
