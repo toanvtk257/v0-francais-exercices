@@ -555,7 +555,7 @@ h1 {
         <a href="builder.html" class="btn btn-primary">+ Créer un exercice</a>
       </div>
       
-      <!-- Added autocomplete="off" to prevent browser from suggesting emails -->
+      <!-- Added readonly attribute that gets removed after page load to prevent browser autofill flash -->
       <div style="margin-bottom:16px">
         <input 
           type="text" 
@@ -564,6 +564,8 @@ h1 {
           style="width:100%;padding:12px;border:2px solid #e0e0e0;border-radius:8px;font-size:.95rem"
           oninput="handleExerciseSearch(event)"
           autocomplete="off"
+          readonly
+          onfocus="this.removeAttribute('readonly')"
         >
       </div>
       
