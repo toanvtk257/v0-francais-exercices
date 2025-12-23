@@ -1855,7 +1855,7 @@ async function deleteConversation() {
 // =============================================
 
 function switchTab(tab) {
-    const protectedTabs = ['dashboard', 'users', 'registrations'];
+    const protectedTabs = ['dashboard', 'users', 'registrations', 'messages'];
     
     // Check if tab requires PIN protection
     if (protectedTabs.includes(tab) && !adminPinVerified) {
