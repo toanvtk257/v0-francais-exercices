@@ -79,7 +79,7 @@ button:disabled{background:#ccc;cursor:not-allowed}
   <!-- Signup Form -->
   <div id="signup" class="tab-content">
     <div class="info-box">
-      Votre inscription sera soumise à l'approbation d'un administrateur. Vous serez contacté sur Zalo une fois votre demande traitée.
+      Votre inscription sera soumise à l'approbation d'un administrateur. Vous serez contacté par téléphone une fois votre demande traitée.
     </div>
     <form id="signupForm" onsubmit="handleSignup(event)">
       <div class="form-group">
@@ -120,8 +120,8 @@ button:disabled{background:#ccc;cursor:not-allowed}
           </select>
         </div>
         <div class="form-group">
-          <label for="signupZalo">Numéro Zalo <span class="required">*</span></label>
-          <input type="tel" id="signupZalo" placeholder="Votre numéro Zalo" required>
+          <label for="signupZalo">Numéro de téléphone <span class="required">*</span></label>
+          <input type="tel" id="signupZalo" placeholder="Votre numéro de téléphone" required>
         </div>
         <div class="form-group">
           <label for="signupExplanation">Expliquer votre demande <span class="required">*</span></label>
@@ -199,7 +199,7 @@ async function handleLogin(event) {
             errorEl.innerHTML = `
                 <strong>Compte suspendu</strong><br>
                 Votre compte a été suspendu par un administrateur. 
-                Si vous souhaitez réactiver votre compte, veuillez contacter l'administrateur sur Zalo.
+                Si vous souhaitez réactiver votre compte, veuillez contacter l'administrateur par téléphone.
             `;
         } else if (error.message === 'DEVICE_LIMIT_REACHED') {
             errorEl.innerHTML = `
@@ -341,7 +341,7 @@ async function handleSignup(event) {
         
         document.getElementById('signupForm').reset();
         
-        successEl.textContent = 'Votre demande a été soumise avec succès! Un administrateur examinera votre demande et vous contactera sur Zalo.';
+        successEl.textContent = 'Votre demande a été soumise avec succès! Un administrateur examinera votre demande et vous contactera par téléphone.';
         successEl.style.display = 'block';
         
         setTimeout(() => {
