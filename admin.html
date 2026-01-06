@@ -1109,7 +1109,8 @@ function renderExercises(exercises) {
             e.theme?.toLowerCase().includes(searchTerm);
     });
     
-    const levelOrder = { 'A1': 1, 'A2': 2, 'B1': 3, 'B2': 4, 'C1': 5, 'C2': 6 };
+    const levelOrder = { 'A1': 1, 'A2': 2, 'B1': 3, 'B2': 4, 'A1 Junior': 5, 'A2 Junior': 6, 'B1 Junior': 7, 'B2 Junior': 8 };
+    // </CHANGE>
     
     const grouped = {
         grammaire: filtered.filter(e => e.type === 'grammaire'),
@@ -1396,7 +1397,7 @@ async function loadRegistrations() {
             pendingContainer.innerHTML = '<div class="empty-state">Aucune demande en attente</div>';
         } else {
             pendingContainer.innerHTML = `<table>
-                <thead><tr><th>Nom</th><th>Email</th><th>Filière</th><th>Zalo</th><th>Explication</th><th>Date</th><th>Actions</th></tr></thead>
+                <thead><tr><th>Nom</th><th>Email</th><th>Filière</th><th>Numéro de téléphone</th><th>Explication</th><th>Date</th><th>Actions</th></tr></thead>
                 <tbody>
                     ${pending.map(r => `
                         <tr>
@@ -1422,12 +1423,13 @@ async function loadRegistrations() {
             processedContainer.innerHTML = '<div class="empty-state">Aucune demande traitée</div>';
         } else {
             processedContainer.innerHTML = `<table>
-                <thead><tr><th>Nom</th><th>Email</th><th>Statut</th><th>Date de traitement</th></tr></thead>
+                <thead><tr><th>Nom</th><th>Email</th><th>Numéro de téléphone</th><th>Statut</th><th>Date de traitement</th></tr></thead>
                 <tbody>
                     ${processed.map(r => `
                         <tr>
                             <td>${r.name}</td>
                             <td>${r.email}</td>
+                            <td>${r.zalo || '-'}</td>
                             <td><span class="chip" style="background:${r.status === 'approved' ? 'var(--success)' : 'var(--error)'};color:#fff">${r.status === 'approved' ? 'Approuvé' : 'Refusé'}</span></td>
                             <td>${r.processed_at ? new Date(r.processed_at).toLocaleDateString('fr-FR') : '-'}</td>
                         </tr>
@@ -1445,8 +1447,10 @@ async function approveRegistration(id) {
     if (!confirm('Approuver cette demande et créer le compte étudiant?')) return;
     
     try {
-        const result = await window.SupabaseDB.approveRegistration(id);
-        alert(`Compte créé pour ${result.user.name}. N'oubliez pas de le contacter sur Zalo: ${result.request.zalo}`);
+        // Call the API, passing the registration ID
+        const { request, user } = await window.SupabaseDB.approveRegistration(id);
+        // Original alert: alert(`Compte créé pour ${request.name}. Un administrateur examinera votre demande et vous contactera par téléphone une fois votre demande traitée.`);
+        alert(`Compte créé pour ${request.name}. Un administrateur examinera votre demande et vous contactera par téléphone une fois votre demande traitée.`);
         await loadRegistrations();
         await loadUsers();
         await loadGlobalStats();
