@@ -1109,7 +1109,16 @@ function renderExercises(exercises) {
             e.theme?.toLowerCase().includes(searchTerm);
     });
     
-    const levelOrder = { 'A1': 1, 'A2': 2, 'B1': 3, 'B2': 4, 'A1 Junior': 5, 'A2 Junior': 6, 'B1 Junior': 7, 'B2 Junior': 8 };
+    const levelOrder = { 
+        'A1': 1, 
+        'A1 Junior': 2, 
+        'A2': 3, 
+        'A2 Junior': 4, 
+        'B1': 5, 
+        'B1 Junior': 6, 
+        'B2': 7, 
+        'B2 Junior': 8 
+    };
     // </CHANGE>
     
     const grouped = {
@@ -1127,10 +1136,10 @@ function renderExercises(exercises) {
             if (levelA !== levelB) {
                 return levelA - levelB;
             }
-            // Extract number from title
             const numA = parseInt(a.titre?.match(/^\d+/)?.[0] || a.titre?.match(/\d+/)?.[0] || '999');
             const numB = parseInt(b.titre?.match(/^\d+/)?.[0] || b.titre?.match(/\d+/)?.[0] || '999');
             return numA - numB;
+            // </CHANGE>
         });
     });
     
@@ -1277,7 +1286,7 @@ function renderUsers(users) {
         : '';
       
       const viewButtonText = isCurrentlyViewed ? '👁️ Masquer les informations' : '👁️ Voir les informations';
-      const viewButtonAction = isCurrentlyViewed ? `hideUserInfo('${user.id}')` : `showUserInfo('${user.id}')`;
+      const viewButtonAction = isCurrentlyViewed ? `hideUserInfo('${user.id}')` : `showPinModal('${user.id}')`; // Modified to show modal
       
       const suspendButtonText = user.suspended ? '✓ Réactiver' : '⏸ Suspendre';
       const suspendButtonAction = user.suspended ? `unsuspendUser('${user.id}', '${user.name}')` : `suspendUser('${user.id}', '${user.name}')`;
@@ -1307,10 +1316,7 @@ function renderUsers(users) {
 }
 
 // Function to show user info (unmask)
-function showUserInfo(userId) {
-  currentlyViewedUser = userId;
-  renderUsers(allUsers);
-}
+// Removed this function as showPinModal and verifyPinAndShowInfo now handle the unmasking logic.
 
 // Function to hide user info (mask)
 function hideUserInfo(userId) {
