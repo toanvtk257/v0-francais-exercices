@@ -410,7 +410,7 @@ function renderCloze(questions, startNumber = 1) {
         div.className = 'question-section';
         div.dataset.points = q.points || 1;
         
-        const clozeText = q.clozeText || q.question || q.texte || '';
+        const clozeText = q.text || q.clozeText || q.question || q.texte || '';
         
         if (!clozeText.trim()) {
             console.warn('[v0] renderCloze: Skipping empty cloze question', idx);
@@ -418,13 +418,13 @@ function renderCloze(questions, startNumber = 1) {
         }
         
         const answers = [];
-        let html = clozeText.replace(/\{([^}]+)\}/g, (match, answer) => {
+        let html = clozeText.replace(/\[([^\]]+)\]/g, (match, answer) => {
             answers.push(answer.trim().toLowerCase());
             return `<input type="text" class="cloze-input" data-answer="${answer.trim().toLowerCase()}">`;
         });
         
         div.dataset.answers = JSON.stringify(answers);
-        div.innerHTML = `<div class="question-title">${currentNumber}. <span style="color:#666;font-size:.9rem">(${q.points || 1} pts)</span></div>${html}`;
+        div.innerHTML = `<div class="question-title">Texte ${currentNumber} <span style="color:#666;font-size:.9rem">(${q.points || 1} pts)</span></div>${html}`;
         host.appendChild(div);
         currentNumber++;
     });
