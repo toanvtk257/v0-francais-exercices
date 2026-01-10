@@ -904,6 +904,8 @@ function renumberQuestions() {
             numberSpan.textContent = `Question ${questionNumber}`;
         }
     });
+    // Reset counter so next question gets correct number
+    questionCounter = questions.length;
 }
 
 function addOption(questionId) {
