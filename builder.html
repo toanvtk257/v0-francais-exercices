@@ -820,7 +820,6 @@ function addQuestionOfType(type) {
     hideQuestionTypeModal();
     questionCounter++;
     
-    const container = $('#questionsContainer');
     const div = document.createElement('div');
     div.className = 'question-item';
     div.id = `question-${questionCounter}`;
@@ -887,12 +886,24 @@ function addQuestionOfType(type) {
         `;
     }
     
-    container.appendChild(div);
+    $('#questionsContainer').appendChild(div);
     toggleExplanationFields();
 }
 
 function removeQuestion(id) {
     $(`#question-${id}`).remove();
+    renumberQuestions();
+}
+
+function renumberQuestions() {
+    const questions = document.querySelectorAll('.question-item');
+    questions.forEach((question, index) => {
+        const questionNumber = index + 1;
+        const numberSpan = question.querySelector('.question-number');
+        if (numberSpan) {
+            numberSpan.textContent = `Question ${questionNumber}`;
+        }
+    });
 }
 
 function addOption(questionId) {
