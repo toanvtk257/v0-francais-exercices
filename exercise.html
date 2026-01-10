@@ -367,14 +367,27 @@ function createVFQuestion(q, idx, questionNumber) {
     div.dataset.index = idx;
     
     let correctAnswer = 'vrai'; // default
-    if (q.answer) {
-        correctAnswer = q.answer.toString().trim().toLowerCase();
-    } else if (q.correcte) {
-        correctAnswer = q.correcte.toString().trim().toLowerCase();
-    } else if (q.correct !== undefined) {
-        correctAnswer = q.correct.toString().trim().toLowerCase();
+    if (q.correct !== undefined && q.correct !== null) {
+        // Handle boolean values: false -> "faux", true -> "vrai"
+        if (typeof q.correct === 'boolean') {
+            correctAnswer = q.correct ? 'vrai' : 'faux';
+        } else {
+            correctAnswer = q.correct.toString().trim().toLowerCase();
+        }
+    } else if (q.correcte !== undefined && q.correcte !== null) {
+        if (typeof q.correcte === 'boolean') {
+            correctAnswer = q.correcte ? 'vrai' : 'faux';
+        } else {
+            correctAnswer = q.correcte.toString().trim().toLowerCase();
+        }
+    } else if (q.answer !== undefined && q.answer !== null) {
+        if (typeof q.answer === 'boolean') {
+            correctAnswer = q.answer ? 'vrai' : 'faux';
+        } else {
+            correctAnswer = q.answer.toString().trim().toLowerCase();
+        }
     }
-    console.log('[v0] VF Question', idx, '- Correct answer set to:', correctAnswer);
+    console.log('[v0] VF Question', idx, '- Correct answer set to:', correctAnswer, '(from q.correct =', q.correct, ')');
     
     div.dataset.answer = correctAnswer;
     div.dataset.points = q.points || 1;
