@@ -503,6 +503,30 @@ async function loadExercises() {
             exercises = exercises.filter(e => e.type === filter);
         }
         
+        // </CHANGE> Sort exercises by level and then by title number
+        const levelOrder = {
+            'A1': 1,
+            'A1 Junior': 2,
+            'A2': 3,
+            'A2 Junior': 4,
+            'B1': 5,
+            'B1 Junior': 6,
+            'B2': 7,
+            'B2 Junior': 8
+        };
+        
+        exercises.sort((a, b) => {
+            // First sort by level
+            const levelA = levelOrder[a.niveau] || 999;
+            const levelB = levelOrder[b.niveau] || 999;
+            if (levelA !== levelB) return levelA - levelB;
+            
+            // Then sort by title number (extract number from beginning of title)
+            const numA = parseInt(a.titre?.match(/^\d+/)?.[0] || '999');
+            const numB = parseInt(b.titre?.match(/^\d+/)?.[0] || '999');
+            return numA - numB;
+        });
+        
         // Update counts
         const allExercises = await window.SupabaseDB.getExercises();
         $('#countCE').textContent = allExercises.filter(e => e.type === 'lecture').length;
