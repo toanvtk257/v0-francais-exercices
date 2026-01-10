@@ -280,7 +280,6 @@ function renderExercise() {
     
     let questionNumber = 1;
     
-    // Show passage for lecture exercises
     if (currentExercise.type === 'lecture') {
         if (currentExercise.texte && currentExercise.texte.trim()) {
             $('#passageBox').style.display = 'block';
@@ -289,7 +288,6 @@ function renderExercise() {
             const lines = text.split('\n').filter(line => line.trim());
             let html = '';
             
-            // Check if first line is a title (short and doesn't end with period)
             if (lines.length > 1 && lines[0].length < 100 && !lines[0].trim().endsWith('.')) {
                 html = `<h3 style="font-weight:bold; margin-bottom:12px; font-size:1.2rem;">${lines[0]}</h3>`;
                 html += lines.slice(1).map(line => `<p>${line}</p>`).join('');
@@ -312,124 +310,107 @@ function renderExercise() {
         console.log('[v0] renderExercise: Loaded audio:', currentExercise.audio);
     }
     
-    // Render questions
     const questions = currentExercise.questions || [];
-    console.log('[v0] renderExercise: Processing', questions.length, 'questions');
+    console.log('[v0] renderExercise: Processing', questions.length, 'questions in original order');
     
-    const qcmQuestions = questions.filter(q => !q.type || q.type === 'qcm');
-    const vfQuestions = questions.filter(q => q.type === 'vf');
-    const clozeQuestions = questions.filter(q => q.type === 'cloze');
-    
-    if (qcmQuestions.length > 0) {
-        questionNumber = renderQCM(qcmQuestions, questionNumber);
-        $('#qcmForm').style.display = 'block';
-    }
-    
-    if (vfQuestions.length > 0) {
-        questionNumber = renderVF(vfQuestions, questionNumber);
-        $('#vfForm').style.display = 'block';
-    }
-    
-    if (clozeQuestions.length > 0) {
-        questionNumber = renderCloze(clozeQuestions, questionNumber);
-        $('#clozeForm').style.display = 'block';
-    }
-}
-
-function renderQCM(questions, startNumber = 1) {
-    const host = $('#qcmHost');
-    host.innerHTML = '';
-    
-    let currentNumber = startNumber;
-    
+    // Render all questions in order
     questions.forEach((q, idx) => {
-        const div = document.createElement('div');
-        div.className = 'question-section';
-        const correctIndex = typeof q.correct === 'number' ? q.correct : -1;
-        const correctLetter = correctIndex >= 0 ? String.fromCharCode(97 + correctIndex) : '';
-        div.dataset.answer = correctLetter || (q.answer || q.correcte || '').toLowerCase();
-        div.dataset.points = q.points || 1;
-        if (q.explanation) div.dataset.explanation = q.explanation;
-        
-        const name = 'qcm_' + idx;
-        const options = q.options || [];
-        
-        const optionsHTML = options.map((opt, optIdx) => {
-            const letter = String.fromCharCode(97 + optIdx); // a, b, c, d...
-            return `<label class="option" data-val="${letter}"><input type="radio" name="${name}" value="${letter}"> <span>${opt}</span></label>`;
-        }).join('');
-
-        div.innerHTML = `
-            <div class="question-title">${currentNumber}. ${q.question || q.texte || ''} <span style="color:#666;font-size:.9rem">(${q.points || 1} pts)</span></div>
-            <div class="options">${optionsHTML}</div>
-        `;
-        host.appendChild(div);
-        currentNumber++;
-    });
-    
-    return currentNumber;
-}
-
-function renderVF(questions, startNumber = 1) {
-    const host = $('#vfHost');
-    host.innerHTML = '';
-    
-    let currentNumber = startNumber;
-    
-    questions.forEach((q, idx) => {
-        const div = document.createElement('div');
-        div.className = 'question-section';
-        div.dataset.answer = (q.answer || q.correcte || 'vrai').toLowerCase();
-        div.dataset.points = q.points || 1;
-        if (q.explanation) div.dataset.explanation = q.explanation;
-        
-        const name = 'vf_' + idx;
-        
-        div.innerHTML = `
-            <div class="question-title">${currentNumber}. ${q.question || q.texte || ''} <span style="color:#666;font-size:.9rem">(${q.points || 1} pts)</span></div>
-            <div class="options">
-                <label class="option" data-val="vrai"><input type="radio" name="${name}" value="vrai"> <span>Vrai</span></label>
-                <label class="option" data-val="faux"><input type="radio" name="${name}" value="faux"> <span>Faux</span></label>
-            </div>
-        `;
-        host.appendChild(div);
-        currentNumber++;
-    });
-    
-    return currentNumber;
-}
-
-function renderCloze(questions, startNumber = 1) {
-    const host = $('#clozeHost');
-    host.innerHTML = '';
-    
-    let currentNumber = startNumber;
-    
-    questions.forEach((q, idx) => {
-        const div = document.createElement('div');
-        div.className = 'question-section';
-        div.dataset.points = q.points || 1;
-        
-        const clozeText = q.text || q.clozeText || q.question || q.texte || '';
-        
-        if (!clozeText.trim()) {
-            console.warn('[v0] renderCloze: Skipping empty cloze question', idx);
-            return;
+        if (q.type === 'vf') {
+            questionNumber = renderSingleVF(q, idx, questionNumber);
+            if ($('#vfForm').style.display === 'none') {
+                $('#vfForm').style.display = 'block';
+            }
+        } else if (q.type === 'cloze') {
+            questionNumber = renderSingleCloze(q, idx, questionNumber);
+            if ($('#clozeForm').style.display === 'none') {
+                $('#clozeForm').style.display = 'block';
+            }
+        } else {
+            // QCM or default
+            questionNumber = renderSingleQCM(q, idx, questionNumber);
+            if ($('#qcmForm').style.display === 'none') {
+                $('#qcmForm').style.display = 'block';
+            }
         }
-        
-        const answers = [];
-        let html = clozeText.replace(/\[([^\]]+)\]/g, (match, answer) => {
-            answers.push(answer.trim().toLowerCase());
-            return `<input type="text" class="cloze-input" data-answer="${answer.trim().toLowerCase()}">`;
-        });
-        
-        div.dataset.answers = JSON.stringify(answers);
-        div.innerHTML = `<div class="question-title">${currentNumber}. ${html} <span style="color:#666;font-size:.9rem">(${q.points || 1} pts)</span></div>`;
-        host.appendChild(div);
-        currentNumber++;
+    });
+}
+
+function renderSingleQCM(q, idx, questionNumber) {
+    const host = $('#qcmHost');
+    
+    const div = document.createElement('div');
+    div.className = 'question-section';
+    const correctIndex = typeof q.correct === 'number' ? q.correct : -1;
+    const correctLetter = correctIndex >= 0 ? String.fromCharCode(97 + correctIndex) : '';
+    div.dataset.answer = correctLetter || (q.answer || q.correcte || '').toLowerCase();
+    div.dataset.points = q.points || 1;
+    if (q.explanation) div.dataset.explanation = q.explanation;
+    
+    const name = 'qcm_' + idx;
+    const options = q.options || [];
+    
+    const optionsHTML = options.map((opt, optIdx) => {
+        const letter = String.fromCharCode(97 + optIdx);
+        return `<label class="option" data-val="${letter}"><input type="radio" name="${name}" value="${letter}"> <span>${opt}</span></label>`;
+    }).join('');
+
+    div.innerHTML = `
+        <div class="question-title">${questionNumber}. ${q.question || q.texte || ''} <span style="color:#666;font-size:.9rem">(${q.points || 1} pts)</span></div>
+        <div class="options">${optionsHTML}</div>
+    `;
+    host.appendChild(div);
+    
+    return questionNumber + 1;
+}
+
+function renderSingleVF(q, idx, questionNumber) {
+    const host = $('#vfHost');
+    
+    const div = document.createElement('div');
+    div.className = 'question-section';
+    div.dataset.answer = (q.answer || q.correcte || 'vrai').toString().toLowerCase();
+    div.dataset.points = q.points || 1;
+    if (q.explanation) div.dataset.explanation = q.explanation;
+    
+    const name = 'vf_' + idx;
+    
+    div.innerHTML = `
+        <div class="question-title">${questionNumber}. ${q.question || q.texte || ''} <span style="color:#666;font-size:.9rem">(${q.points || 1} pts)</span></div>
+        <div class="options">
+            <label class="option" data-val="vrai"><input type="radio" name="${name}" value="vrai"> <span>Vrai</span></label>
+            <label class="option" data-val="faux"><input type="radio" name="${name}" value="faux"> <span>Faux</span></label>
+        </div>
+    `;
+    host.appendChild(div);
+    
+    return questionNumber + 1;
+}
+
+function renderSingleCloze(q, idx, questionNumber) {
+    const host = $('#clozeHost');
+    
+    const div = document.createElement('div');
+    div.className = 'question-section';
+    div.dataset.points = q.points || 1;
+    
+    const clozeText = q.text || q.clozeText || q.question || q.texte || '';
+    
+    if (!clozeText.trim()) {
+        console.warn('[v0] renderSingleCloze: Skipping empty cloze question', idx);
+        return questionNumber;
+    }
+    
+    const answers = [];
+    let html = clozeText.replace(/\[([^\]]+)\]/g, (match, answer) => {
+        answers.push(answer.trim().toLowerCase());
+        return `<input type="text" class="cloze-input" data-answer="${answer.trim().toLowerCase()}">`;
     });
     
-    return currentNumber;
+    div.dataset.answers = JSON.stringify(answers);
+    div.innerHTML = `<div class="question-title">${questionNumber}. ${html} <span style="color:#666;font-size:.9rem">(${q.points || 1} pts)</span></div>`;
+    host.appendChild(div);
+    
+    return questionNumber + 1;
 }
 
 function startTimer() {

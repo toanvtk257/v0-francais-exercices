@@ -279,6 +279,8 @@ async function loadStats() {
     try {
         const stats = await window.SupabaseDB.getStudentStats(currentUser.id);
         
+        completedExercises = new Set(stats.recentAttempts.map(a => a.exercise_id));
+        
         // Update stats display
         document.getElementById('statLessons').textContent = new Set(stats.recentAttempts.map(a => a.exercise_id)).size;
         document.getElementById('statAttempts').textContent = stats.totalAttempts;
