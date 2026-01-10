@@ -424,7 +424,7 @@ function renderCloze(questions, startNumber = 1) {
         });
         
         div.dataset.answers = JSON.stringify(answers);
-        div.innerHTML = `<div class="question-title">Texte ${currentNumber} <span style="color:#666;font-size:.9rem">(${q.points || 1} pts)</span></div>${html}`;
+        div.innerHTML = `<div class="question-title">${currentNumber}. ${html} <span style="color:#666;font-size:.9rem">(${q.points || 1} pts)</span></div>`;
         host.appendChild(div);
         currentNumber++;
     });
