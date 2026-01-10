@@ -278,6 +278,8 @@ async function loadExercise(exerciseId) {
 function renderExercise() {
     console.log('[v0] renderExercise: Rendering exercise type:', currentExercise.type);
     
+    let questionNumber = 1;
+    
     // Show passage for lecture exercises
     if (currentExercise.type === 'lecture') {
         if (currentExercise.texte && currentExercise.texte.trim()) {
@@ -319,24 +321,26 @@ function renderExercise() {
     const clozeQuestions = questions.filter(q => q.type === 'cloze');
     
     if (qcmQuestions.length > 0) {
-        renderQCM(qcmQuestions);
+        questionNumber = renderQCM(qcmQuestions, questionNumber);
         $('#qcmForm').style.display = 'block';
     }
     
     if (vfQuestions.length > 0) {
-        renderVF(vfQuestions);
+        questionNumber = renderVF(vfQuestions, questionNumber);
         $('#vfForm').style.display = 'block';
     }
     
     if (clozeQuestions.length > 0) {
-        renderCloze(clozeQuestions);
+        questionNumber = renderCloze(clozeQuestions, questionNumber);
         $('#clozeForm').style.display = 'block';
     }
 }
 
-function renderQCM(questions) {
+function renderQCM(questions, startNumber = 1) {
     const host = $('#qcmHost');
     host.innerHTML = '';
+    
+    let currentNumber = startNumber;
     
     questions.forEach((q, idx) => {
         const div = document.createElement('div');
@@ -356,16 +360,21 @@ function renderQCM(questions) {
         }).join('');
 
         div.innerHTML = `
-            <div class="question-title">${idx + 1}. ${q.question || q.texte || ''} <span style="color:#666;font-size:.9rem">(${q.points || 1} pts)</span></div>
+            <div class="question-title">${currentNumber}. ${q.question || q.texte || ''} <span style="color:#666;font-size:.9rem">(${q.points || 1} pts)</span></div>
             <div class="options">${optionsHTML}</div>
         `;
         host.appendChild(div);
+        currentNumber++;
     });
+    
+    return currentNumber;
 }
 
-function renderVF(questions) {
+function renderVF(questions, startNumber = 1) {
     const host = $('#vfHost');
     host.innerHTML = '';
+    
+    let currentNumber = startNumber;
     
     questions.forEach((q, idx) => {
         const div = document.createElement('div');
@@ -377,27 +386,37 @@ function renderVF(questions) {
         const name = 'vf_' + idx;
         
         div.innerHTML = `
-            <div class="question-title">${idx + 1}. ${q.question || q.texte || ''} <span style="color:#666;font-size:.9rem">(${q.points || 1} pts)</span></div>
+            <div class="question-title">${currentNumber}. ${q.question || q.texte || ''} <span style="color:#666;font-size:.9rem">(${q.points || 1} pts)</span></div>
             <div class="options">
                 <label class="option" data-val="vrai"><input type="radio" name="${name}" value="vrai"> <span>Vrai</span></label>
                 <label class="option" data-val="faux"><input type="radio" name="${name}" value="faux"> <span>Faux</span></label>
             </div>
         `;
         host.appendChild(div);
+        currentNumber++;
     });
+    
+    return currentNumber;
 }
 
-function renderCloze(questions) {
+function renderCloze(questions, startNumber = 1) {
     const host = $('#clozeHost');
     host.innerHTML = '';
+    
+    let currentNumber = startNumber;
     
     questions.forEach((q, idx) => {
         const div = document.createElement('div');
         div.className = 'question-section';
         div.dataset.points = q.points || 1;
         
-        // Parse cloze text: "Je {suis} étudiant" -> "Je [input] étudiant"
-        const clozeText = q.clozeText || '';
+        const clozeText = q.clozeText || q.question || q.texte || '';
+        
+        if (!clozeText.trim()) {
+            console.warn('[v0] renderCloze: Skipping empty cloze question', idx);
+            return;
+        }
+        
         const answers = [];
         let html = clozeText.replace(/\{([^}]+)\}/g, (match, answer) => {
             answers.push(answer.trim().toLowerCase());
@@ -405,9 +424,12 @@ function renderCloze(questions) {
         });
         
         div.dataset.answers = JSON.stringify(answers);
-        div.innerHTML = `<div class="question-title">Texte ${idx + 1} <span style="color:#666;font-size:.9rem">(${q.points || 1} pts)</span></div>${html}`;
+        div.innerHTML = `<div class="question-title">${currentNumber}. <span style="color:#666;font-size:.9rem">(${q.points || 1} pts)</span></div>${html}`;
         host.appendChild(div);
+        currentNumber++;
     });
+    
+    return currentNumber;
 }
 
 function startTimer() {
