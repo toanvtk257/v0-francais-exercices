@@ -976,19 +976,19 @@ function removeOption(btn) {
 function updateExerciseTitleDropdown(currentCount, discipline = null) {
     const input = $('#titre');
     
-    // If no discipline provided, get it from the form
     if (!discipline) {
-        discipline = $('#kind').value;
+      discipline = $('#kind').value;
     }
+    const niveau = $('#niveau').value;
     
-    // Count only exercises of the selected discipline
+    // Count only exercises of the selected discipline AND niveau
     window.SupabaseDB.getExercises().then(allExercises => {
-        const exercisesInCategory = allExercises.filter(e => e.type === discipline);
-        const nextNum = exercisesInCategory.length + 1;
-        
-        // Set the next available number as default value
-        input.value = nextNum;
-        input.min = 1;
+      const exercisesInCategory = allExercises.filter(e => e.type === discipline && e.niveau === niveau);
+      const nextNum = exercisesInCategory.length + 1;
+      
+      // Set the next available number as default value
+      input.value = nextNum;
+      input.min = 1;
     });
 }
 
