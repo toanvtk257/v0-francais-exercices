@@ -1027,7 +1027,8 @@ async function editExercise(id) {
                 $('#audioPreview').classList.remove('hidden');
                 $('#audioFileName').textContent = 'Audio existant';
             }
-            $('#transcription').value = exercise.texte || ''; // For CO, 'texte' holds the transcription
+            // Use the 'transcription' textarea for transcription in CO
+            $('#transcription').value = exercise.texte || ''; 
         }
         
         questionCounter = 0;
@@ -1131,15 +1132,28 @@ async function saveExercise(e) {
     }
     
     let fullText = ''; // Consolidated text field
-    let transcriptionText = null; // Variable to hold transcription for CO
+    const transcriptionText = $('#transcription').value || '';
+    
+    const exerciseData = {
+        titre: titre,
+        type: type,
+        niveau: $('#niveau').value,
+        theme: theme,
+        consigne: consigne,
+        questions: questionsArray,
+        texte: type === 'ecoute' ? transcriptionText : fullText, // Use transcription for CO, regular text for others
+        audio: audioUrl,
+        created_at: new Date().toISOString()
+    };
+    // </CHANGE>
+
     if (type === 'lecture') {
         const textTitle = $('#textTitle').value.trim();
         const textBody = $('#texte').value.trim();
         fullText = textTitle ? `${textTitle}\n${textBody}` : textBody;
     } else if (type === 'ecoute') {
-        // Use the 'transcription' textarea for transcription in CO
-        transcriptionText = $('#transcription').value.trim() || null;
-        fullText = ''; // No text field for CO other than transcription
+        // No direct 'fullText' for CO, transcription is handled above
+        fullText = ''; // Ensure this remains empty if not lecture type
     } else {
         fullText = $('#texte').value.trim(); // For grammar and lexique
     }
