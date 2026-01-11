@@ -468,31 +468,21 @@ let textImageBlob = null;
 // =============================================
 
 async function initAuth() {
+    console.log('[v0] Builder init started');
     try {
-        currentUser = await window.SupabaseDB.getCurrentUser();
+        console.log('[v0] Waiting for Supabase connection...');
+        await window.SupabaseDB.waitForConnection();
+        console.log('[v0] Supabase connected successfully');
         
-        if (!currentUser) {
-            alert('Vous devez être connecté pour créer des exercices');
-            window.location.href = 'login.html';
-            return;
-        }
-        
-        if (currentUser.role !== 'admin') {
-            alert('Accès réservé aux administrateurs');
-            window.location.href = 'index.html';
-            return;
-        }
-        
-        console.log('[v0] Builder loaded for admin:', currentUser.email);
-        
-        $('#supabaseStatus').textContent = 'Supabase: Connecté';
+        $('#supabaseStatus').textContent = 'Connecté';
         $('#supabaseStatus').classList.remove('disconnected');
         $('#supabaseStatus').classList.add('connected');
         
+        console.log('[v0] Loading exercises...');
         await loadExercises();
-        
+        console.log('[v0] Exercises loaded successfully');
     } catch (error) {
-        console.error('Init error:', error);
+        console.error('[v0] Init error:', error);
         $('#supabaseStatus').textContent = 'Erreur de connexion Supabase';
         $('#supabaseStatus').classList.add('disconnected');
     }
@@ -502,11 +492,14 @@ async function initAuth() {
 // Exercise Loading
 // =============================================
 async function loadExercises() {
+    console.log('[v0] loadExercises started');
     const container = $('#exerciseListContainer');
     const filter = $('#disciplineFilter').value;
     
     try {
+        console.log('[v0] Fetching exercises from Supabase...');
         let exercises = await window.SupabaseDB.getExercises();
+        console.log('[v0] Received exercises:', exercises?.length);
         
         if (filter !== 'all') {
             exercises = exercises.filter(e => e.type === filter);
@@ -1303,3 +1296,7 @@ $('#kind').addEventListener('change', function() {
 function pasteFromClipboard() {
     alert("La fonctionnalité de copier-coller nécessite une interaction directe de l'utilisateur (clic) pour des raisons de sécurité.\n\nDans une application réelle, vous pourriez utiliser l'API Clipboard (navigator.clipboard.readText()) mais elle requiert une autorisation HTTPS et peut être complexe.");
 }
+
+</script>
+</body>
+</html>
