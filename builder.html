@@ -399,6 +399,17 @@ hr{border:none;border-top:1px solid #e8e8e8;margin:16px 0}
         </div>
       </div>
 
+      <!-- Consigne Field -->
+      <div class="form-group" style="margin-bottom: 1.5rem;">
+        <label for="consigne">Consigne (optionnel)</label>
+        <textarea id="consigne" class="form-control" rows="3" 
+                  placeholder="Entrez une consigne pour aider les étudiants à comprendre ce qu'ils doivent faire dans l'exercice..."
+                  style="width: 100%; padding: 0.75rem; border: 1px solid #ccc; border-radius: 0.375rem; font-size: 1rem; box-sizing: border-box; min-height: 80px;"></textarea>
+        <p style="font-size: 0.85rem; color: #64748b; margin-top: 0.25rem;">Cette consigne sera affichée aux étudiants au début de l'exercice</p>
+      </div>
+
+      <hr>
+
       <!-- Removed separate type buttons, now using modal selector on add -->
       <div id="questionsSection">
         <h3>Questions</h3>
@@ -987,6 +998,7 @@ async function editExercise(id) {
         $('#niveau').value = exercise.niveau;
         $('#theme').value = exercise.theme || '';
         $('#titre').value = exercise.titre;
+        $('#consigne').value = exercise.consigne || '';
         
         // Show appropriate boxes
         toggleBoxes();
@@ -1105,34 +1117,38 @@ async function editExercise(id) {
 
 async function saveExercise(e) {
     e.preventDefault();
+    console.log('saveExercise: Submitting exercise...');
     
-    const kind = $('#kind').value;
-    const niveau = $('#niveau').value;
-    const theme = $('#theme').value.trim();
     const titre = $('#titre').value.trim();
-    
+    const theme = $('#theme').value.trim();
+    const niveau = $('#niveau').value;
+    const kind = $('#kind').value;
+    const consigne = $('#consigne')?.value?.trim() || null;
+
     if (!titre) {
         alert('Veuillez entrer un numéro d\'exercice');
         return;
     }
     
     let texte = '';
+    let transcriptionText = null; // Variable to hold transcription for CO
     if (kind === 'lecture') {
         const textTitle = $('#textTitle').value.trim();
         const textBody = $('#texte').value.trim();
         texte = textTitle ? `${textTitle}\n${textBody}` : textBody;
     } else if (kind === 'ecoute') {
-        texte = $('#transcription').value.trim();
+        // Use the 'texte' textarea for transcription in CO
+        transcriptionText = $('#transcription').value.trim() || null;
     } else {
         texte = $('#texte').value.trim();
     }
 
-    let audio = null;
+    let audioUrl = null;
     if (kind === 'ecoute') {
-        audio = audioBlob;
+        audioUrl = audioBlob;
     }
 
-    const questions = [];
+    const questionsArray = []; // Renamed from 'questions' to avoid conflict with question property
     $$('.question-item').forEach((item) => {
         const type = item.querySelector('.question-type').value;
         const explanation = item.querySelector('.question-explanation')?.value || '';
@@ -1144,7 +1160,7 @@ async function saveExercise(e) {
             const correctIndex = correctRadio ? parseInt(correctRadio.value) - 1 : -1;
             
             if (questionText && options.every(opt => opt) && correctIndex !== -1) {
-                questions.push({
+                questionsArray.push({
                     type: 'qcm',
                     question: questionText,
                     options,
@@ -1158,7 +1174,7 @@ async function saveExercise(e) {
             const questionText = item.querySelector('.question-text')?.value;
             const answer = item.querySelector('.vf-answer').value === 'true';
             if (questionText) {
-                questions.push({
+                questionsArray.push({
                     type: 'vf',
                     question: questionText,
                     correct: answer,
@@ -1170,7 +1186,7 @@ async function saveExercise(e) {
         } else if (type === 'cloze') {
             const clozeText = item.querySelector('.cloze-text').value;
             if (clozeText) {
-                questions.push({
+                questionsArray.push({
                     type: 'cloze',
                     text: clozeText,
                     ...(explanation && { explanation })
@@ -1181,7 +1197,7 @@ async function saveExercise(e) {
         }
     });
     
-    if (questions.length === 0) {
+    if (questionsArray.length === 0) {
         alert('Ajoutez au moins une question valide');
         return;
     }
@@ -1194,12 +1210,16 @@ async function saveExercise(e) {
         theme: theme,
         type: $('#kind').value,
         texte: texte,
-        audio: audio,
-        questions: questions
+        audio: audioUrl, // Use audioUrl
+        consigne: consigne,
+        questions: questionsArray,
+        transcription: transcriptionText, // Add transcription to data
+        createdBy: currentUser?.id || null // Add creator ID
     };
     
     if (!exerciseId) {
-        exerciseData.id = `${exerciseData.type}-${titre}`;
+        // Auto-generate ID if it's a new exercise
+        exerciseData.id = `${kind}-${titre}-${Date.now()}`; 
     }
     
     try {

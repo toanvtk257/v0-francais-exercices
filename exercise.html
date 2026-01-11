@@ -267,6 +267,19 @@ function renderExercise() {
     
     let questionNumber = 1;
     
+    const questionsContainer = $('#questionsContainer');
+    questionsContainer.innerHTML = ''; // Clear previous content
+    
+    if (currentExercise.consigne && currentExercise.consigne.trim()) {
+        const consigneDiv = document.createElement('div');
+        consigneDiv.style.cssText = 'background: #e0f2fe; padding: 16px; border-radius: 10px; margin-bottom: 20px; border-left: 4px solid var(--brand);';
+        consigneDiv.innerHTML = `
+            <strong style="color: var(--brand); display: block; margin-bottom: 8px;">📋 Consigne:</strong>
+            <div style="line-height: 1.6; color: #0c4a6e;">${currentExercise.consigne}</div>
+        `;
+        questionsContainer.appendChild(consigneDiv);
+    }
+    
     if (currentExercise.type === 'lecture') {
         if (currentExercise.texte && currentExercise.texte.trim()) {
             $('#passageBox').style.display = 'block';
@@ -297,8 +310,6 @@ function renderExercise() {
         console.log('[v0] renderExercise: Loaded audio:', currentExercise.audio);
     }
     
-    const questionsContainer = $('#questionsContainer');
-    questionsContainer.innerHTML = ''; // Clear previous content
     questionsContainer.style.display = 'block';
     
     const questions = currentExercise.questions || [];
