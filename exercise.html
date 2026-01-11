@@ -541,16 +541,9 @@ async function submitExercise() {
     $('#redoBtn').style.display = 'inline-block';
     $('#resetBtn').style.display = 'none';
     
-    console.log('[v0] Exercise type:', currentExercise.type);
-    console.log('[v0] Exercise texte:', currentExercise.texte);
-    console.log('[v0] Has texte:', !!currentExercise.texte);
-    
     if (currentExercise.type === 'ecoute' && currentExercise.texte && currentExercise.texte.trim() !== '') {
-        console.log('[v0] Showing transcription box');
         $('#transcriptionTextContent').textContent = currentExercise.texte;
         $('#transcriptionBox').style.display = 'block';
-    } else {
-        console.log('[v0] Not showing transcription - type:', currentExercise.type, ', has texte:', !!currentExercise.texte);
     }
 
     if (timerInterval) clearInterval(timerInterval);
