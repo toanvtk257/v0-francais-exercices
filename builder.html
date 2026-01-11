@@ -327,6 +327,15 @@ hr{border:none;border-top:1px solid #e8e8e8;margin:16px 0}
 
       <hr>
 
+      <!-- Added instructions field before text/audio boxes -->
+      <div class="form-group">
+        <label for="consigne">Consigne pour les étudiants (optionnel)</label>
+        <textarea id="consigne" placeholder="Entrez une consigne pour aider les étudiants à comprendre ce qu'ils doivent faire dans cet exercice..." style="min-height:80px"></textarea>
+        <p class="subtitle">Cette consigne sera affichée aux étudiants avant les questions de l'exercice</p>
+      </div>
+
+      <hr>
+
       <!-- Passage Box for CE -->
       <div id="textBox" class="hidden">
         <h3>Texte de lecture (CE)</h3>
@@ -987,6 +996,7 @@ async function editExercise(id) {
         $('#niveau').value = exercise.niveau;
         $('#theme').value = exercise.theme || '';
         $('#titre').value = exercise.titre;
+        $('#consigne').value = exercise.consigne || ''; // Set the new consigne field
         
         // Show appropriate boxes
         toggleBoxes();
@@ -1103,39 +1113,44 @@ async function editExercise(id) {
 }
 
 
-async function saveExercise(e) {
-    e.preventDefault();
+async function saveExercise(event) {
+    event.preventDefault();
     
     const kind = $('#kind').value;
     const niveau = $('#niveau').value;
     const theme = $('#theme').value.trim();
     const titre = $('#titre').value.trim();
+    const consigne = $('#consigne').value.trim(); // Get the new consigne field value
     
     if (!titre) {
         alert('Veuillez entrer un numéro d\'exercice');
         return;
     }
     
-    let texte = '';
+    let textContent = '';
+    let textImageUrl = null;
+    let textTitleContent = '';
+
     if (kind === 'lecture') {
-        const textTitle = $('#textTitle').value.trim();
+        textTitleContent = $('#textTitle').value.trim();
         const textBody = $('#texte').value.trim();
-        texte = textTitle ? `${textTitle}\n${textBody}` : textBody;
+        textContent = textTitleContent ? `${textTitleContent}\n${textBody}` : textBody;
+        textImageUrl = textImageBlob; // Store the Cloudinary URL or File object
     } else if (kind === 'ecoute') {
-        texte = $('#transcription').value.trim();
+        textContent = $('#transcription').value.trim();
     } else {
-        texte = $('#texte').value.trim();
+        textContent = $('#texte').value.trim();
     }
 
-    let audio = null;
+    let audioUrl = null;
     if (kind === 'ecoute') {
-        audio = audioBlob;
+        audioUrl = audioBlob;
     }
 
-    const questions = [];
+    const questionsData = [];
     $$('.question-item').forEach((item) => {
         const type = item.querySelector('.question-type').value;
-        const explanation = item.querySelector('.question-explanation')?.value || '';
+        const explanation = item.querySelector('.question-explanation')?.value || null;
         
         if (type === 'qcm') {
             const questionText = item.querySelector('.question-text')?.value;
@@ -1143,13 +1158,13 @@ async function saveExercise(e) {
             const correctRadio = item.querySelector('input[type="radio"]:checked');
             const correctIndex = correctRadio ? parseInt(correctRadio.value) - 1 : -1;
             
-            if (questionText && options.every(opt => opt) && correctIndex !== -1) {
-                questions.push({
+            if (questionText && options.every(opt => opt.length > 0) && correctIndex !== -1) {
+                questionsData.push({
                     type: 'qcm',
                     question: questionText,
                     options,
                     correct: correctIndex,
-                    ...(explanation && { explanation })
+                    explanation
                 });
             } else {
                 console.warn("Skipping incomplete QCM question:", item);
@@ -1158,11 +1173,11 @@ async function saveExercise(e) {
             const questionText = item.querySelector('.question-text')?.value;
             const answer = item.querySelector('.vf-answer').value === 'true';
             if (questionText) {
-                questions.push({
+                questionsData.push({
                     type: 'vf',
                     question: questionText,
                     correct: answer,
-                    ...(explanation && { explanation })
+                    explanation
                 });
             } else {
                 console.warn("Skipping incomplete V/F question:", item);
@@ -1170,10 +1185,10 @@ async function saveExercise(e) {
         } else if (type === 'cloze') {
             const clozeText = item.querySelector('.cloze-text').value;
             if (clozeText) {
-                questions.push({
+                questionsData.push({
                     type: 'cloze',
                     text: clozeText,
-                    ...(explanation && { explanation })
+                    explanation
                 });
             } else {
                 console.warn("Skipping incomplete Cloze question:", item);
@@ -1181,7 +1196,7 @@ async function saveExercise(e) {
         }
     });
     
-    if (questions.length === 0) {
+    if (questionsData.length === 0) {
         alert('Ajoutez au moins une question valide');
         return;
     }
@@ -1192,10 +1207,15 @@ async function saveExercise(e) {
         titre: titre,
         niveau: $('#niveau').value,
         theme: theme,
-        type: $('#kind').value,
-        texte: texte,
-        audio: audio,
-        questions: questions
+        type: kind,
+        texte: textContent,
+        audio_url: audioUrl,
+        consigne: consigne, // Add the consigne to the data
+        image_url: textImageUrl,
+        textTitle: textTitleContent,
+        transcription: kind === 'ecoute' ? textContent : undefined, // Only set transcription if it's CO
+        questions: questionsData,
+        created_at: new Date().toISOString()
     };
     
     if (!exerciseId) {
@@ -1247,13 +1267,15 @@ function resetForm() {
     switchTextMode('type');
     $('#textImageInput').value = '';
     $('#audioFileInput').value = '';
+    $('#consigne').value = ''; // Reset the new consigne field
+    $('#texte').value = ''; // Clear the main text field
+    $('#textTitle').value = ''; // Clear text title
     
     // Hide relevant boxes if discipline is not selected or changed
     toggleBoxes(); 
     
     delete $('#saveBtn').dataset.editingId;
     $('#saveBtn').textContent = 'Sauvegarder l\'exercice';
-    $('#textTitle').value = ''; // Clear text title
 }
 
 function toggleExplanationFields() {
@@ -1281,6 +1303,3 @@ $('#kind').addEventListener('change', function() {
 function pasteFromClipboard() {
     alert("La fonctionnalité de copier-coller nécessite une interaction directe de l'utilisateur (clic) pour des raisons de sécurité.\n\nDans une application réelle, vous pourriez utiliser l'API Clipboard (navigator.clipboard.readText()) mais elle requiert une autorisation HTTPS et peut être complexe.");
 }
-</script>
-</body>
-</html>
