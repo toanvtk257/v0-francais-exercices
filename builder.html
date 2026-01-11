@@ -514,7 +514,6 @@ async function loadExercises() {
             exercises = exercises.filter(e => e.type === filter);
         }
         
-        // </CHANGE> Sort exercises by level and then by title number
         const levelOrder = {
             'A1': 1,
             'A1 Junior': 2,
@@ -532,10 +531,24 @@ async function loadExercises() {
             const levelB = levelOrder[b.niveau] || 999;
             if (levelA !== levelB) return levelA - levelB;
             
-            // Then sort by title number (extract number from beginning of title)
-            const numA = parseInt(a.titre?.match(/^\d+/)?.[0] || '999');
-            const numB = parseInt(b.titre?.match(/^\d+/)?.[0] || '999');
-            return numA - numB;
+            // Then sort by type alphabetically
+            const typeA = a.type || '';
+            const typeB = b.type || '';
+            if (typeA !== typeB) return typeA.localeCompare(typeB);
+            
+            // Finally sort by creation date (oldest first)
+            return new Date(a.created_at) - new Date(b.created_at);
+        });
+        
+        // Calculate exercise numbers based on type + level
+        const exerciseNumbers = {};
+        exercises.forEach(e => {
+            const key = `${e.type}_${e.niveau}`;
+            if (!exerciseNumbers[key]) {
+                exerciseNumbers[key] = 0;
+            }
+            exerciseNumbers[key]++;
+            e.displayNumber = exerciseNumbers[key];
         });
         
         // Update counts
@@ -566,7 +579,7 @@ async function loadExercises() {
             <tbody>
                 ${exercises.map(e => `
                     <tr>
-                        <td style="padding:10px;border-bottom:1px solid #e0e0e0">${e.titre}</td>
+                        <td style="padding:10px;border-bottom:1px solid #e0e0e0">${e.displayNumber}</td>
                         <td style="padding:10px;border-bottom:1px solid #e0e0e0">${getTypeLabel(e.type)}</td>
                         <td style="padding:10px;border-bottom:1px solid #e0e0e0">${e.niveau}</td>
                         <td style="padding:10px;border-bottom:1px solid #e0e0e0">${e.theme || '-'}</td>
@@ -1010,7 +1023,7 @@ async function editExercise(id) {
             const lines = fullText.split('\n').filter(line => line.trim());
             
             // Check if first line looks like a title (short, capitalized, no punctuation at end)
-            if (lines.length > 1 && lines[0].length < 100 && !lines[0].endsWith('.') && !lines[0].endsWith('?')) {
+            if (lines.length > 1 && lines[0].length < 100 && !lines[0].endsWith('.') && !lines[0].endsWith('?') && lines[0][0] === lines[0][0].toUpperCase()) {
                 $('#textTitle').value = lines[0];
                 $('#texte').value = lines.slice(1).join('\n');
             } else {
