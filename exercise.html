@@ -302,7 +302,6 @@ function renderExercise() {
         }
     } else {
         if (currentExercise.consigne && currentExercise.consigne.trim()) {
-            console.log('[v0] Adding consigne to non-lecture exercise:', currentExercise.consigne);
             const consigneDiv = document.createElement('div');
             consigneDiv.style.cssText = 'background: #e0f2fe; padding: 16px; border-radius: 10px; margin-bottom: 20px; border-left: 4px solid var(--brand);';
             consigneDiv.innerHTML = `
@@ -310,12 +309,11 @@ function renderExercise() {
                 <div style="line-height: 1.6; color: #0c4a6e;">${currentExercise.consigne}</div>
             `;
             questionsContainer.appendChild(consigneDiv);
-        } else {
-            console.log('[v0] No consigne for non-lecture exercise - consigne is:', currentExercise.consigne);
         }
         
-        // Display text if it exists for non-lecture exercises
-        if (currentExercise.texte && currentExercise.texte.trim()) {
+        // For CO, the text (transcription) should only appear after correction
+        if (currentExercise.texte && currentExercise.texte.trim() && 
+            currentExercise.type !== 'ecoute') {
             $('#passageBox').style.display = 'block';
             
             const text = currentExercise.texte;
