@@ -1027,7 +1027,7 @@ async function editExercise(id) {
                 $('#audioPreview').classList.remove('hidden');
                 $('#audioFileName').textContent = 'Audio existant';
             }
-            $('#transcription').value = exercise.texte || '';
+            $('#transcription').value = exercise.texte || ''; // For CO, 'texte' holds the transcription
         }
         
         questionCounter = 0;
@@ -1214,7 +1214,6 @@ async function saveExercise(e) {
         questions: questionsArray,
         texte: fullText, // Use fullText for CE and Grammar/Lexique
         audio: audioUrl, // Use audioUrl for CO
-        transcription: transcriptionText, // Add transcription to data
         // Add a created_at timestamp
         created_at: new Date().toISOString()
     };
