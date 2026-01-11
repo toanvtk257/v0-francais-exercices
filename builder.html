@@ -487,14 +487,11 @@ async function initAuth() {
 // Exercise Loading
 // =============================================
 async function loadExercises() {
-    console.log('[v0] loadExercises started');
     const container = $('#exerciseListContainer');
     const filter = $('#disciplineFilter').value;
     
     try {
-        console.log('[v0] Fetching exercises from Supabase...');
         let exercises = await window.SupabaseDB.getExercises();
-        console.log('[v0] Received exercises:', exercises?.length);
         
         if (filter !== 'all') {
             exercises = exercises.filter(e => e.type === filter);
