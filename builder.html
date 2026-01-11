@@ -1225,6 +1225,7 @@ async function saveExercise(e) {
     const exerciseId = $('#saveBtn').dataset.editingId;
     
     const exerciseData = {
+        // id: exerciseId, // For edits, use existing ID
         titre: titre,
         type: type, // Use 'type' consistently
         niveau: $('#niveau').value,
@@ -1237,9 +1238,10 @@ async function saveExercise(e) {
         created_at: new Date().toISOString()
     };
     
+    // This prevents "duplicate key" errors when creating exercises with same number in different types/levels
     if (!exerciseId) {
         // Auto-generate ID if it's a new exercise
-        exerciseData.id = `${type}-${titre}-${Date.now()}`; 
+        // exerciseData.id = `${type}-${titre}-${Date.now()}`; 
     }
     
     try {
@@ -1256,7 +1258,7 @@ async function saveExercise(e) {
             await window.SupabaseDB.createExercise(exerciseData);
             $('#saveStatus').innerHTML = '<div style="color:green;font-weight:600">✓ Exercice créé avec succès!</div>';
         }
-        
+
         await loadExercises();
         setTimeout(() => resetForm(), 2000);
         
