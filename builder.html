@@ -327,12 +327,7 @@ hr{border:none;border-top:1px solid #e8e8e8;margin:16px 0}
 
       <hr>
 
-      <!-- Added instructions field before text/audio boxes -->
-      <div class="form-group">
-        <label for="consigne">Consigne pour les étudiants (optionnel)</label>
-        <textarea id="consigne" placeholder="Entrez une consigne pour aider les étudiants à comprendre ce qu'ils doivent faire dans cet exercice..." style="min-height:80px"></textarea>
-        <p class="subtitle">Cette consigne sera affichée aux étudiants avant les questions de l'exercice</p>
-      </div>
+      <!-- Removed consigne field -->
 
       <hr>
 
@@ -989,7 +984,7 @@ async function editExercise(id) {
         $('#niveau').value = exercise.niveau;
         $('#theme').value = exercise.theme || '';
         $('#titre').value = exercise.titre;
-        $('#consigne').value = exercise.consigne || ''; // Set the new consigne field
+        // Removed consigne field from here
         
         // Show appropriate boxes
         toggleBoxes();
@@ -1113,7 +1108,6 @@ async function saveExercise(event) {
     const niveau = $('#niveau').value;
     const theme = $('#theme').value.trim();
     const titre = $('#titre').value.trim();
-    const consigne = $('#consigne').value.trim(); // Get the new consigne field value
     
     if (!titre) {
         alert('Veuillez entrer un numéro d\'exercice');
@@ -1203,7 +1197,6 @@ async function saveExercise(event) {
         type: kind,
         texte: textContent,
         audio_url: audioUrl,
-        consigne: consigne, // Add the consigne to the data
         image_url: textImageUrl,
         textTitle: textTitleContent,
         transcription: kind === 'ecoute' ? textContent : undefined, // Only set transcription if it's CO
@@ -1260,7 +1253,7 @@ function resetForm() {
     switchTextMode('type');
     $('#textImageInput').value = '';
     $('#audioFileInput').value = '';
-    $('#consigne').value = ''; // Reset the new consigne field
+    // Removed consigne reset
     $('#texte').value = ''; // Clear the main text field
     $('#textTitle').value = ''; // Clear text title
     
