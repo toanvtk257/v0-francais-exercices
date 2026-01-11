@@ -327,10 +327,6 @@ hr{border:none;border-top:1px solid #e8e8e8;margin:16px 0}
 
       <hr>
 
-      <!-- Removed consigne field -->
-
-      <hr>
-
       <!-- Passage Box for CE -->
       <div id="textBox" class="hidden">
         <h3>Texte de lecture (CE)</h3>
@@ -464,13 +460,28 @@ let textImageBlob = null;
 
 async function initAuth() {
     try {
-        await window.SupabaseDB.waitForConnection();
+        currentUser = await window.SupabaseDB.getCurrentUser();
         
-        $('#supabaseStatus').textContent = 'Connecté';
+        if (!currentUser) {
+            alert('Vous devez être connecté pour créer des exercices');
+            window.location.href = 'login.html';
+            return;
+        }
+        
+        if (currentUser.role !== 'admin') {
+            alert('Accès réservé aux administrateurs');
+            window.location.href = 'index.html';
+            return;
+        }
+        
+        console.log('[v0] Builder loaded for admin:', currentUser.email);
+        
+        $('#supabaseStatus').textContent = 'Supabase: Connecté';
         $('#supabaseStatus').classList.remove('disconnected');
         $('#supabaseStatus').classList.add('connected');
         
         await loadExercises();
+        
     } catch (error) {
         console.error('Init error:', error);
         $('#supabaseStatus').textContent = 'Erreur de connexion Supabase';
@@ -492,6 +503,7 @@ async function loadExercises() {
             exercises = exercises.filter(e => e.type === filter);
         }
         
+        // </CHANGE> Sort exercises by level and then by title number
         const levelOrder = {
             'A1': 1,
             'A1 Junior': 2,
@@ -975,7 +987,6 @@ async function editExercise(id) {
         $('#niveau').value = exercise.niveau;
         $('#theme').value = exercise.theme || '';
         $('#titre').value = exercise.titre;
-        // Removed consigne field from here
         
         // Show appropriate boxes
         toggleBoxes();
@@ -992,31 +1003,19 @@ async function editExercise(id) {
                 $('#textTitle').value = '';
                 $('#texte').value = fullText;
             }
-            // Handle image upload status if applicable
-            if (exercise.image_url && exercise.image_url.startsWith('https://res.cloudinary.com')) {
-                textImageBlob = exercise.image_url; // Store the Cloudinary URL
-                $('#textImagePreviewImg').src = exercise.image_url;
-                $('#textImagePreview').classList.remove('hidden');
-                $('#textImageUploadStatus').textContent = '✅ Image existante chargée';
-                $('#textImageUploadStatus').style.color = '#10b981';
-                $('#textImageUploadStatus').classList.remove('hidden');
-            }
         }
         
         // Handle CO audio and transcription
         if (exercise.type === 'ecoute') {
-            if (exercise.audio_url) {
-                console.log('[v0] Setting audio URL:', exercise.audio_url);
-                audioBlob = exercise.audio_url;
-                $('#audioPreviewPlayer').src = exercise.audio_url;
+            if (exercise.audio) {
+                console.log('[v0] Setting audio URL:', exercise.audio);
+                audioBlob = exercise.audio;
+                $('#audioPreviewPlayer').src = exercise.audio;
                 $('#audioPreviewPlayer').load();
                 $('#audioPreview').classList.remove('hidden');
                 $('#audioFileName').textContent = 'Audio existant';
-                $('#audioUploadStatus').textContent = '✅ Audio existant chargé';
-                $('#audioUploadStatus').style.color = '#10b981';
-                $('#audioUploadStatus').classList.remove('hidden');
             }
-            $('#transcription').value = exercise.transcription || '';
+            $('#transcription').value = exercise.texte || '';
         }
         
         questionCounter = 0;
@@ -1104,8 +1103,8 @@ async function editExercise(id) {
 }
 
 
-async function saveExercise(event) {
-    event.preventDefault();
+async function saveExercise(e) {
+    e.preventDefault();
     
     const kind = $('#kind').value;
     const niveau = $('#niveau').value;
@@ -1117,30 +1116,26 @@ async function saveExercise(event) {
         return;
     }
     
-    let textContent = '';
-    let textImageUrl = null;
-    let textTitleContent = '';
-
+    let texte = '';
     if (kind === 'lecture') {
-        textTitleContent = $('#textTitle').value.trim();
+        const textTitle = $('#textTitle').value.trim();
         const textBody = $('#texte').value.trim();
-        textContent = textTitleContent ? `${textTitleContent}\n${textBody}` : textBody;
-        textImageUrl = textImageBlob; // Store the Cloudinary URL or File object
+        texte = textTitle ? `${textTitle}\n${textBody}` : textBody;
     } else if (kind === 'ecoute') {
-        textContent = $('#transcription').value.trim();
+        texte = $('#transcription').value.trim();
     } else {
-        textContent = $('#texte').value.trim();
+        texte = $('#texte').value.trim();
     }
 
-    let audioUrl = null;
+    let audio = null;
     if (kind === 'ecoute') {
-        audioUrl = audioBlob;
+        audio = audioBlob;
     }
 
-    const questionsData = [];
+    const questions = [];
     $$('.question-item').forEach((item) => {
         const type = item.querySelector('.question-type').value;
-        const explanation = item.querySelector('.question-explanation')?.value || null;
+        const explanation = item.querySelector('.question-explanation')?.value || '';
         
         if (type === 'qcm') {
             const questionText = item.querySelector('.question-text')?.value;
@@ -1148,13 +1143,13 @@ async function saveExercise(event) {
             const correctRadio = item.querySelector('input[type="radio"]:checked');
             const correctIndex = correctRadio ? parseInt(correctRadio.value) - 1 : -1;
             
-            if (questionText && options.every(opt => opt.length > 0) && correctIndex !== -1) {
-                questionsData.push({
+            if (questionText && options.every(opt => opt) && correctIndex !== -1) {
+                questions.push({
                     type: 'qcm',
                     question: questionText,
                     options,
                     correct: correctIndex,
-                    explanation
+                    ...(explanation && { explanation })
                 });
             } else {
                 console.warn("Skipping incomplete QCM question:", item);
@@ -1163,11 +1158,11 @@ async function saveExercise(event) {
             const questionText = item.querySelector('.question-text')?.value;
             const answer = item.querySelector('.vf-answer').value === 'true';
             if (questionText) {
-                questionsData.push({
+                questions.push({
                     type: 'vf',
                     question: questionText,
                     correct: answer,
-                    explanation
+                    ...(explanation && { explanation })
                 });
             } else {
                 console.warn("Skipping incomplete V/F question:", item);
@@ -1175,10 +1170,10 @@ async function saveExercise(event) {
         } else if (type === 'cloze') {
             const clozeText = item.querySelector('.cloze-text').value;
             if (clozeText) {
-                questionsData.push({
+                questions.push({
                     type: 'cloze',
                     text: clozeText,
-                    explanation
+                    ...(explanation && { explanation })
                 });
             } else {
                 console.warn("Skipping incomplete Cloze question:", item);
@@ -1186,7 +1181,7 @@ async function saveExercise(event) {
         }
     });
     
-    if (questionsData.length === 0) {
+    if (questions.length === 0) {
         alert('Ajoutez au moins une question valide');
         return;
     }
@@ -1197,14 +1192,10 @@ async function saveExercise(event) {
         titre: titre,
         niveau: $('#niveau').value,
         theme: theme,
-        type: kind,
-        texte: textContent,
-        audio_url: audioUrl,
-        image_url: textImageUrl,
-        textTitle: textTitleContent,
-        transcription: kind === 'ecoute' ? textContent : undefined, // Only set transcription if it's CO
-        questions: questionsData,
-        created_at: new Date().toISOString()
+        type: $('#kind').value,
+        texte: texte,
+        audio: audio,
+        questions: questions
     };
     
     if (!exerciseId) {
@@ -1256,15 +1247,13 @@ function resetForm() {
     switchTextMode('type');
     $('#textImageInput').value = '';
     $('#audioFileInput').value = '';
-    // Removed consigne reset
-    $('#texte').value = ''; // Clear the main text field
-    $('#textTitle').value = ''; // Clear text title
     
     // Hide relevant boxes if discipline is not selected or changed
     toggleBoxes(); 
     
     delete $('#saveBtn').dataset.editingId;
     $('#saveBtn').textContent = 'Sauvegarder l\'exercice';
+    $('#textTitle').value = ''; // Clear text title
 }
 
 function toggleExplanationFields() {
@@ -1292,7 +1281,6 @@ $('#kind').addEventListener('change', function() {
 function pasteFromClipboard() {
     alert("La fonctionnalité de copier-coller nécessite une interaction directe de l'utilisateur (clic) pour des raisons de sécurité.\n\nDans une application réelle, vous pourriez utiliser l'API Clipboard (navigator.clipboard.readText()) mais elle requiert une autorisation HTTPS et peut être complexe.");
 }
-
 </script>
 </body>
 </html>
