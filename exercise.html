@@ -172,8 +172,6 @@ function initContentProtection() {
         e.preventDefault();
         return false;
     });
-    
-    console.log('[v0] Content protection enabled');
 }
 
 function initWatermark() {
@@ -185,8 +183,6 @@ function initWatermark() {
     // Display user identifier as watermark (email or zalo)
     const identifier = currentUser.email || currentUser.zalo || currentUser.id;
     watermark.textContent = `${identifier} • ${new Date().toLocaleDateString('fr-FR')}`;
-    
-    console.log('[v0] Watermark initialized for user:', identifier);
 }
 
 // =============================================
@@ -229,12 +225,9 @@ async function checkAuth() {
 
 async function loadExercise(exerciseId) {
     try {
-        console.log('[v0] loadExercise: Starting to load exercise with id:', exerciseId);
         currentExercise = await window.SupabaseDB.getExerciseById(exerciseId);
-        console.log('[v0] loadExercise: Received exercise:', currentExercise);
         
         if (!currentExercise) {
-            console.error('[v0] loadExercise: Exercise is null or undefined');
             alert('Exercice non trouvé');
             window.location.href = 'dashboard.html';
             return;
@@ -254,33 +247,61 @@ async function loadExercise(exerciseId) {
         startTimer();
         
     } catch (error) {
-        console.error('[v0] loadExercise: Error caught:', error);
-        console.error('[v0] loadExercise: Error message:', error.message);
-        console.error('[v0] loadExercise: Error stack:', error.stack);
+        console.error('Auth error:', error);
         alert('Erreur lors du chargement de l\'exercice');
         window.location.href = 'dashboard.html';
     }
 }
 
 function renderExercise() {
-    console.log('[v0] renderExercise: Rendering exercise type:', currentExercise.type);
-    
     let questionNumber = 1;
     
     const questionsContainer = $('#questionsContainer');
     questionsContainer.innerHTML = ''; // Clear previous content
     
-    if (currentExercise.consigne && currentExercise.consigne.trim()) {
-        const consigneDiv = document.createElement('div');
-        consigneDiv.style.cssText = 'background: #e0f2fe; padding: 16px; border-radius: 10px; margin-bottom: 20px; border-left: 4px solid var(--brand);';
-        consigneDiv.innerHTML = `
-            <strong style="color: var(--brand); display: block; margin-bottom: 8px;">📋 Consigne:</strong>
-            <div style="line-height: 1.6; color: #0c4a6e;">${currentExercise.consigne}</div>
-        `;
-        questionsContainer.appendChild(consigneDiv);
-    }
-    
     if (currentExercise.type === 'lecture') {
+        if (currentExercise.texte && currentExercise.texte.trim()) {
+            $('#passageBox').style.display = 'block';
+            
+            // Insert consigne first if it exists
+            let consigneHTML = '';
+            if (currentExercise.consigne && currentExercise.consigne.trim()) {
+                consigneHTML = `
+                    <div style="background: #e0f2fe; padding: 16px; border-radius: 10px; margin-bottom: 20px; border-left: 4px solid var(--brand);">
+                        <strong style="color: var(--brand); display: block; margin-bottom: 8px;">📋 Consigne:</strong>
+                        <div style="line-height: 1.6; color: #0c4a6e;">${currentExercise.consigne}</div>
+                    </div>
+                `;
+            }
+            
+            const text = currentExercise.texte;
+            const lines = text.split('\n').filter(line => line.trim());
+            let textHTML = '';
+            
+            if (lines.length > 1 && lines[0].length < 100 && !lines[0].trim().endsWith('.')) {
+                textHTML = `<h3 style="font-weight:bold; margin-bottom:12px; font-size:1.2rem;">${lines[0]}</h3>`;
+                textHTML += lines.slice(1).map(line => `<p>${line}</p>`).join('');
+            } else {
+                textHTML = lines.map(line => `<p>${line}</p>`).join('');
+            }
+            
+            // Combine consigne + text
+            $('#passageContent').innerHTML = consigneHTML + textHTML;
+        } else {
+            $('#passageBox').style.display = 'none';
+        }
+    } else {
+        if (currentExercise.consigne && currentExercise.consigne.trim()) {
+            const consigneDiv = document.createElement('div');
+            consigneDiv.style.cssText = 'background: #e0f2fe; padding: 16px; border-radius: 10px; margin-bottom: 20px; border-left: 4px solid var(--brand);';
+            consigneDiv.innerHTML = `
+                <strong style="color: var(--brand); display: block; margin-bottom: 8px;">📋 Consigne:</strong>
+                <div style="line-height: 1.6; color: #0c4a6e;">${currentExercise.consigne}</div>
+            `;
+            questionsContainer.appendChild(consigneDiv);
+        }
+        
+        // Display text if it exists for non-lecture exercises
         if (currentExercise.texte && currentExercise.texte.trim()) {
             $('#passageBox').style.display = 'block';
             
@@ -296,10 +317,6 @@ function renderExercise() {
             }
             
             $('#passageContent').innerHTML = html;
-            console.log('[v0] renderExercise: Displayed lecture text');
-        } else {
-            console.warn('[v0] renderExercise: Lecture exercise has no texte field');
-            $('#passageBox').style.display = 'none';
         }
     }
     
@@ -307,13 +324,11 @@ function renderExercise() {
         $('#audioSection').style.display = 'block';
         $('#audioSource').src = currentExercise.audio;
         $('#audioPlayer').load();
-        console.log('[v0] renderExercise: Loaded audio:', currentExercise.audio);
     }
     
     questionsContainer.style.display = 'block';
     
     const questions = currentExercise.questions || [];
-    console.log('[v0] renderExercise: Processing', questions.length, 'questions in original order');
     
     let hasQCM = false;
     let hasVF = false;
@@ -398,7 +413,6 @@ function createVFQuestion(q, idx, questionNumber) {
             correctAnswer = q.answer.toString().trim().toLowerCase();
         }
     }
-    console.log('[v0] VF Question', idx, '- Correct answer set to:', correctAnswer, '(from q.correct =', q.correct, ')');
     
     div.dataset.answer = correctAnswer;
     div.dataset.points = q.points || 1;
@@ -427,7 +441,6 @@ function createClozeQuestion(q, idx, questionNumber) {
     const clozeText = q.text || q.clozeText || q.question || q.texte || '';
     
     if (!clozeText.trim()) {
-        console.warn('[v0] createClozeQuestion: Skipping empty cloze question', idx);
         return null;
     }
     
@@ -474,7 +487,6 @@ async function submitExercise() {
         const qIndex = q.dataset.index;
         
         if (qType === 'cloze') {
-            // Grade cloze question
             const inputs = q.querySelectorAll('.cloze-input');
             let correctCount = 0;
             
@@ -487,19 +499,15 @@ async function submitExercise() {
                 }
             });
             
-            // Award partial points
             const partialPoints = inputs.length > 0 ? Math.round((correctCount / inputs.length) * points) : 0;
             earnedPoints += partialPoints;
             answers[`q_${qIndex}`] = Array.from(inputs).map(i => i.value);
         } else {
-            // Grade QCM or VF question
             const expected = (q.dataset.answer || '').trim().toLowerCase();
             const picked = q.querySelector('input[type="radio"]:checked');
             const userAnswer = picked ? picked.value.trim().toLowerCase() : null;
             
             answers[`q_${qIndex}`] = userAnswer;
-            
-            console.log('[v0]', qType.toUpperCase(), 'question', qIndex, '- Expected:', expected, 'Got:', userAnswer, 'Match:', userAnswer === expected);
             
             if (userAnswer && userAnswer === expected) {
                 earnedPoints += points;
@@ -508,8 +516,6 @@ async function submitExercise() {
     });
 
     const percentage = totalPoints > 0 ? Math.round((earnedPoints / totalPoints) * 100) : 0;
-
-    console.log('[v0] Final score:', earnedPoints, '/', totalPoints, '=', percentage, '%');
 
     // Save attempt to Supabase
     try {
@@ -556,7 +562,6 @@ function showCorrection() {
         const qType = q.dataset.type;
         
         if (qType === 'cloze') {
-            // Cloze correction
             const inputs = q.querySelectorAll('.cloze-input');
             inputs.forEach(input => {
                 const expected = input.dataset.answer;
@@ -573,7 +578,6 @@ function showCorrection() {
                 input.disabled = true;
             });
         } else {
-            // QCM or VF correction
             const expected = (q.dataset.answer || '').toLowerCase();
             const explanation = q.dataset.explanation;
             const options = q.querySelectorAll('.option');
