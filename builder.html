@@ -998,8 +998,8 @@ async function editExercise(id) {
         $('#niveau').value = exercise.niveau;
         $('#theme').value = exercise.theme || '';
         $('#titre').value = exercise.titre;
-        const consigne = document.getElementById('consigne')?.value?.trim() || null;
-        document.getElementById('consigne').value = exercise.consigne || '';
+        const consigne = $('#consigne')?.value?.trim() || null;
+        $('#consigne').value = exercise.consigne || '';
 
         
         // Show appropriate boxes
@@ -1129,7 +1129,7 @@ async function saveExercise(e) {
     const theme = $('#theme').value.trim();
     const niveau = $('#niveau').value;
     const type = $('#kind').value;
-    const consigne = document.getElementById('consigne')?.value?.trim() || null;
+    const consigne = $('#consigne')?.value?.trim() || null;
 
     if (!titre) {
         alert('Veuillez entrer un numéro d\'exercice');
