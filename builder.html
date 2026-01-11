@@ -463,21 +463,16 @@ let textImageBlob = null;
 // =============================================
 
 async function initAuth() {
-    console.log('[v0] Builder init started');
     try {
-        console.log('[v0] Waiting for Supabase connection...');
         await window.SupabaseDB.waitForConnection();
-        console.log('[v0] Supabase connected successfully');
         
         $('#supabaseStatus').textContent = 'Connecté';
         $('#supabaseStatus').classList.remove('disconnected');
         $('#supabaseStatus').classList.add('connected');
         
-        console.log('[v0] Loading exercises...');
         await loadExercises();
-        console.log('[v0] Exercises loaded successfully');
     } catch (error) {
-        console.error('[v0] Init error:', error);
+        console.error('Init error:', error);
         $('#supabaseStatus').textContent = 'Erreur de connexion Supabase';
         $('#supabaseStatus').classList.add('disconnected');
     }
