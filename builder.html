@@ -1134,18 +1134,6 @@ async function saveExercise(e) {
     let fullText = ''; // Consolidated text field
     const transcriptionText = $('#transcription').value || '';
     
-    const exerciseData = {
-        titre: titre,
-        type: type,
-        niveau: $('#niveau').value,
-        theme: theme,
-        consigne: consigne,
-        questions: questionsArray,
-        texte: type === 'ecoute' ? transcriptionText : fullText, // Use transcription for CO, regular text for others
-        audio: audioUrl,
-        created_at: new Date().toISOString()
-    };
-    // </CHANGE>
 
     if (type === 'lecture') {
         const textTitle = $('#textTitle').value.trim();
