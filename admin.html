@@ -1111,24 +1111,22 @@ function renderExercises(exercises) {
     
     const levelOrder = { 
         'A1': 1, 
-        'A1 Junior': 2, 
-        'A2': 3, 
-        'A2 Junior': 4, 
-        'B1': 5, 
-        'B1 Junior': 6, 
-        'B2': 7, 
+        'A2': 2, 
+        'B1': 3, 
+        'B2': 4, 
+        'A1 Junior': 5, 
+        'A2 Junior': 6, 
+        'B1 Junior': 7, 
         'B2 Junior': 8 
     };
-    // </CHANGE>
     
     const grouped = {
-        grammaire: filtered.filter(e => e.type === 'grammaire'),
-        lexique: filtered.filter(e => e.type === 'lexique'),
         lecture: filtered.filter(e => e.type === 'lecture'),
-        ecoute: filtered.filter(e => e.type === 'ecoute')
+        ecoute: filtered.filter(e => e.type === 'ecoute'),
+        grammaire: filtered.filter(e => e.type === 'grammaire'),
+        lexique: filtered.filter(e => e.type === 'lexique')
     };
     
-    // Sort exercises within each type by level and title number
     Object.keys(grouped).forEach(key => {
         grouped[key].sort((a, b) => {
             const levelA = levelOrder[a.niveau] || 999;
@@ -1136,16 +1134,14 @@ function renderExercises(exercises) {
             if (levelA !== levelB) {
                 return levelA - levelB;
             }
-            const numA = parseInt(a.titre?.match(/^\d+/)?.[0] || a.titre?.match(/\d+/)?.[0] || '999');
-            const numB = parseInt(b.titre?.match(/^\d+/)?.[0] || b.titre?.match(/\d+/)?.[0] || '999');
-            return numA - numB;
-            // </CHANGE>
+            // Sort by creation date within same level
+            return new Date(a.created_at) - new Date(b.created_at);
         });
     });
     
     const typeLabels = {
         grammaire: '📝 Grammaire',
-        lexique: '💬 Lexique (Vocabulaire)',
+        lexique: '💬 Lexique',
         lecture: '📖 Compréhension Écrite (CE)',
         ecoute: '🎧 Compréhension Orale (CO)'
     };
@@ -1172,30 +1168,38 @@ function renderExercises(exercises) {
         sortedLevels.forEach(level => {
             const levelExercises = byLevel[level];
             html += `
-                <div class="level-subsection">
-                    <h4 class="level-subtitle">Niveau ${level}</h4>
+                <div class="level-subsection" style="margin-bottom: 30px; border-left: 4px solid #4CAF50; padding-left: 15px; background: #f9f9f9; border-radius: 8px; padding: 15px;">
+                    <h4 class="level-subtitle" style="color: #2196F3; font-size: 1.1rem; margin-bottom: 15px; font-weight: 600;">📊 Niveau ${level}</h4>
                     <table class="exercise-table">
                         <thead>
                             <tr>
-                                <th>Titre</th>
+                                <th style="width: 80px;">N°</th>
+                                <th>Type</th>
                                 <th>Niveau</th>
                                 <th>Thème</th>
-                                <th>Questions</th>
-                                <th>Actions</th>
+                                <th style="width: 100px;">Questions</th>
+                                <th style="width: 200px;">Actions</th>
                             </tr>
                         </thead>
                         <tbody>
-                            ${levelExercises.map(e => `
+                            ${levelExercises.map((e, index) => {
+                                const exerciseNumber = index + 1;
+                                const typeDisplay = type === 'lecture' ? 'CE' : 
+                                                   type === 'ecoute' ? 'CO' : 
+                                                   type === 'grammaire' ? 'Grammaire' : 'Lexique';
+                                return `
                                 <tr>
-                                    <td><strong>${e.titre}</strong></td>
+                                    <td><strong style="font-size: 1.1rem; color: #4CAF50;">${exerciseNumber}</strong></td>
+                                    <td><span class="badge" style="background: ${type === 'lecture' ? '#2196F3' : type === 'ecoute' ? '#FF9800' : type === 'grammaire' ? '#9C27B0' : '#00BCD4'}; color: white; padding: 4px 8px; border-radius: 4px; font-size: 0.85rem;">${typeDisplay}</span></td>
                                     <td><span class="badge badge-info">${e.niveau}</span></td>
                                     <td>${e.theme || '-'}</td>
-                                    <td>${e.questions?.length || 0}</td>
+                                    <td style="text-align: center;">${e.questions?.length || 0}</td>
                                     <td>
+                                        <button class="btn btn-small" onclick="window.open('builder.html?edit=${e.id}', '_blank')" style="background: #2196F3; color: white; margin-right: 5px;">Modifier</button>
                                         <button class="btn btn-small btn-danger" onclick="deleteExercise('${e.id}')">Supprimer</button>
                                     </td>
                                 </tr>
-                            `).join('')}
+                            `}).join('')}
                         </tbody>
                     </table>
                 </div>`;
