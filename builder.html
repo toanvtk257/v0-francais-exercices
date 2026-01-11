@@ -1122,7 +1122,7 @@ async function saveExercise(e) {
     const titre = $('#titre').value.trim();
     const theme = $('#theme').value.trim();
     const niveau = $('#niveau').value;
-    const kind = $('#kind').value;
+    const type = $('#kind').value;
     const consigne = $('#consigne')?.value?.trim() || null;
 
     if (!titre) {
@@ -1130,30 +1130,31 @@ async function saveExercise(e) {
         return;
     }
     
-    let texte = '';
+    let fullText = ''; // Consolidated text field
     let transcriptionText = null; // Variable to hold transcription for CO
-    if (kind === 'lecture') {
+    if (type === 'lecture') {
         const textTitle = $('#textTitle').value.trim();
         const textBody = $('#texte').value.trim();
-        texte = textTitle ? `${textTitle}\n${textBody}` : textBody;
-    } else if (kind === 'ecoute') {
-        // Use the 'texte' textarea for transcription in CO
+        fullText = textTitle ? `${textTitle}\n${textBody}` : textBody;
+    } else if (type === 'ecoute') {
+        // Use the 'transcription' textarea for transcription in CO
         transcriptionText = $('#transcription').value.trim() || null;
+        fullText = ''; // No text field for CO other than transcription
     } else {
-        texte = $('#texte').value.trim();
+        fullText = $('#texte').value.trim(); // For grammar and lexique
     }
 
     let audioUrl = null;
-    if (kind === 'ecoute') {
+    if (type === 'ecoute') {
         audioUrl = audioBlob;
     }
 
     const questionsArray = []; // Renamed from 'questions' to avoid conflict with question property
     $$('.question-item').forEach((item) => {
-        const type = item.querySelector('.question-type').value;
+        const questionType = item.querySelector('.question-type').value;
         const explanation = item.querySelector('.question-explanation')?.value || '';
         
-        if (type === 'qcm') {
+        if (questionType === 'qcm') {
             const questionText = item.querySelector('.question-text')?.value;
             const options = [...item.querySelectorAll('.option-text')].map(o => o.value.trim());
             const correctRadio = item.querySelector('input[type="radio"]:checked');
@@ -1170,7 +1171,7 @@ async function saveExercise(e) {
             } else {
                 console.warn("Skipping incomplete QCM question:", item);
             }
-        } else if (type === 'vf') {
+        } else if (questionType === 'vf') {
             const questionText = item.querySelector('.question-text')?.value;
             const answer = item.querySelector('.vf-answer').value === 'true';
             if (questionText) {
@@ -1183,7 +1184,7 @@ async function saveExercise(e) {
             } else {
                 console.warn("Skipping incomplete V/F question:", item);
             }
-        } else if (type === 'cloze') {
+        } else if (questionType === 'cloze') {
             const clozeText = item.querySelector('.cloze-text').value;
             if (clozeText) {
                 questionsArray.push({
@@ -1206,20 +1207,21 @@ async function saveExercise(e) {
     
     const exerciseData = {
         titre: titre,
+        type: type, // Use 'type' consistently
         niveau: $('#niveau').value,
         theme: theme,
-        type: $('#kind').value,
-        texte: texte,
-        audio: audioUrl, // Use audioUrl
-        consigne: consigne,
+        consigne: consigne, // Keep consigne field which has a column in DB
         questions: questionsArray,
+        texte: fullText, // Use fullText for CE and Grammar/Lexique
+        audio: audioUrl, // Use audioUrl for CO
         transcription: transcriptionText, // Add transcription to data
-        createdBy: currentUser?.id || null // Add creator ID
+        // Add a created_at timestamp
+        created_at: new Date().toISOString()
     };
     
     if (!exerciseId) {
         // Auto-generate ID if it's a new exercise
-        exerciseData.id = `${kind}-${titre}-${Date.now()}`; 
+        exerciseData.id = `${type}-${titre}-${Date.now()}`; 
     }
     
     try {
