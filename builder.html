@@ -1029,6 +1029,9 @@ async function editExercise(id) {
             }
             // Use the 'transcription' textarea for transcription in CO
             $('#transcription').value = exercise.texte || ''; 
+        } else {
+            // For non-CO types, populate the regular 'texte' textarea
+            $('#texte').value = exercise.texte || '';
         }
         
         questionCounter = 0;
@@ -1140,8 +1143,7 @@ async function saveExercise(e) {
         const textBody = $('#texte').value.trim();
         fullText = textTitle ? `${textTitle}\n${textBody}` : textBody;
     } else if (type === 'ecoute') {
-        // No direct 'fullText' for CO, transcription is handled above
-        fullText = ''; // Ensure this remains empty if not lecture type
+        fullText = transcriptionText;
     } else {
         fullText = $('#texte').value.trim(); // For grammar and lexique
     }
