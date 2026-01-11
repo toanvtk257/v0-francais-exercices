@@ -500,7 +500,6 @@ async function loadExercises() {
             exercises = exercises.filter(e => e.type === filter);
         }
         
-        // </CHANGE> Sort exercises by level and then by title number
         const levelOrder = {
             'A1': 1,
             'A1 Junior': 2,
@@ -1001,19 +1000,31 @@ async function editExercise(id) {
                 $('#textTitle').value = '';
                 $('#texte').value = fullText;
             }
+            // Handle image upload status if applicable
+            if (exercise.image_url && exercise.image_url.startsWith('https://res.cloudinary.com')) {
+                textImageBlob = exercise.image_url; // Store the Cloudinary URL
+                $('#textImagePreviewImg').src = exercise.image_url;
+                $('#textImagePreview').classList.remove('hidden');
+                $('#textImageUploadStatus').textContent = '✅ Image existante chargée';
+                $('#textImageUploadStatus').style.color = '#10b981';
+                $('#textImageUploadStatus').classList.remove('hidden');
+            }
         }
         
         // Handle CO audio and transcription
         if (exercise.type === 'ecoute') {
-            if (exercise.audio) {
-                console.log('[v0] Setting audio URL:', exercise.audio);
-                audioBlob = exercise.audio;
-                $('#audioPreviewPlayer').src = exercise.audio;
+            if (exercise.audio_url) {
+                console.log('[v0] Setting audio URL:', exercise.audio_url);
+                audioBlob = exercise.audio_url;
+                $('#audioPreviewPlayer').src = exercise.audio_url;
                 $('#audioPreviewPlayer').load();
                 $('#audioPreview').classList.remove('hidden');
                 $('#audioFileName').textContent = 'Audio existant';
+                $('#audioUploadStatus').textContent = '✅ Audio existant chargé';
+                $('#audioUploadStatus').style.color = '#10b981';
+                $('#audioUploadStatus').classList.remove('hidden');
             }
-            $('#transcription').value = exercise.texte || '';
+            $('#transcription').value = exercise.transcription || '';
         }
         
         questionCounter = 0;
