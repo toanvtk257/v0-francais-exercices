@@ -123,10 +123,6 @@ button:disabled{background:#ccc;cursor:not-allowed}
           <label for="signupZalo">Numéro de téléphone <span class="required">*</span></label>
           <input type="tel" id="signupZalo" placeholder="Votre numéro de téléphone" required>
         </div>
-        <div class="form-group">
-          <label for="signupExplanation">Expliquer votre demande <span class="required">*</span></label>
-          <textarea id="signupExplanation" rows="3" placeholder="Pourquoi souhaitez-vous accéder à cette plateforme? (minimum 20 caractères)" minlength="20" required></textarea>
-        </div>
       </div>
       
       <div id="signupError" class="error"></div>
@@ -233,7 +229,6 @@ async function handleSignup(event) {
     const adminSecret = document.getElementById('adminSecret').value;
     const filiere = document.getElementById('signupFiliere').value;
     const zalo = document.getElementById('signupZalo').value.trim();
-    const explanation = document.getElementById('signupExplanation').value.trim();
     
     const errorEl = document.getElementById('signupError');
     const successEl = document.getElementById('signupSuccess');
@@ -335,8 +330,7 @@ async function handleSignup(event) {
             email,
             pin,
             filiere,
-            zalo,
-            explanation
+            zalo
         });
         
         document.getElementById('signupForm').reset();
@@ -378,7 +372,6 @@ function toggleAdminFields() {
         // Make student fields not required
         document.getElementById('signupFiliere').required = false;
         document.getElementById('signupZalo').required = false;
-        document.getElementById('signupExplanation').required = false;
         
         signupBtn.textContent = 'Créer le compte admin';
         infoBox.style.display = 'none';
@@ -390,7 +383,6 @@ function toggleAdminFields() {
         // Make student fields required
         document.getElementById('signupFiliere').required = true;
         document.getElementById('signupZalo').required = true;
-        document.getElementById('signupExplanation').required = true;
         
         signupBtn.textContent = 'Soumettre la demande';
         infoBox.style.display = 'block';
