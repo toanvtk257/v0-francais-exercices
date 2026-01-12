@@ -138,15 +138,15 @@ th{background:#f5f5f5;font-weight:600}
     <div class="card" style="padding:16px">
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px">
         <div>
-          <label style="display:block;margin-bottom:8px;font-weight:600;color:var(--ink)">1. Choisissez une compétence :</label>
-          <select id="competenceFilter" class="filter-selector" onchange="handleCompetenceChange()">
-            <option value="">-- Sélectionnez une compétence --</option>
+          <label style="display:block;margin-bottom:8px;font-weight:600;color:var(--ink)">1. Choisissez un niveau :</label>
+          <select id="levelFilter" class="filter-selector" onchange="handleLevelChange()">
+            <option value="">-- Sélectionnez un niveau --</option>
           </select>
         </div>
         <div>
-          <label style="display:block;margin-bottom:8px;font-weight:600;color:var(--ink)">2. Choisissez un niveau :</label>
-          <select id="levelFilter" class="filter-selector" onchange="handleLevelChange()" disabled>
-            <option value="">-- Sélectionnez un niveau --</option>
+          <label style="display:block;margin-bottom:8px;font-weight:600;color:var(--ink)">2. Choisissez une compétence :</label>
+          <select id="competenceFilter" class="filter-selector" onchange="handleCompetenceChange()" disabled>
+            <option value="">-- Sélectionnez une compétence --</option>
           </select>
         </div>
       </div>
@@ -154,7 +154,7 @@ th{background:#f5f5f5;font-weight:600}
     
     <div class="card" id="filteredExercisesCard" style="display:none">
       <h2 id="filteredExercisesTitle">Exercices</h2>
-      <div id="filteredExercises"><div class="empty-state">Veuillez sélectionner une compétence et un niveau ci-dessus</div></div>
+      <div id="filteredExercises"><div class="empty-state">Veuillez sélectionner un niveau et une compétence ci-dessus</div></div>
       <div id="exercisePagination" class="pagination" style="display:none"></div>
     </div>
   </div>
@@ -329,74 +329,30 @@ async function loadExercises() {
     try {
         allExercises = await window.SupabaseDB.getExercises();
         console.log('[v0] Loaded exercises:', allExercises.length);
-        buildCompetenceOptions();
+        buildLevelOptions();
     } catch (error) {
         console.error('[v0] Error loading exercises:', error);
-        document.getElementById('competenceFilter').innerHTML = 
+        document.getElementById('levelFilter').innerHTML = 
             '<option value="">Erreur de chargement</option>';
     }
 }
 
-function buildCompetenceOptions() {
-    const competenceSelect = document.getElementById('competenceFilter');
+function buildLevelOptions() {
+    const levelSelect = document.getElementById('levelFilter');
     
-    const typeLabels = {
-        'lecture': 'Compréhension Écrite (CE)',
-        'ecoute': 'Compréhension Orale (CO)',
-        'grammaire': 'Grammaire',
-        'lexique': 'Lexique'
-    };
+    const levelOrder = ['A1', 'A2', 'B1', 'B2', 'A1 Junior', 'A2 Junior', 'B1 Junior', 'B2 Junior'];
     
-    const typeOrder = ['grammaire', 'ecoute', 'lecture', 'lexique'];
-    
-    // Get unique competences with counts
-    const competences = new Map();
+    // Get unique levels with counts
+    const levels = new Map();
     allExercises.forEach(ex => {
-        if (!competences.has(ex.type)) {
-            competences.set(ex.type, {
-                type: ex.type,
-                label: typeLabels[ex.type],
+        if (!levels.has(ex.niveau)) {
+            levels.set(ex.niveau, {
+                niveau: ex.niveau,
                 count: 0
             });
         }
-        competences.get(ex.type).count++;
+        levels.get(ex.niveau).count++;
     });
-    
-    // Sort by type order
-    const sorted = Array.from(competences.values()).sort((a, b) => {
-        return typeOrder.indexOf(a.type) - typeOrder.indexOf(b.type);
-    });
-    
-    competenceSelect.innerHTML = '<option value="">-- Sélectionnez une compétence --</option>' +
-        sorted.map(opt => 
-            `<option value="${opt.type}">${opt.label} (${opt.count} exercice${opt.count > 1 ? 's' : ''})</option>`
-        ).join('');
-}
-
-function handleCompetenceChange() {
-    const competence = document.getElementById('competenceFilter').value;
-    const levelSelect = document.getElementById('levelFilter');
-    const card = document.getElementById('filteredExercisesCard');
-    
-    // Reset level dropdown
-    levelSelect.innerHTML = '<option value="">-- Sélectionnez un niveau --</option>';
-    levelSelect.disabled = !competence;
-    card.style.display = 'none';
-    
-    if (!competence) return;
-    
-    // Build level options based on selected competence
-    const levelOrder = ['A1', 'A2', 'B1', 'B2', 'A1 Junior', 'A2 Junior', 'B1 Junior', 'B2 Junior'];
-    const levels = new Map();
-    
-    allExercises
-        .filter(ex => ex.type === competence)
-        .forEach(ex => {
-            if (!levels.has(ex.niveau)) {
-                levels.set(ex.niveau, { niveau: ex.niveau, count: 0 });
-            }
-            levels.get(ex.niveau).count++;
-        });
     
     // Sort by level order
     const sorted = Array.from(levels.values()).sort((a, b) => {
@@ -410,19 +366,66 @@ function handleCompetenceChange() {
 }
 
 function handleLevelChange() {
-    const competence = document.getElementById('competenceFilter').value;
     const niveau = document.getElementById('levelFilter').value;
+    const competenceSelect = document.getElementById('competenceFilter');
+    const card = document.getElementById('filteredExercisesCard');
+    
+    // Reset competence dropdown
+    competenceSelect.innerHTML = '<option value="">-- Sélectionnez une compétence --</option>';
+    competenceSelect.disabled = !niveau;
+    card.style.display = 'none';
+    
+    if (!niveau) return;
+    
+    // Build competence options based on selected level
+    const typeLabels = {
+        'lecture': 'Compréhension Écrite (CE)',
+        'ecoute': 'Compréhension Orale (CO)',
+        'grammaire': 'Grammaire',
+        'lexique': 'Lexique'
+    };
+    
+    const typeOrder = ['grammaire', 'ecoute', 'lecture', 'lexique'];
+    const competences = new Map();
+    
+    allExercises
+        .filter(ex => ex.niveau === niveau)
+        .forEach(ex => {
+            if (!competences.has(ex.type)) {
+                competences.set(ex.type, { 
+                    type: ex.type, 
+                    label: typeLabels[ex.type],
+                    count: 0 
+                });
+            }
+            competences.get(ex.type).count++;
+        });
+    
+    // Sort by type order
+    const sorted = Array.from(competences.values()).sort((a, b) => {
+        return typeOrder.indexOf(a.type) - typeOrder.indexOf(b.type);
+    });
+    
+    competenceSelect.innerHTML = '<option value="">-- Sélectionnez une compétence --</option>' +
+        sorted.map(opt => 
+            `<option value="${opt.type}">${opt.label} (${opt.count} exercice${opt.count > 1 ? 's' : ''})</option>`
+        ).join('');
+}
+
+function handleCompetenceChange() {
+    const niveau = document.getElementById('levelFilter').value;
+    const competence = document.getElementById('competenceFilter').value;
     const card = document.getElementById('filteredExercisesCard');
     const container = document.getElementById('filteredExercises');
     
-    if (!competence || !niveau) {
+    if (!niveau || !competence) {
         card.style.display = 'none';
-        container.innerHTML = '<div class="empty-state">Veuillez sélectionner une compétence et un niveau ci-dessus</div>';
+        container.innerHTML = '<div class="empty-state">Veuillez sélectionner un niveau et une compétence ci-dessus</div>';
         return;
     }
     
     filteredExercises = allExercises
-        .filter(ex => ex.type === competence && ex.niveau === niveau)
+        .filter(ex => ex.niveau === niveau && ex.type === competence)
         .sort((a, b) => {
             // Extract numeric part from id if it exists (e.g., "lecture-1" -> 1)
             const numA = parseInt(a.id.match(/\d+/)?.[0] || '0');
