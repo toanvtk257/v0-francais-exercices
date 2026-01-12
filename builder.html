@@ -234,6 +234,63 @@ hr{border:none;border-top:1px solid #e8e8e8;margin:16px 0}
 .exercise-dropdown-container {
     position: relative;
 }
+
+/* Adding pagination styles */
+.pagination-controls {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 0.5rem;
+  margin-top: 1.5rem;
+  padding-top: 1rem;
+  border-top: 1px solid #e5e7eb;
+}
+
+.pagination-controls button {
+  padding: 0.5rem 1rem;
+  border: 1px solid #d1d5db;
+  background: white;
+  color: #374151;
+  border-radius: 0.375rem;
+  cursor: pointer;
+  font-weight: 500;
+  transition: all 0.2s;
+}
+
+.pagination-controls button:hover:not(:disabled) {
+  background: #f3f4f6;
+  border-color: #9ca3af;
+}
+
+.pagination-controls button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.pagination-controls button.active {
+  background: var(--brand);
+  color: white;
+  border-color: var(--brand);
+}
+
+.pagination-info {
+  color: #6b7280;
+  font-size: 0.9rem;
+  font-weight: 500;
+}
+
+.filter-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1rem;
+  margin-bottom: 1rem;
+}
+
+@media (max-width: 768px) {
+  .filter-row {
+    grid-template-columns: 1fr;
+  }
+}
 </style>
 </head>
 <body>
@@ -271,18 +328,46 @@ hr{border:none;border-top:1px solid #e8e8e8;margin:16px 0}
   </div>
 
   <div id="exerciseListSection" style="background:#fff;padding:1.5rem;border-radius:.5rem;box-shadow:0 1px 3px rgba(0,0,0,.1);margin-bottom:1.5rem">
-    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:1rem">
-      <h3 style="color:#1e293b;margin:0">Liste des exercices</h3>
-      <select id="disciplineFilter" onchange="loadExercises()" style="padding:.5rem;border:1px solid #d1d5db;border-radius:.375rem">
-        <option value="all">Toutes les disciplines</option>
-        <option value="lecture">CE</option>
-        <option value="ecoute">CO</option>
-        <option value="grammaire">Grammaire</option>
-        <option value="lexique">Lexique</option>
-      </select>
+    <div style="margin-bottom:1rem">
+      <h3 style="color:#1e293b;margin:0 0 1rem 0">Liste des exercices</h3>
+      
+      <!-- Added Niveau and Competence filters in cascade -->
+      <div class="filter-row">
+        <div class="form-group" style="margin:0">
+          <label for="niveauFilter" style="font-size:0.9rem;margin-bottom:0.5rem">1. Choisissez un niveau :</label>
+          <select id="niveauFilter" onchange="onNiveauFilterChange()" style="padding:.5rem;border:1px solid #d1d5db;border-radius:.375rem;width:100%">
+            <option value="all">Tous les niveaux</option>
+            <option value="A1">A1</option>
+            <option value="A2">A2</option>
+            <option value="B1">B1</option>
+            <option value="B2">B2</option>
+            <option value="A1 Junior">A1 Junior</option>
+            <option value="A2 Junior">A2 Junior</option>
+            <option value="B1 Junior">B1 Junior</option>
+            <option value="B2 Junior">B2 Junior</option>
+          </select>
+        </div>
+        
+        <div class="form-group" style="margin:0">
+          <label for="disciplineFilter" style="font-size:0.9rem;margin-bottom:0.5rem">2. Choisissez une compétence :</label>
+          <select id="disciplineFilter" onchange="loadExercises()" style="padding:.5rem;border:1px solid #d1d5db;border-radius:.375rem;width:100%">
+            <option value="all">Toutes les compétences</option>
+            <option value="lecture">CE - Compréhension Écrite</option>
+            <option value="ecoute">CO - Compréhension Orale</option>
+            <option value="grammaire">Grammaire</option>
+            <option value="lexique">Lexique</option>
+          </select>
+        </div>
+      </div>
     </div>
+    
     <div id="exerciseListContainer">
       <div style="text-align:center;padding:20px;color:#666">Chargement...</div>
+    </div>
+    
+    <!-- Added pagination controls -->
+    <div id="paginationControls" class="pagination-controls" style="display:none">
+      <!-- Pagination buttons will be inserted here -->
     </div>
   </div>
 
@@ -465,6 +550,9 @@ let questionCounter = 0;
 let audioBlob = null;
 let textImageBlob = null;
 
+let currentPage = 1;
+const itemsPerPage = 10;
+
 // =============================================
 // Authentication
 // =============================================
@@ -500,18 +588,28 @@ async function initAuth() {
     }
 }
 
+function onNiveauFilterChange() {
+  currentPage = 1; // Reset to first page
+  loadExercises();
+}
+
 // =============================================
-// Exercise Loading
+// Exercise Loading with Filtering and Pagination
 // =============================================
 async function loadExercises() {
     const container = $('#exerciseListContainer');
-    const filter = $('#disciplineFilter').value;
+    const disciplineFilter = $('#disciplineFilter').value;
+    const niveauFilter = $('#niveauFilter').value; // Get selected niveau
     
     try {
         let exercises = await window.SupabaseDB.getExercises();
         
-        if (filter !== 'all') {
-            exercises = exercises.filter(e => e.type === filter);
+        if (niveauFilter !== 'all') {
+            exercises = exercises.filter(e => e.niveau === niveauFilter);
+        }
+        
+        if (disciplineFilter !== 'all') {
+            exercises = exercises.filter(e => e.type === disciplineFilter);
         }
         
         const levelOrder = {
@@ -561,9 +659,15 @@ async function loadExercises() {
         updateExerciseTitleDropdown(allExercises.length);
         
         if (exercises.length === 0) {
-            container.innerHTML = '<div style="text-align:center;padding:20px;color:#666">Aucun exercice trouvé</div>';
+            container.innerHTML = '<div style="text-align:center;padding:20px;color:#666">Aucun exercice trouvé pour les filtres sélectionnés</div>';
+            $('#paginationControls').style.display = 'none';
             return;
         }
+        
+        const totalPages = Math.ceil(exercises.length / itemsPerPage);
+        const startIndex = (currentPage - 1) * itemsPerPage;
+        const endIndex = startIndex + itemsPerPage;
+        const paginatedExercises = exercises.slice(startIndex, endIndex);
         
         container.innerHTML = `<table style="width:100%;border-collapse:collapse">
             <thead>
@@ -577,7 +681,7 @@ async function loadExercises() {
                 </tr>
             </thead>
             <tbody>
-                ${exercises.map(e => `
+                ${paginatedExercises.map(e => `
                     <tr>
                         <td style="padding:10px;border-bottom:1px solid #e0e0e0">${e.displayNumber}</td>
                         <td style="padding:10px;border-bottom:1px solid #e0e0e0">${getTypeLabel(e.type)}</td>
@@ -593,11 +697,76 @@ async function loadExercises() {
             </tbody>
         </table>`;
         
+        renderPagination(totalPages, exercises.length);
+        
     } catch (error) {
         console.error('Error loading exercises:', error);
         container.innerHTML = '<div style="text-align:center;padding:20px;color:#ef4444">Erreur de chargement: ' + error.message + '</div>';
+        $('#paginationControls').style.display = 'none';
     }
 }
+
+function renderPagination(totalPages, totalItems) {
+    const controls = $('#paginationControls');
+    
+    if (totalPages <= 1) {
+        controls.style.display = 'none';
+        return;
+    }
+    
+    controls.style.display = 'flex';
+    
+    const startItem = (currentPage - 1) * itemsPerPage + 1;
+    const endItem = Math.min(currentPage * itemsPerPage, totalItems);
+    
+    let html = `
+        <button onclick="goToPage(1)" ${currentPage === 1 ? 'disabled' : ''}>
+            ««
+        </button>
+        <button onclick="goToPage(${currentPage - 1})" ${currentPage === 1 ? 'disabled' : ''}>
+            ‹
+        </button>
+        <span class="pagination-info">
+            ${startItem}-${endItem} sur ${totalItems}
+        </span>
+    `;
+    
+    // Show page numbers (max 5 buttons)
+    const maxButtons = 5;
+    let startPage = Math.max(1, currentPage - Math.floor(maxButtons / 2));
+    let endPage = Math.min(totalPages, startPage + maxButtons - 1);
+    
+    if (endPage - startPage < maxButtons - 1) {
+        startPage = Math.max(1, endPage - maxButtons + 1);
+    }
+    
+    for (let i = startPage; i <= endPage; i++) {
+        html += `
+            <button onclick="goToPage(${i})" ${i === currentPage ? 'class="active"' : ''}>
+                ${i}
+            </button>
+        `;
+    }
+    
+    html += `
+        <button onclick="goToPage(${currentPage + 1})" ${currentPage === totalPages ? 'disabled' : ''}>
+            ›
+        </button>
+        <button onclick="goToPage(${totalPages})" ${currentPage === totalPages ? 'disabled' : ''}>
+            »»
+        </button>
+    `;
+    
+    controls.innerHTML = html;
+}
+
+function goToPage(page) {
+    currentPage = page;
+    loadExercises();
+    // Scroll to top of exercise list
+    $('#exerciseListSection').scrollIntoView({ behavior: 'smooth', block: 'start' });
+}
+
 
 function getTypeLabel(type) {
     const labels = {
