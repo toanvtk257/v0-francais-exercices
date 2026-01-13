@@ -1,0 +1,122 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net https://*.supabase.co; style-src 'self' 'unsafe-inline'; img-src 'self' data: https://*.supabase.co https://blob.vercel-storage.com; connect-src 'self' https://*.supabase.co;">
+    <meta http-equiv="X-Content-Type-Options" content="nosniff">
+    <meta http-equiv="X-Frame-Options" content="DENY">
+    <meta http-equiv="X-XSS-Protection" content="1; mode=block">
+    <meta name="referrer" content="strict-origin-when-cross-origin">
+    <title>Directives de Sécurité - Idécaf</title>
+    <style>
+        body {
+            font-family: system-ui, -apple-system, sans-serif;
+            line-height: 1.6;
+            max-width: 900px;
+            margin: 40px auto;
+            padding: 20px;
+            color: #333;
+        }
+        h1 { color: #059669; border-bottom: 3px solid #059669; padding-bottom: 10px; }
+        h2 { color: #047857; margin-top: 30px; }
+        .warning { background: #fef3c7; border-left: 4px solid #f59e0b; padding: 15px; margin: 20px 0; }
+        .success { background: #d1fae5; border-left: 4px solid #059669; padding: 15px; margin: 20px 0; }
+        code { background: #f3f4f6; padding: 2px 6px; border-radius: 3px; font-size: 0.9em; }
+        ul { margin: 10px 0; }
+        li { margin: 8px 0; }
+    </style>
+</head>
+<body>
+    <h1>🛡️ Directives de Sécurité - Site Idécaf</h1>
+    
+    <div class="success">
+        <strong>✅ Mesures de sécurité implémentées</strong>
+        <p>Le système dispose maintenant de protections multicouches contre les menaces courantes.</p>
+    </div>
+
+    <h2>1. Row Level Security (RLS) - Base de données</h2>
+    <p><strong>Protection:</strong> Contrôle d'accès au niveau des lignes de la base de données.</p>
+    <ul>
+        <li>✅ RLS activé sur toutes les tables sensibles</li>
+        <li>✅ Les utilisateurs ne peuvent voir que leurs propres données</li>
+        <li>✅ Les admins ont des permissions spéciales contrôlées</li>
+    </ul>
+    <div class="warning">
+        <strong>⚠️ Action requise:</strong> Exécuter le script <code>scripts/004_enable_rls_security.sql</code> dans Supabase.
+    </div>
+
+    <h2>2. Protection XSS (Cross-Site Scripting)</h2>
+    <p><strong>Protection:</strong> Empêche l'injection de code malveillant dans les pages.</p>
+    <ul>
+        <li>✅ Fonction <code>sanitizeHTML()</code> pour nettoyer les entrées</li>
+        <li>✅ Fonction <code>escapeHTML()</code> pour échapper les caractères spéciaux</li>
+        <li>✅ Content Security Policy (CSP) dans les headers HTML</li>
+    </ul>
+    <p><strong>Utilisation:</strong></p>
+    <pre><code>import { sanitizeHTML } from './lib/security.js';
+const safeText = sanitizeHTML(userInput);
+element.textContent = safeText; // Utiliser textContent, pas innerHTML</code></pre>
+
+    <h2>3. Rate Limiting (Protection Force Brute)</h2>
+    <p><strong>Protection:</strong> Limite les tentatives de connexion répétées.</p>
+    <ul>
+        <li>✅ Maximum 5 tentatives échouées en 15 minutes</li>
+        <li>✅ Blocage temporaire automatique</li>
+        <li>✅ Tracking côté client et serveur</li>
+    </ul>
+
+    <h2>4. Validation des Données</h2>
+    <p><strong>Protection:</strong> Vérification de toutes les entrées utilisateur.</p>
+    <ul>
+        <li>✅ <code>isValidEmail()</code> - Valide les formats email</li>
+        <li>✅ <code>isValidPIN()</code> - Valide les codes PIN (4-6 chiffres)</li>
+        <li>✅ <code>isValidPhone()</code> - Valide les numéros de téléphone</li>
+        <li>✅ <code>sanitizeInput()</code> - Nettoie les inputs génériques</li>
+    </ul>
+
+    <h2>5. Sécurité des Headers HTTP</h2>
+    <p><strong>Protection:</strong> Headers de sécurité dans toutes les pages HTML.</p>
+    <ul>
+        <li>✅ <code>Content-Security-Policy</code> - Contrôle les sources autorisées</li>
+        <li>✅ <code>X-Content-Type-Options: nosniff</code> - Empêche le MIME sniffing</li>
+        <li>✅ <code>X-Frame-Options: DENY</code> - Empêche le clickjacking</li>
+        <li>✅ <code>X-XSS-Protection</code> - Protection XSS du navigateur</li>
+    </ul>
+
+    <h2>6. Bonnes Pratiques à Suivre</h2>
+    <div class="warning">
+        <strong>⚠️ Important:</strong>
+        <ul>
+            <li>Ne jamais logger de données sensibles (mots de passe, PINs)</li>
+            <li>Toujours utiliser <code>textContent</code> au lieu de <code>innerHTML</code> pour du texte utilisateur</li>
+            <li>Valider toutes les entrées côté client ET serveur</li>
+            <li>Garder Supabase et toutes les dépendances à jour</li>
+            <li>Utiliser HTTPS en production (obligatoire)</li>
+            <li>Sauvegarder régulièrement la base de données</li>
+        </ul>
+    </div>
+
+    <h2>7. Monitoring et Alertes</h2>
+    <p>Surveiller ces événements suspects:</p>
+    <ul>
+        <li>Tentatives de connexion échouées répétées</li>
+        <li>Accès à des ressources non autorisées</li>
+        <li>Modifications de données inhabituelles</li>
+        <li>Requêtes SQL/XSS dans les inputs</li>
+    </ul>
+
+    <div class="success">
+        <strong>✅ Checklist de Déploiement Sécurisé:</strong>
+        <ul>
+            <li>☐ Exécuter le script SQL RLS</li>
+            <li>☐ Importer <code>lib/security.js</code> dans tous les fichiers</li>
+            <li>☐ Remplacer les <code>innerHTML</code> par <code>textContent</code></li>
+            <li>☐ Ajouter les meta tags de sécurité dans toutes les pages HTML</li>
+            <li>☐ Tester le rate limiting</li>
+            <li>☐ Vérifier que HTTPS est activé</li>
+            <li>☐ Supprimer tous les <code>console.log</code> de debug en production</li>
+        </ul>
+    </div>
+</body>
+</html>
