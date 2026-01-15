@@ -426,9 +426,9 @@ function handleCompetenceChange() {
     filteredExercises = allExercises
         .filter(ex => ex.niveau === niveau && ex.type === competence)
         .sort((a, b) => {
-            // Extract numeric part from id if it exists (e.g., "lecture-1" -> 1)
-            const numA = parseInt(a.id.match(/\d+/)?.[0] || '0');
-            const numB = parseInt(b.id.match(/\d+/)?.[0] || '0');
+            // Sort by titre which contains the exercise number (1, 2, 3, etc.)
+            const numA = parseInt(a.titre) || 0;
+            const numB = parseInt(b.titre) || 0;
             return numA - numB; // Ascending order: 1, 2, 3...
         });
     
