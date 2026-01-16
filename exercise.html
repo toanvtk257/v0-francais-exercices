@@ -139,10 +139,8 @@ function renderExercise() {
         
         if (ex.image) {
             html += `<img src="${ex.image}" alt="Document à lire" class="passage-image">`;
-        }
-        
-        // Display text if exists
-        if (ex.texte) {
+        } else if (ex.texte) {
+            // Only show text if there's no image
             html += `<div class="passage-text">${escapeHtml(ex.texte).replace(/\n/g, '<br>')}</div>`;
         }
         
