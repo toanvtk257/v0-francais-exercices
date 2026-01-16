@@ -3,693 +3,443 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net; style-src 'self' 'unsafe-inline'; img-src 'self' data: https:; font-src 'self' data:; connect-src 'self' https://*.supabase.co https://res.cloudinary.com ws: wss:; media-src 'self' https: blob:;">
-<title>Exercice — Apprenant</title>
-<!-- Add Supabase CDN -->
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net; style-src 'self' 'unsafe-inline'; img-src 'self' data: https: blob:; font-src 'self' data:; connect-src 'self' https://*.supabase.co ws: wss:; media-src 'self' https: blob:;">
+<title>Exercice - Entraînement au français</title>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="lib/config.js"></script>
+<script src="lib/supabase-client.js"></script>
 <style>
-:root{--brand:#2b5;--ink:#222;--muted:#666;--bg:#f7f7f7;--card:#fff;--success:#4caf50;--error:#d32f2f}
+:root{--brand:#2b5;--ink:#222;--muted:#666;--bg:#f7f7f7;--card:#fff;--success:#4caf50;--error:#ef4444}
 html,body{margin:0;padding:0;background:var(--bg);color:var(--ink);font-family:system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif}
-header{background:var(--brand);color:#fff;padding:16px 20px;display:flex;justify-content:space-between;align-items:center}
-h1{margin:0;font-size:1.2rem}
-.header-right{display:flex;gap:16px;align-items:center;font-size:.95rem}
-.timer{background:rgba(255,255,255,.2);padding:8px 12px;border-radius:8px;font-weight:600}
-.back-btn{background:rgba(255,255,255,.2);border:1px solid rgba(255,255,255,.3);color:#fff;padding:8px 12px;border-radius:8px;cursor:pointer;font-weight:600}
+header{background:var(--brand);color:#fff;padding:14px 20px;display:flex;justify-content:space-between;align-items:center}
+.header-left{display:flex;align-items:center;gap:16px}
+.exercise-number{font-size:1.5rem;font-weight:700}
+.timer{background:rgba(255,255,255,0.2);padding:6px 12px;border-radius:6px;font-weight:600}
+.back-btn{background:#fff;color:var(--brand);border:none;padding:8px 16px;border-radius:6px;cursor:pointer;font-weight:600}
 main{max-width:900px;margin:24px auto;padding:0 16px 48px}
-.card{background:var(--card);border-radius:14px;box-shadow:0 6px 18px rgba(0,0,0,.05);padding:20px;margin-bottom:20px}
-h2{margin:0 0 16px;font-size:1.1rem}
-.passage{line-height:1.8;font-size:1.05rem;margin-bottom:20px;padding:16px;background:#f9f9f9;border-radius:10px;border-left:4px solid var(--brand)}
-.audio-player{margin:16px 0;width:100%}
-.question-section{margin:20px 0}
-.question-title{font-weight:600;margin-bottom:12px;font-size:1rem}
-.options{display:flex;flex-direction:column;gap:10px}
-.option{display:flex;align-items:center;padding:12px;border:1px solid #ddd;border-radius:10px;cursor:pointer;transition:all .2s}
-.option:hover{background:#f5f5f5;border-color:var(--brand)}
-.option input{margin-right:12px;cursor:pointer}
-.option label{flex:1;cursor:pointer;margin:0}
-.cloze-text{line-height:1.8;font-size:1.05rem;margin:16px 0}
-.cloze-input{min-width:100px;padding:6px 8px;border:1px solid #ddd;border-radius:6px;font-size:1rem;margin:0 4px}
-.justif-input{width:100%;padding:8px;border:1px solid #ddd;border-radius:6px;margin-top:8px;font-size:.95rem}
-.btns{display:flex;gap:12px;margin-top:20px;flex-wrap:wrap}
-button{border:0;padding:10px 16px;border-radius:8px;cursor:pointer;font-weight:600;font-size:.95rem;transition:all .2s}
+.card{background:var(--card);border-radius:12px;box-shadow:0 4px 12px rgba(0,0,0,.08);padding:20px;margin-bottom:20px}
+h2{margin:0 0 16px;font-size:1.2rem}
+.consigne-box{background:#e0f2fe;border-left:4px solid #0ea5e9;padding:12px 16px;border-radius:0 8px 8px 0;margin-bottom:16px}
+.consigne-box strong{color:#0369a1}
+.consigne-text{white-space:pre-wrap;margin-top:8px;color:#0c4a6e}
+.passage-box{background:#f8fafc;border:1px solid #e2e8f0;border-radius:8px;padding:16px;margin-bottom:20px;line-height:1.7}
+.passage-title{font-weight:700;font-size:1.1rem;margin-bottom:12px;color:var(--ink)}
+.passage-image{max-width:100%;border-radius:8px;margin-bottom:16px;box-shadow:0 2px 8px rgba(0,0,0,.1)}
+.audio-box{background:#fef3c7;border:1px solid #fcd34d;border-radius:8px;padding:16px;margin-bottom:20px}
+.audio-box audio{width:100%;margin-top:8px}
+.question{background:#fff;border:1px solid #e5e7eb;border-radius:8px;padding:16px;margin-bottom:12px}
+.question-header{font-weight:600;margin-bottom:12px;display:flex;justify-content:space-between}
+.question-text{margin-bottom:12px}
+.options{display:flex;flex-direction:column;gap:8px}
+.option{display:flex;align-items:center;gap:10px;padding:10px 12px;border:2px solid #e5e7eb;border-radius:6px;cursor:pointer;transition:all .2s}
+.option:hover{border-color:#d1d5db;background:#f9fafb}
+.option.selected{border-color:var(--brand);background:#ecfdf5}
+.option.correct{border-color:var(--success);background:#dcfce7}
+.option.incorrect{border-color:var(--error);background:#fee2e2}
+.option input{margin:0}
+.cloze-input{border:1px solid #d1d5db;padding:6px 10px;border-radius:4px;min-width:100px;font-size:1rem}
+.cloze-input.correct{border-color:var(--success);background:#dcfce7}
+.cloze-input.incorrect{border-color:var(--error);background:#fee2e2}
+.btn-group{display:flex;gap:12px;margin-top:20px}
+.btn{padding:12px 24px;border:none;border-radius:8px;cursor:pointer;font-weight:600;font-size:1rem}
 .btn-primary{background:var(--brand);color:#fff}
-.btn-primary:hover{opacity:.9}
-.btn-secondary{background:#e0e0e0;color:#111}
-.btn-secondary:hover{background:#d0d0d0}
-.feedback{margin-top:16px;padding:12px;border-radius:8px;font-weight:600}
-.feedback.success{background:#e8f5e9;color:var(--success);border:1px solid #c8e6c9}
-.feedback.error{background:#ffebee;color:var(--error);border:1px solid #ffcdd2}
-.result-box{background:#f5f5f5;padding:16px;border-radius:8px;margin-top:16px;text-align:center}
-.result-score{font-size:2rem;font-weight:700;color:var(--brand);margin:8px 0}
-.result-details{color:var(--muted);font-size:.95rem}
+.btn-secondary{background:#e5e7eb;color:#374151}
+.btn:disabled{opacity:.5;cursor:not-allowed}
+.results-box{background:#ecfdf5;border:2px solid var(--success);border-radius:8px;padding:20px;margin-top:20px;text-align:center}
+.results-box.failed{background:#fef2f2;border-color:var(--error)}
+.score{font-size:2rem;font-weight:700;color:var(--success)}
+.results-box.failed .score{color:var(--error)}
+.transcription-box{background:#f0fdf4;border:1px solid #86efac;border-radius:8px;padding:16px;margin-top:20px}
+.transcription-box h3{margin:0 0 12px;color:#166534}
 .loading{text-align:center;padding:40px;color:var(--muted)}
-.correction-check{color:var(--success);font-weight:bold;margin-left:8px}
-.correction-x{color:var(--error);font-weight:bold;margin-left:8px}
-.text-green-600{color:var(--success)!important;font-weight:600}
-.text-red-600{color:var(--error)!important;text-decoration:line-through}
-.correct-answer-display{color:var(--success);font-weight:600;margin-top:4px;font-size:.9rem}
-
-/* Adding watermark and content protection styles */
-.watermark{position:fixed;top:50%;left:50%;transform:translate(-50%,-50%) rotate(-45deg);font-size:1.5rem;color:rgba(0,0,0,0.03);pointer-events:none;white-space:nowrap;z-index:9999;user-select:none;font-weight:600}
-body.protected{user-select:none;-webkit-user-select:none;-moz-user-select:none;-ms-user-select:none}
-.protected *{user-select:none;-webkit-user-select:none;-moz-user-select:none;-ms-user-select:none}
-.protected .cloze-input,.protected .justif-input{user-select:text;-webkit-user-select:text;-moz-user-select:text;-ms-user-select:text}
+.error{text-align:center;padding:40px;color:var(--error)}
 </style>
 </head>
 <body>
-
-<!-- Adding watermark element -->
-<div class="watermark" id="watermark"></div>
-
 <header>
-  <h1 id="lessonTitle">Exercice</h1>
-  <div class="header-right">
-    <div class="timer" id="timer">00:00</div>
-    <button class="back-btn" onclick="goBack()">Retour</button>
+  <div class="header-left">
+    <span class="exercise-number" id="exerciseNumber">--</span>
+    <span class="timer" id="timer">00:00</span>
   </div>
+  <button class="back-btn" onclick="goBack()">Retour</button>
 </header>
 
 <main>
-  <div class="card" id="contentCard">
-    <div id="loadingState" class="loading">Chargement de l'exercice...</div>
-    
-    <!-- Passage for lecture -->
-    <div id="passageBox" style="display:none">
-      <h2>Texte à lire</h2>
-      <article class="passage" id="passageContent"></article>
-    </div>
-
-    <!-- Audio for ecoute -->
-    <div id="audioSection" style="display:none">
-      <h2>Écoutez l'audio</h2>
-      <audio class="audio-player" id="audioPlayer" controls preload="metadata" controlsList="nodownload" oncontextmenu="return false;">
-        <source id="audioSource" src="" type="audio/mpeg">
-      </audio>
-    </div>
-
-    <!-- Questions Container -->
-    <div id="questionsContainer" style="display:none">
-      <!-- All questions will be added here in order -->
-    </div>
-
-    <!-- Buttons -->
-    <div class="btns" id="exerciseButtons" style="display:none">
-      <button type="button" class="btn-primary" id="submitBtn" onclick="submitExercise()">Soumettre</button>
-      <button type="button" class="btn-primary" id="correctionBtn" onclick="showCorrection()" style="display:none">Voir le corrigé</button>
-      <button type="button" class="btn-secondary" id="resetBtn" onclick="resetForm()">Réinitialiser</button>
-      <button type="button" class="btn-primary" id="redoBtn" onclick="redoExercise()" style="display:none">Refaire l'exercice</button>
-    </div>
-
-    <!-- Feedback -->
-    <div id="resultBox" class="result-box" style="display:none"></div>
-
-    <!-- Single clean transcription section that shows after submission for ecoute exercises -->
-    <div id="transcriptionBox" style="display:none; margin-top: 20px; padding: 20px; background-color: #e8f5e9; border-radius: 10px; border-left: 4px solid var(--brand);">
-      <h3 style="margin-top: 0; color: var(--brand);">Transcription</h3>
-      <button type="button" class="btn-primary" id="transcriptionToggleBtn" onclick="toggleTranscription()" style="margin-bottom: 12px;">Afficher la transcription</button>
-      <div id="transcriptionTextContent" style="display:none; white-space: pre-wrap; line-height: 1.6; margin-top: 12px; padding: 12px; background: white; border-radius: 6px;"></div>
-    </div>
+  <div id="exerciseContainer">
+    <div class="loading">Chargement de l'exercice...</div>
   </div>
 </main>
 
-<!-- Load Supabase configuration and client library -->
-<script src="lib/config.js"></script>
-<script src="lib/supabase-client.js"></script>
-
 <script>
-const $ = s => document.querySelector(s);
-const $$ = s => [...document.querySelectorAll(s)];
-
-let currentUser = null;
 let currentExercise = null;
-let startTime = Date.now();
+let userAnswers = {};
 let timerInterval = null;
-let submitted = false;
+let elapsedSeconds = 0;
+let isSubmitted = false;
 
-function initContentProtection() {
-    // Add protected class to body
-    document.body.classList.add('protected');
+async function init() {
+    const urlParams = new URLSearchParams(window.location.search);
+    const exerciseId = urlParams.get('id');
     
-    // Disable right-click
-    document.addEventListener('contextmenu', (e) => {
-        e.preventDefault();
-        return false;
-    });
+    if (!exerciseId) {
+        showError('Aucun exercice spécifié');
+        return;
+    }
     
-    // Disable keyboard shortcuts for copy/save/print
-    document.addEventListener('keydown', (e) => {
-        // Ctrl+C, Ctrl+X, Ctrl+S, Ctrl+P, Ctrl+U, F12, Ctrl+Shift+I
-        if ((e.ctrlKey || e.metaKey) && (e.key === 'c' || e.key === 'x' || e.key === 's' || e.key === 'p' || e.key === 'u')) {
-            e.preventDefault();
-            return false;
-        }
-        // F12 and Ctrl+Shift+I (DevTools)
-        if (e.key === 'F12' || ((e.ctrlKey || e.metaKey) && e.shiftKey && e.key === 'I')) {
-            e.preventDefault();
-            return false;
-        }
-        // PrintScreen
-        if (e.key === 'PrintScreen') {
-            e.preventDefault();
-            return false;
-        }
-    });
-    
-    // Disable copy event
-    document.addEventListener('copy', (e) => {
-        e.preventDefault();
-        return false;
-    });
-    
-    // Disable cut event
-    document.addEventListener('cut', (e) => {
-        e.preventDefault();
-        return false;
-    });
-    
-    // Disable drag
-    document.addEventListener('dragstart', (e) => {
-        e.preventDefault();
-        return false;
-    });
-}
-
-function initWatermark() {
-    if (!currentUser) return;
-    
-    const watermark = $('#watermark');
-    if (!watermark) return;
-    
-    // Display user identifier as watermark (email or zalo)
-    const identifier = currentUser.email || currentUser.zalo || currentUser.id;
-    watermark.textContent = `${identifier} • ${new Date().toLocaleDateString('fr-FR')}`;
-}
-
-// =============================================
-// Authentication & Loading
-// =============================================
-
-async function checkAuth() {
     try {
+        // Wait for Supabase
+        let retries = 0;
+        while ((!window.SupabaseDB || !window.SupabaseDB.isAvailable()) && retries < 50) {
+            await new Promise(resolve => setTimeout(resolve, 100));
+            retries++;
+        }
+        
         if (!window.SupabaseDB || !window.SupabaseDB.isAvailable()) {
             throw new Error('Base de données non disponible');
         }
         
-        currentUser = await window.SupabaseDB.getCurrentUser();
-        
-        if (!currentUser) {
-            window.location.href = 'login.html';
-            return;
-        }
-        
-        initContentProtection();
-        initWatermark();
-        
-        // Get exercise ID from URL or localStorage
-        const urlParams = new URLSearchParams(window.location.search);
-        let exerciseId = urlParams.get('id') || localStorage.getItem('current_exercise_id');
-        
-        if (!exerciseId) {
-            alert('Aucun exercice sélectionné');
-            window.location.href = 'dashboard.html';
-            return;
-        }
-        
-        await loadExercise(exerciseId);
-        
-    } catch (error) {
-        console.error('Auth error:', error);
-        window.location.href = 'login.html';
-    }
-}
-
-async function loadExercise(exerciseId) {
-    try {
+        // Load exercise
         currentExercise = await window.SupabaseDB.getExerciseById(exerciseId);
         
         if (!currentExercise) {
-            alert('Exercice non trouvé');
-            window.location.href = 'dashboard.html';
-            return;
+            throw new Error('Exercice non trouvé');
         }
         
-        console.log('[v0] Exercise loaded:', currentExercise);
-        console.log('[v0] Consigne value:', currentExercise.consigne);
-        console.log('[v0] Consigne type:', typeof currentExercise.consigne);
-        console.log('[v0] Consigne is truthy?', !!currentExercise.consigne);
-        
-        // Update title
-        $('#lessonTitle').textContent = currentExercise.titre;
-        
-        // Render exercise
+        document.getElementById('exerciseNumber').textContent = currentExercise.titre || '--';
         renderExercise();
-        
-        // Hide loading, show buttons
-        $('#loadingState').style.display = 'none';
-        $('#exerciseButtons').style.display = 'flex';
-        
-        // Start timer
         startTimer();
         
     } catch (error) {
-        console.error('Auth error:', error);
-        alert('Erreur lors du chargement de l\'exercice');
-        window.location.href = 'dashboard.html';
+        console.error('Error loading exercise:', error);
+        showError('Erreur: ' + error.message);
     }
 }
 
 function renderExercise() {
-    let questionNumber = 1;
+    const container = document.getElementById('exerciseContainer');
+    const ex = currentExercise;
     
-    const questionsContainer = $('#questionsContainer');
-    questionsContainer.innerHTML = ''; // Clear previous content
+    let html = '';
     
-    console.log('[v0] renderExercise - currentExercise.consigne:', currentExercise.consigne);
+    if (ex.consigne) {
+        html += `
+            <div class="card">
+                <div class="consigne-box">
+                    <strong>📋 Consigne:</strong>
+                    <div class="consigne-text">${escapeHtml(ex.consigne)}</div>
+                </div>
+            </div>
+        `;
+    }
     
-    if (currentExercise.type === 'lecture') {
-        if (currentExercise.texte && currentExercise.texte.trim()) {
-            $('#passageBox').style.display = 'block';
-            
-            // Insert consigne first if it exists
-            let consigneHTML = '';
-            if (currentExercise.consigne && currentExercise.consigne.trim()) {
-                console.log('[v0] Adding consigne to lecture exercise:', currentExercise.consigne);
-                consigneHTML = `
-                    <div style="background: #e0f2fe; padding: 16px; border-radius: 10px; margin-bottom: 20px; border-left: 4px solid var(--brand);">
-                        <strong style="color: var(--brand); display: block; margin-bottom: 8px;">📋 Consigne:</strong>
-                        <div style="line-height: 1.6; color: #0c4a6e; white-space: pre-wrap;">${currentExercise.consigne}</div>
-                    </div>
-                `;
-            } else {
-                console.log('[v0] No consigne for lecture exercise - consigne is:', currentExercise.consigne);
-            }
-            
-            const text = currentExercise.texte;
-            const lines = text.split('\n').filter(line => line.trim());
-            let textHTML = '';
-            
-            if (lines.length > 1 && lines[0].length < 100 && !lines[0].trim().endsWith('.')) {
-                textHTML = `<h3 style="font-weight:bold; margin-bottom:12px; font-size:1.2rem;">${lines[0]}</h3>`;
-                textHTML += lines.slice(1).map(line => `<p>${line}</p>`).join('');
-            } else {
-                textHTML = lines.map(line => `<p>${line}</p>`).join('');
-            }
-            
-            // Combine consigne + text
-            $('#passageContent').innerHTML = consigneHTML + textHTML;
-        } else {
-            $('#passageBox').style.display = 'none';
-        }
-    } else {
-        if (currentExercise.consigne && currentExercise.consigne.trim()) {
-            const consigneDiv = document.createElement('div');
-            consigneDiv.style.cssText = 'background: #e0f2fe; padding: 16px; border-radius: 10px; margin-bottom: 20px; border-left: 4px solid var(--brand);';
-            consigneDiv.innerHTML = `
-                <strong style="color: var(--brand); display: block; margin-bottom: 8px;">📋 Consigne:</strong>
-                <div style="line-height: 1.6; color: #0c4a6e; white-space: pre-wrap;">${currentExercise.consigne}</div>
-            `;
-            questionsContainer.appendChild(consigneDiv);
+    if (ex.type === 'lecture') {
+        html += '<div class="card">';
+        html += '<h2>Texte à lire</h2>';
+        html += '<div class="passage-box">';
+        
+        if (ex.image) {
+            html += `<img src="${ex.image}" alt="Document à lire" class="passage-image">`;
         }
         
-        // For CO, the text (transcription) should only appear after correction
-        if (currentExercise.texte && currentExercise.texte.trim() && 
-            currentExercise.type !== 'ecoute') {
-            $('#passageBox').style.display = 'block';
-            
-            const text = currentExercise.texte;
-            const lines = text.split('\n').filter(line => line.trim());
-            let html = '';
-            
-            if (lines.length > 1 && lines[0].length < 100 && !lines[0].trim().endsWith('.')) {
-                html = `<h3 style="font-weight:bold; margin-bottom:12px; font-size:1.2rem;">${lines[0]}</h3>`;
-                html += lines.slice(1).map(line => `<p>${line}</p>`).join('');
-            } else {
-                html = lines.map(line => `<p>${line}</p>`).join('');
-            }
-            
-            $('#passageContent').innerHTML = html;
+        // Display text if exists
+        if (ex.texte) {
+            html += `<div class="passage-text">${escapeHtml(ex.texte).replace(/\n/g, '<br>')}</div>`;
+        }
+        
+        html += '</div></div>';
+    } else if (ex.type === 'ecoute') {
+        // Audio for CO exercises
+        if (ex.audio) {
+            html += `
+                <div class="card">
+                    <div class="audio-box">
+                        <h2>🎧 Audio</h2>
+                        <audio controls>
+                            <source src="${ex.audio}" type="audio/mpeg">
+                            Votre navigateur ne supporte pas l'audio.
+                        </audio>
+                    </div>
+                </div>
+            `;
+        }
+    } else if (ex.type === 'grammaire' || ex.type === 'lexique') {
+        // For grammar/lexique, show text if present
+        if (ex.texte) {
+            html += `
+                <div class="card">
+                    <h2>Texte</h2>
+                    <div class="passage-box">
+                        <div class="passage-text">${escapeHtml(ex.texte).replace(/\n/g, '<br>')}</div>
+                    </div>
+                </div>
+            `;
         }
     }
     
-    if (currentExercise.type === 'ecoute' && currentExercise.audio) {
-        $('#audioSection').style.display = 'block';
-        $('#audioSource').src = currentExercise.audio;
-        $('#audioPlayer').load();
+    // Questions
+    if (ex.questions && ex.questions.length > 0) {
+        html += '<div class="card"><h2>Questions</h2>';
+        
+        ex.questions.forEach((q, idx) => {
+            html += renderQuestion(q, idx);
+        });
+        
+        html += `
+            <div class="btn-group">
+                <button class="btn btn-primary" id="submitBtn" onclick="submitAnswers()">Soumettre</button>
+                <button class="btn btn-secondary" onclick="resetAnswers()">Réinitialiser</button>
+            </div>
+            <div id="resultsBox"></div>
+        </div>`;
     }
     
-    questionsContainer.style.display = 'block';
+    // Transcription box (hidden until submitted for CO)
+    if (ex.type === 'ecoute' && ex.texte) {
+        html += `
+            <div id="transcriptionBox" class="transcription-box" style="display:none">
+                <h3>📝 Transcription</h3>
+                <p>${escapeHtml(ex.texte).replace(/\n/g, '<br>')}</p>
+            </div>
+        `;
+    }
     
-    const questions = currentExercise.questions || [];
+    container.innerHTML = html;
+}
+
+function renderQuestion(q, idx) {
+    const qNum = idx + 1;
+    const points = q.points || 1;
     
-    let hasQCM = false;
-    let hasVF = false;
-    let hasCloze = false;
+    let html = `
+        <div class="question" data-index="${idx}">
+            <div class="question-header">
+                <span>${qNum}. ${escapeHtml(q.question || q.text || q.statement || '')}</span>
+                <span class="text-muted">(${points} pts)</span>
+            </div>
+    `;
     
-    // Render all questions in their original order into the single container
-    questions.forEach((q, idx) => {
-        if (q.type === 'vf') {
-            hasVF = true;
-            const div = createVFQuestion(q, idx, questionNumber);
-            questionsContainer.appendChild(div);
-            questionNumber++;
-        } else if (q.type === 'cloze') {
-            hasCloze = true;
-            const div = createClozeQuestion(q, idx, questionNumber);
-            if (div) {
-                questionsContainer.appendChild(div);
-                questionNumber++;
-            }
-        } else {
-            // QCM or default
-            hasQCM = true;
-            const div = createQCMQuestion(q, idx, questionNumber);
-            questionsContainer.appendChild(div);
-            questionNumber++;
+    if (q.type === 'qcm' || q.options) {
+        // Multiple choice
+        const options = q.options || [
+            { text: q.a || q.choice_a, value: 'a' },
+            { text: q.b || q.choice_b, value: 'b' },
+            { text: q.c || q.choice_c, value: 'c' },
+            q.d || q.choice_d ? { text: q.d || q.choice_d, value: 'd' } : null
+        ].filter(o => o && o.text);
+        
+        html += '<div class="options">';
+        options.forEach((opt, optIdx) => {
+            const value = opt.value || String.fromCharCode(97 + optIdx);
+            html += `
+                <label class="option" data-value="${value}" onclick="selectOption(${idx}, '${value}')">
+                    <input type="radio" name="q${idx}" value="${value}">
+                    <span>${escapeHtml(opt.text || opt)}</span>
+                </label>
+            `;
+        });
+        html += '</div>';
+    } else if (q.type === 'vf' || q.statement) {
+        // True/False
+        html += `
+            <div class="options">
+                <label class="option" data-value="vrai" onclick="selectOption(${idx}, 'vrai')">
+                    <input type="radio" name="q${idx}" value="vrai">
+                    <span>Vrai</span>
+                </label>
+                <label class="option" data-value="faux" onclick="selectOption(${idx}, 'faux')">
+                    <input type="radio" name="q${idx}" value="faux">
+                    <span>Faux</span>
+                </label>
+            </div>
+        `;
+    } else if (q.type === 'cloze' || q.clozeText) {
+        // Fill in the blank
+        const text = q.clozeText || q.text || '';
+        let clozeHtml = text.replace(/\[([^\]]+)\]/g, (match, answer, offset) => {
+            const inputId = `cloze_${idx}_${offset}`;
+            return `<input type="text" class="cloze-input" id="${inputId}" data-answer="${answer}" onchange="saveClozeAnswer(${idx}, '${inputId}', this.value)">`;
+        });
+        html += `<div class="cloze-text">${clozeHtml}</div>`;
+    }
+    
+    // Grammar explanation if exists
+    if (q.explication) {
+        html += `<div id="explication_${idx}" class="explication-box" style="display:none;margin-top:12px;padding:12px;background:#fef3c7;border-radius:6px;">
+            <strong>💡 Explication:</strong> ${escapeHtml(q.explication)}
+        </div>`;
+    }
+    
+    html += '</div>';
+    return html;
+}
+
+function selectOption(questionIdx, value) {
+    if (isSubmitted) return;
+    
+    userAnswers[questionIdx] = value;
+    
+    // Update UI
+    const question = document.querySelector(`.question[data-index="${questionIdx}"]`);
+    question.querySelectorAll('.option').forEach(opt => {
+        opt.classList.remove('selected');
+        if (opt.dataset.value === value) {
+            opt.classList.add('selected');
+            opt.querySelector('input').checked = true;
         }
     });
 }
 
-function createQCMQuestion(q, idx, questionNumber) {
-    const div = document.createElement('div');
-    div.className = 'question-section';
-    div.dataset.type = 'qcm';
-    div.dataset.index = idx;
-    
-    const correctIndex = typeof q.correct === 'number' ? q.correct : -1;
-    const correctLetter = correctIndex >= 0 ? String.fromCharCode(97 + correctIndex) : '';
-    div.dataset.answer = correctLetter || (q.answer || q.correcte || '').toLowerCase();
-    div.dataset.points = q.points || 1;
-    if (q.explanation) div.dataset.explanation = q.explanation;
-    
-    const name = 'q_' + idx;
-    const options = q.options || [];
-    
-    const optionsHTML = options.map((opt, optIdx) => {
-        const letter = String.fromCharCode(97 + optIdx);
-        return `<label class="option" data-val="${letter}"><input type="radio" name="${name}" value="${letter}"> <span>${opt}</span></label>`;
-    }).join('');
-
-    div.innerHTML = `
-        <div class="question-title">${questionNumber}. ${q.question || q.texte || ''} <span style="color:#666;font-size:.9rem">(${q.points || 1} pts)</span></div>
-        <div class="options">${optionsHTML}</div>
-    `;
-    
-    return div;
+function saveClozeAnswer(questionIdx, inputId, value) {
+    if (!userAnswers[questionIdx]) userAnswers[questionIdx] = {};
+    userAnswers[questionIdx][inputId] = value;
 }
 
-function createVFQuestion(q, idx, questionNumber) {
-    const div = document.createElement('div');
-    div.className = 'question-section';
-    div.dataset.type = 'vf';
-    div.dataset.index = idx;
+function resetAnswers() {
+    if (isSubmitted) return;
     
-    let correctAnswer = 'vrai'; // default
-    if (q.correct !== undefined && q.correct !== null) {
-        // Handle boolean values: false -> "faux", true -> "vrai"
-        if (typeof q.correct === 'boolean') {
-            correctAnswer = q.correct ? 'vrai' : 'faux';
+    userAnswers = {};
+    document.querySelectorAll('.option').forEach(opt => {
+        opt.classList.remove('selected');
+        opt.querySelector('input').checked = false;
+    });
+    document.querySelectorAll('.cloze-input').forEach(input => {
+        input.value = '';
+    });
+}
+
+async function submitAnswers() {
+    if (isSubmitted) return;
+    
+    isSubmitted = true;
+    stopTimer();
+    
+    const questions = currentExercise.questions || [];
+    let correct = 0;
+    let total = questions.length;
+    
+    questions.forEach((q, idx) => {
+        const userAnswer = userAnswers[idx];
+        const correctAnswer = (q.answer || q.correct || q.ans || '').toString().toLowerCase();
+        
+        const questionEl = document.querySelector(`.question[data-index="${idx}"]`);
+        
+        if (q.type === 'cloze' || q.clozeText) {
+            // Handle cloze questions
+            const inputs = questionEl.querySelectorAll('.cloze-input');
+            let allCorrect = true;
+            inputs.forEach(input => {
+                const expected = input.dataset.answer.toLowerCase().trim();
+                const given = input.value.toLowerCase().trim();
+                if (given === expected) {
+                    input.classList.add('correct');
+                } else {
+                    input.classList.add('incorrect');
+                    allCorrect = false;
+                }
+            });
+            if (allCorrect) correct++;
         } else {
-            correctAnswer = q.correct.toString().trim().toLowerCase();
+            // Handle QCM and VF
+            const isCorrect = userAnswer && userAnswer.toLowerCase() === correctAnswer;
+            
+            questionEl.querySelectorAll('.option').forEach(opt => {
+                if (opt.dataset.value === correctAnswer) {
+                    opt.classList.add('correct');
+                } else if (opt.dataset.value === userAnswer && !isCorrect) {
+                    opt.classList.add('incorrect');
+                }
+            });
+            
+            if (isCorrect) correct++;
         }
-    } else if (q.correcte !== undefined && q.correcte !== null) {
-        if (typeof q.correcte === 'boolean') {
-            correctAnswer = q.correcte ? 'vrai' : 'faux';
-        } else {
-            correctAnswer = q.correcte.toString().trim().toLowerCase();
-        }
-    } else if (q.answer !== undefined && q.answer !== null) {
-        if (typeof q.answer === 'boolean') {
-            correctAnswer = q.answer ? 'vrai' : 'faux';
-        } else {
-            correctAnswer = q.answer.toString().trim().toLowerCase();
-        }
-    }
+        
+        // Show explanation if exists
+        const explEl = document.getElementById(`explication_${idx}`);
+        if (explEl) explEl.style.display = 'block';
+    });
     
-    div.dataset.answer = correctAnswer;
-    div.dataset.points = q.points || 1;
-    if (q.explanation) div.dataset.explanation = q.explanation;
+    const percentage = Math.round((correct / Math.max(total, 1)) * 100);
     
-    const name = 'q_' + idx;
-    
-    div.innerHTML = `
-        <div class="question-title">${questionNumber}. ${q.question || q.texte || ''} <span style="color:#666;font-size:.9rem">(${q.points || 1} pts)</span></div>
-        <div class="options">
-            <label class="option" data-val="vrai"><input type="radio" name="${name}" value="vrai"> <span>Vrai</span></label>
-            <label class="option" data-val="faux"><input type="radio" name="${name}" value="faux"> <span>Faux</span></label>
+    // Show results
+    const resultsBox = document.getElementById('resultsBox');
+    resultsBox.innerHTML = `
+        <div class="results-box ${percentage >= 70 ? '' : 'failed'}">
+            <div class="score">${percentage}%</div>
+            <p>${correct} sur ${total} réponses correctes</p>
+            <p>Temps: ${formatTime(elapsedSeconds)}</p>
         </div>
     `;
     
-    return div;
-}
-
-function createClozeQuestion(q, idx, questionNumber) {
-    const div = document.createElement('div');
-    div.className = 'question-section';
-    div.dataset.type = 'cloze';
-    div.dataset.index = idx;
-    div.dataset.points = q.points || 1;
-    
-    const clozeText = q.text || q.clozeText || q.question || q.texte || '';
-    
-    if (!clozeText.trim()) {
-        return null;
+    // Show transcription for CO
+    const transcriptionBox = document.getElementById('transcriptionBox');
+    if (transcriptionBox) {
+        transcriptionBox.style.display = 'block';
     }
     
-    const answers = [];
-    let html = clozeText.replace(/\[([^\]]+)\]/g, (match, answer) => {
-        answers.push(answer.trim().toLowerCase());
-        return `<input type="text" class="cloze-input" data-answer="${answer.trim().toLowerCase()}">`;
-    });
+    // Disable submit button
+    document.getElementById('submitBtn').disabled = true;
     
-    div.dataset.answers = JSON.stringify(answers);
-    div.innerHTML = `<div class="question-title">${questionNumber}. ${html} <span style="color:#666;font-size:.9rem">(${q.points || 1} pts)</span></div>`;
-    
-    return div;
+    // Save progress
+    try {
+        const currentUser = await window.SupabaseDB.getCurrentUser();
+        if (currentUser) {
+            await window.SupabaseDB.saveProgress({
+                user_id: currentUser.id,
+                exercise_id: currentExercise.id,
+                score: correct,
+                total: total,
+                percentage: percentage,
+                time_spent: elapsedSeconds,
+                answers: userAnswers
+            });
+        }
+    } catch (error) {
+        console.error('Error saving progress:', error);
+    }
 }
 
 function startTimer() {
-    startTime = Date.now();
     timerInterval = setInterval(() => {
-        const elapsed = Math.floor((Date.now() - startTime) / 1000);
-        const mins = Math.floor(elapsed / 60);
-        const secs = elapsed % 60;
-        $('#timer').textContent = `${String(mins).padStart(2, '0')}:${String(secs).padStart(2, '0')}`;
+        elapsedSeconds++;
+        document.getElementById('timer').textContent = formatTime(elapsedSeconds);
     }, 1000);
 }
 
-// =============================================
-// Submission & Grading
-// =============================================
-
-async function submitExercise() {
-    if (submitted) return;
-    submitted = true;
-
-    const timeSpent = Math.floor((Date.now() - startTime) / 1000);
-    let totalPoints = 0;
-    let earnedPoints = 0;
-    const answers = {};
-
-    const allQuestions = $$('#questionsContainer .question-section');
-    allQuestions.forEach((q) => {
-        const points = parseInt(q.dataset.points) || 1;
-        totalPoints += points;
-        const qType = q.dataset.type;
-        const qIndex = q.dataset.index;
-        
-        if (qType === 'cloze') {
-            const inputs = q.querySelectorAll('.cloze-input');
-            let correctCount = 0;
-            
-            inputs.forEach(input => {
-                const expected = input.dataset.answer.trim().toLowerCase();
-                const userAnswer = input.value.trim().toLowerCase();
-                
-                if (userAnswer === expected) {
-                    correctCount++;
-                }
-            });
-            
-            const partialPoints = inputs.length > 0 ? Math.round((correctCount / inputs.length) * points) : 0;
-            earnedPoints += partialPoints;
-            answers[`q_${qIndex}`] = Array.from(inputs).map(i => i.value);
-        } else {
-            const expected = (q.dataset.answer || '').trim().toLowerCase();
-            const picked = q.querySelector('input[type="radio"]:checked');
-            const userAnswer = picked ? picked.value.trim().toLowerCase() : null;
-            
-            answers[`q_${qIndex}`] = userAnswer;
-            
-            if (userAnswer && userAnswer === expected) {
-                earnedPoints += points;
-            }
-        }
-    });
-
-    const percentage = totalPoints > 0 ? Math.round((earnedPoints / totalPoints) * 100) : 0;
-
-    // Save attempt to Supabase
-    try {
-        await window.SupabaseDB.saveAttempt({
-            lessonId: currentExercise.id,
-            score: earnedPoints,
-            maxScore: totalPoints,
-            percentage: percentage,
-            duration: timeSpent,
-            answers: answers
-        });
-    } catch (error) {
-        console.error('Error saving attempt:', error);
+function stopTimer() {
+    if (timerInterval) {
+        clearInterval(timerInterval);
+        timerInterval = null;
     }
-
-    // Show results
-    const resultHtml = `
-        <div class="result-score">${percentage}%</div>
-        <div class="result-details">
-            <div>Points obtenus: ${earnedPoints}/${totalPoints}</div>
-            <div>Temps: ${formatTime(timeSpent)}</div>
-        </div>
-    `;
-
-    $('#resultBox').innerHTML = resultHtml;
-    $('#resultBox').style.display = 'block';
-    $('#submitBtn').style.display = 'none';
-    $('#correctionBtn').style.display = 'inline-block';
-    $('#redoBtn').style.display = 'inline-block';
-    $('#resetBtn').style.display = 'none';
-    
-    if (currentExercise.type === 'ecoute' && currentExercise.texte && currentExercise.texte.trim() !== '') {
-        $('#transcriptionTextContent').textContent = currentExercise.texte;
-        $('#transcriptionBox').style.display = 'block';
-    }
-
-    if (timerInterval) clearInterval(timerInterval);
-}
-
-function showCorrection() {
-    $('#correctionBtn').style.display = 'none';
-    
-    $$('#questionsContainer .question-section').forEach(q => {
-        const qType = q.dataset.type;
-        
-        if (qType === 'cloze') {
-            const inputs = q.querySelectorAll('.cloze-input');
-            inputs.forEach(input => {
-                const expected = input.dataset.answer;
-                const userAnswer = input.value.trim().toLowerCase();
-                
-                if (userAnswer === expected) {
-                    input.classList.add('text-green-600');
-                    input.style.borderColor = 'green';
-                } else {
-                    input.classList.add('text-red-600');
-                    input.style.borderColor = 'red';
-                    input.value = `${input.value} → ${expected}`;
-                }
-                input.disabled = true;
-            });
-        } else {
-            const expected = (q.dataset.answer || '').toLowerCase();
-            const explanation = q.dataset.explanation;
-            const options = q.querySelectorAll('.option');
-            
-            options.forEach(opt => {
-                const val = opt.dataset.val;
-                const input = opt.querySelector('input');
-                const span = opt.querySelector('span');
-                
-                if (val === expected) {
-                    span.classList.add('text-green-600');
-                    span.innerHTML += ' <span class="correction-check">✓</span>';
-                } else if (input.checked) {
-                    span.classList.add('text-red-600');
-                    span.innerHTML += ' <span class="correction-x">✗</span>';
-                }
-                input.disabled = true;
-            });
-
-            if (explanation) {
-                const expDiv = document.createElement('div');
-                expDiv.className = 'explanation-box';
-                expDiv.innerHTML = `<strong>Explication :</strong> ${explanation}`;
-                q.appendChild(expDiv);
-            }
-        }
-    });
-}
-
-function resetForm() {
-    if (submitted) return;
-    $$('form').forEach(f => f.reset());
-}
-
-function goBack() {
-    if (timerInterval) clearInterval(timerInterval);
-    window.location.href = 'dashboard.html';
-}
-
-function toggleTranscription() {
-    const content = $('#transcriptionTextContent');
-    const btn = $('#transcriptionToggleBtn');
-    
-    if (content.style.display === 'none') {
-        content.style.display = 'block';
-        btn.textContent = 'Masquer la transcription';
-    } else {
-        content.style.display = 'none';
-        btn.textContent = 'Afficher la transcription';
-    }
-}
-
-function redoExercise() {
-    // Reset state
-    submitted = false;
-    
-    // Clear all radio buttons
-    $$('input[type="radio"]').forEach(input => {
-        input.checked = false;
-        input.disabled = false;
-    });
-    
-    // Clear all text inputs
-    $$('.cloze-input, .justif-input').forEach(input => {
-        input.value = '';
-        input.disabled = false;
-        input.classList.remove('text-green-600', 'text-red-600');
-    });
-    
-    // Remove correction marks
-    $$('.correction-check, .correction-x, .correct-answer-display, .explanation-box').forEach(el => el.remove());
-    $$('.text-green-600, .text-red-600').forEach(el => {
-        el.classList.remove('text-green-600', 'text-red-600');
-    });
-    
-    // Reset buttons
-    $('#submitBtn').style.display = 'inline-block';
-    $('#correctionBtn').style.display = 'none';
-    $('#redoBtn').style.display = 'none';
-    $('#resetBtn').style.display = 'inline-block';
-    
-    // Hide results and transcription
-    $('#resultBox').style.display = 'none';
-    $('#transcriptionBox').style.display = 'none';
-    
-    // Reset and restart timer
-    if (timerInterval) clearInterval(timerInterval);
-    startTimer();
-    
-    // Scroll to top
-    window.scrollTo({ top: 0, behavior: 'smooth' });
 }
 
 function formatTime(seconds) {
     const mins = Math.floor(seconds / 60);
     const secs = seconds % 60;
-    return `${String(mins).padStart(2, '0')}:${String(secs).padStart(2, '0')}`;
+    return `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
+}
+
+function escapeHtml(text) {
+    if (!text) return '';
+    const div = document.createElement('div');
+    div.textContent = text;
+    return div.innerHTML;
+}
+
+function showError(message) {
+    document.getElementById('exerciseContainer').innerHTML = `
+        <div class="error">
+            <p>${message}</p>
+            <button class="btn btn-primary" onclick="goBack()">Retour</button>
+        </div>
+    `;
+}
+
+function goBack() {
+    window.location.href = 'dashboard.html';
 }
 
 // Initialize
-document.addEventListener('DOMContentLoaded', checkAuth);
+window.addEventListener('DOMContentLoaded', init);
 </script>
 </body>
 </html>
