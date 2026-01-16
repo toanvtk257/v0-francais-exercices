@@ -1199,17 +1199,6 @@ async function editExercise(id) {
                 $('#textTitle').value = '';
                 $('#texte').value = fullText;
             }
-            // Pre-fill image URL if present
-            if (exercise.image) {
-                textImageBlob = exercise.image; // Store the URL
-                $('#textImagePreviewImg').src = exercise.image;
-                $('#textImagePreview').classList.remove('hidden');
-                $('#textImageUploadStatus').textContent = '✅ Image existante chargée';
-                $('#textImageUploadStatus').style.color = '#10b981';
-                $('#textImageUploadStatus').classList.remove('hidden');
-                // Hide text input and show image mode
-                switchTextMode('image');
-            }
         }
         
         // Handle CO audio and transcription
@@ -1221,9 +1210,6 @@ async function editExercise(id) {
                 $('#audioPreviewPlayer').load();
                 $('#audioPreview').classList.remove('hidden');
                 $('#audioFileName').textContent = 'Audio existant';
-                $('#audioUploadStatus').textContent = '✅ Fichier audio existant';
-                $('#audioUploadStatus').style.color = '#10b981';
-                $('#audioUploadStatus').classList.remove('hidden');
             }
             // Use the 'transcription' textarea for transcription in CO
             $('#transcription').value = exercise.texte || ''; 
@@ -1417,7 +1403,6 @@ async function saveExercise(e) {
         questions: questionsArray,
         texte: fullText, // Use fullText for CE and Grammar/Lexique
         audio: audioUrl, // Use audioUrl for CO
-        image: textImageBlob && typeof textImageBlob === 'string' ? textImageBlob : null,
         // Add a created_at timestamp
         created_at: new Date().toISOString()
     };
