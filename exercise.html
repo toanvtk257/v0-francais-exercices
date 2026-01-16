@@ -323,7 +323,27 @@ async function submitAnswers() {
     
     questions.forEach((q, idx) => {
         const userAnswer = userAnswers[idx];
-        const correctAnswer = (q.answer || q.correct || q.ans || '').toString().toLowerCase();
+        let correctAnswer = (q.answer || q.correct || q.ans || '').toString().toLowerCase().trim();
+        
+        const options = [
+            { text: q.a || q.choice_a, value: 'a' },
+            { text: q.b || q.choice_b, value: 'b' },
+            { text: q.c || q.choice_c, value: 'c' },
+            q.d || q.choice_d ? { text: q.d || q.choice_d, value: 'd' } : null
+        ].filter(o => o && o.text);
+        
+        if (/^[0-3]$/.test(correctAnswer)) {
+            // Convert index (0,1,2,3) to letter (a,b,c,d)
+            correctAnswer = String.fromCharCode(97 + parseInt(correctAnswer));
+        } else if (correctAnswer.length > 1) {
+            // If correctAnswer is the full text, find matching option letter
+            const matchingOpt = options.find(o => 
+                o.text && o.text.toLowerCase().trim() === correctAnswer
+            );
+            if (matchingOpt) {
+                correctAnswer = matchingOpt.value;
+            }
+        }
         
         const questionEl = document.querySelector(`.question[data-index="${idx}"]`);
         
@@ -344,12 +364,14 @@ async function submitAnswers() {
             if (allCorrect) correct++;
         } else {
             // Handle QCM and VF
-            const isCorrect = userAnswer && userAnswer.toLowerCase() === correctAnswer;
+            const normalizedUserAnswer = userAnswer ? userAnswer.toLowerCase().trim() : '';
+            const isCorrect = normalizedUserAnswer === correctAnswer;
             
             questionEl.querySelectorAll('.option').forEach(opt => {
-                if (opt.dataset.value === correctAnswer) {
+                const optValue = opt.dataset.value.toLowerCase().trim();
+                if (optValue === correctAnswer) {
                     opt.classList.add('correct');
-                } else if (opt.dataset.value === userAnswer && !isCorrect) {
+                } else if (optValue === normalizedUserAnswer && !isCorrect) {
                     opt.classList.add('incorrect');
                 }
             });
