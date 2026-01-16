@@ -208,10 +208,16 @@ function renderQuestion(q, idx) {
     const qNum = idx + 1;
     const points = q.points || 1;
     
+    let questionText = q.question || q.text || q.statement || '';
+    if (q.type === 'cloze' || q.clozeText) {
+        // Remove the bracketed answers from the header display
+        questionText = questionText.replace(/\[([^\]]+)\]/g, '___');
+    }
+    
     let html = `
         <div class="question" data-index="${idx}">
             <div class="question-header">
-                <span>${qNum}. ${escapeHtml(q.question || q.text || q.statement || '')}</span>
+                <span>${qNum}. ${escapeHtml(questionText)}</span>
                 <span class="text-muted">(${points} pts)</span>
             </div>
     `;
