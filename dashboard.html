@@ -279,18 +279,18 @@ async function loadStats() {
     try {
         const stats = await window.SupabaseDB.getStudentStats(currentUser.id);
         
-        completedExercises = new Set(stats.recentAttempts.map(a => a.exercise_id));
+        completedExercises = new Set((stats.allAttempts || stats.recentAttempts).map(a => a.exercise_id));
         
-        // Update stats display
-        document.getElementById('statLessons').textContent = new Set(stats.recentAttempts.map(a => a.exercise_id)).size;
+        // Update stats display - use allAttempts for accurate count
+        document.getElementById('statLessons').textContent = completedExercises.size;
         document.getElementById('statAttempts').textContent = stats.totalAttempts;
         document.getElementById('statAvgScore').textContent = stats.averageScore + '%';
         
-        // Calculate total time
-        const totalMinutes = stats.recentAttempts.reduce((sum, a) => sum + (a.time_spent || 0), 0);
+        // Calculate total time from all attempts
+        const totalMinutes = (stats.allAttempts || stats.recentAttempts).reduce((sum, a) => sum + (a.time_spent || 0), 0);
         document.getElementById('statTime').textContent = Math.round(totalMinutes / 60) + 'm';
         
-        // Recent attempts
+        // Recent attempts (still show only 10 most recent)
         const container = document.getElementById('recentAttempts');
         if (stats.recentAttempts.length === 0) {
             container.innerHTML = '<div class="empty-state">Aucune tentative pour le moment. Commencez un exercice!</div>';
