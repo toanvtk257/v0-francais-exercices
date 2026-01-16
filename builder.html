@@ -1224,8 +1224,8 @@ async function editExercise(id) {
             }
             // Use the 'transcription' textarea for transcription in CO
             $('#transcription').value = exercise.texte || ''; 
-        } else {
-            // For non-CO types, populate the regular 'texte' textarea
+        } else if (exercise.type !== 'lecture') {
+            // For non-CO and non-CE types, populate the regular 'texte' textarea
             $('#texte').value = exercise.texte || '';
         }
         
