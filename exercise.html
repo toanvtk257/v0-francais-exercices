@@ -46,8 +46,12 @@ button{border:0;padding:10px 16px;border-radius:8px;cursor:pointer;font-weight:6
 .correction-check{color:var(--success);font-weight:bold;margin-left:8px}
 .correction-x{color:var(--error);font-weight:bold;margin-left:8px}
 .text-green-600{color:var(--success)!important;font-weight:600}
-.text-red-600{color:var(--error)!important;text-decoration:line-through}
+.text-red-600{color:var(--error)!important}
 .correct-answer-display{color:var(--success);font-weight:600;margin-top:4px;font-size:.9rem}
+.cloze-correction{display:inline-flex;align-items:center;gap:6px;padding:4px 8px;background:#f5f5f5;border-radius:6px;border:1px solid #ddd}
+.cloze-wrong{color:var(--error);text-decoration:line-through}
+.cloze-arrow{color:#666;font-weight:bold}
+.cloze-correct{color:var(--success);font-weight:600}
 
 /* Adding watermark and content protection styles */
 .watermark{position:fixed;top:50%;left:50%;transform:translate(-50%,-50%) rotate(-45deg);font-size:1.5rem;color:rgba(0,0,0,0.03);pointer-events:none;white-space:nowrap;z-index:9999;user-select:none;font-weight:600}
@@ -578,15 +582,19 @@ function showCorrection() {
                 const expected = input.dataset.answer;
                 const userAnswer = input.value.trim().toLowerCase();
                 
+                const correctionDiv = document.createElement('div');
+                correctionDiv.className = 'cloze-correction';
+                
                 if (userAnswer === expected) {
                     input.classList.add('text-green-600');
                     input.style.borderColor = 'green';
+                    input.disabled = true;
                 } else {
-                    input.classList.add('text-red-600');
-                    input.style.borderColor = 'red';
-                    input.value = `${input.value} → ${expected}`;
+                    const correctionSpan = document.createElement('span');
+                    correctionSpan.className = 'cloze-correction';
+                    correctionSpan.innerHTML = `<span class="cloze-wrong">${input.value || '(vide)'}</span><span class="cloze-arrow">→</span><span class="cloze-correct">${expected}</span>`;
+                    input.parentNode.replaceChild(correctionSpan, input);
                 }
-                input.disabled = true;
             });
         } else {
             const expected = (q.dataset.answer || '').toLowerCase();
@@ -659,7 +667,7 @@ function redoExercise() {
     });
     
     // Remove correction marks
-    $$('.correction-check, .correction-x, .correct-answer-display, .explanation-box').forEach(el => el.remove());
+    $$('.correction-check, .correction-x, .correct-answer-display, .explanation-box, .cloze-correction').forEach(el => el.remove());
     $$('.text-green-600, .text-red-600').forEach(el => {
         el.classList.remove('text-green-600', 'text-red-600');
     });
