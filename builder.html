@@ -1191,9 +1191,20 @@ async function editExercise(id) {
             const fullText = exercise.texte || '';
             const lines = fullText.split('\n').filter(line => line.trim());
             
-            // Check if first line looks like a title (short, capitalized, no punctuation at end)
-            if (lines.length > 1 && lines[0].length < 100 && !lines[0].endsWith('.') && !lines[0].endsWith('?') && lines[0][0] === lines[0][0].toUpperCase()) {
-                $('#textTitle').value = lines[0];
+            // First line is title if:
+            // - There are multiple lines
+            // - First line is relatively short (< 150 chars)
+            // - First line starts with uppercase
+            // Title can end with ?, !, or nothing (but not with . unless it's an abbreviation)
+            const firstLine = lines[0] || '';
+            const isLikelyTitle = lines.length > 1 && 
+                               firstLine.length < 150 && 
+                               firstLine.length > 0 &&
+                               firstLine[0] === firstLine[0].toUpperCase() &&
+                               !firstLine.match(/\.\s*$/); // Don't end with period followed by optional space
+            
+            if (isLikelyTitle) {
+                $('#textTitle').value = firstLine;
                 $('#texte').value = lines.slice(1).join('\n');
             } else {
                 $('#textTitle').value = '';
