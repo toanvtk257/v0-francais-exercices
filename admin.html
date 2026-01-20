@@ -599,13 +599,6 @@ h1 {
       <div id="usersList">
         <div class="loading">Chargement des utilisateurs...</div>
       </div>
-      
-      <!-- Pagination pour utilisateurs -->
-      <div id="usersPagination" style="display: none; margin-top: 20px; text-align: center;">
-        <button id="usersPrevBtn" onclick="changeUsersPage(-1)" style="padding: 8px 16px; margin: 0 5px; border: 1px solid #ddd; background: white; border-radius: 6px; cursor: pointer;">← Précédent</button>
-        <span id="usersPageInfo" style="margin: 0 15px; font-weight: 600;"></span>
-        <button id="usersNextBtn" onclick="changeUsersPage(1)" style="padding: 8px 16px; margin: 0 5px; border: 1px solid #ddd; background: white; border-radius: 6px; cursor: pointer;">Suivant →</button>
-      </div>
     </div>
   </div>
 
@@ -955,11 +948,6 @@ let allExercises = [];
 let allUsers = [];
 let currentlyViewedUser = null; // For renderUsers to know which user's info is unmasked
 
-// Pagination for users
-const USERS_PER_PAGE = 10;
-let currentUsersPage = 1;
-let filteredUsers = [];
-
 // Helper function to mask text
 function maskText(text) {
   if (!text) return '-';
@@ -1248,74 +1236,12 @@ async function loadUsers() {
     try {
         const users = await window.SupabaseDB.getAllUsers();
         allUsers = users.filter(u => u.role === 'student' && u.status === 'approved');
-        filteredUsers = allUsers;
-        currentUsersPage = 1;
-        renderUsersWithPagination();
+        renderUsers(allUsers);
         
     } catch (error) {
         console.error('Error loading users:', error);
         container.innerHTML = '<div class="empty-state">Erreur de chargement des utilisateurs</div>';
-        document.getElementById('usersPagination').style.display = 'none';
     }
-  }
-  
-function renderUsersWithPagination() {
-    const totalPages = Math.ceil(filteredUsers.length / USERS_PER_PAGE);
-    const startIndex = (currentUsersPage - 1) * USERS_PER_PAGE;
-    const endIndex = startIndex + USERS_PER_PAGE;
-    const usersToDisplay = filteredUsers.slice(startIndex, endIndex);
-    
-    // Render the users for current page
-    renderUsers(usersToDisplay);
-    
-    // Update pagination controls
-    const paginationDiv = document.getElementById('usersPagination');
-    const pageInfo = document.getElementById('usersPageInfo');
-    const prevBtn = document.getElementById('usersPrevBtn');
-    const nextBtn = document.getElementById('usersNextBtn');
-    
-    if (totalPages > 1) {
-        paginationDiv.style.display = 'block';
-        pageInfo.textContent = `Page ${currentUsersPage} sur ${totalPages}`;
-        prevBtn.disabled = currentUsersPage === 1;
-        nextBtn.disabled = currentUsersPage === totalPages;
-        
-        prevBtn.style.opacity = currentUsersPage === 1 ? '0.5' : '1';
-        prevBtn.style.cursor = currentUsersPage === 1 ? 'not-allowed' : 'pointer';
-        nextBtn.style.opacity = currentUsersPage === totalPages ? '0.5' : '1';
-        nextBtn.style.cursor = currentUsersPage === totalPages ? 'not-allowed' : 'pointer';
-    } else {
-        paginationDiv.style.display = 'none';
-    }
-}
-
-function changeUsersPage(direction) {
-    const totalPages = Math.ceil(filteredUsers.length / USERS_PER_PAGE);
-    const newPage = currentUsersPage + direction;
-    
-    if (newPage >= 1 && newPage <= totalPages) {
-        currentUsersPage = newPage;
-        renderUsersWithPagination();
-        window.scrollTo({ top: 0, behavior: 'smooth' });
-    }
-}
-
-function handleUserSearch(event) {
-    const searchTerm = event.target.value.toLowerCase().trim();
-    
-    if (searchTerm === '') {
-        filteredUsers = allUsers;
-    } else {
-        filteredUsers = allUsers.filter(user => {
-            return (user.name && user.name.toLowerCase().includes(searchTerm)) ||
-                   (user.email && user.email.toLowerCase().includes(searchTerm)) ||
-                   (user.filiere && user.filiere.toLowerCase().includes(searchTerm)) ||
-                   (user.zalo && user.zalo.includes(searchTerm));
-        });
-    }
-    
-    currentUsersPage = 1;
-    renderUsersWithPagination();
 }
 
 function renderUsers(users) {
@@ -1400,7 +1326,7 @@ function hideUserInfo(userId) {
   // When hiding, remove from currentlyViewedUser, but keep in unmaskedUsers for the session
   // until the page is reloaded or the user logs out.
   currentlyViewedUser = null; 
-  renderUsersWithPagination();
+  renderUsers(allUsers);
 }
 
 
