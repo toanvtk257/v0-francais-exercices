@@ -1434,7 +1434,7 @@ function hideUserInfo(userId) {
   // When hiding, remove from currentlyViewedUser, but keep in unmaskedUsers for the session
   // until the page is reloaded or the user logs out.
   currentlyViewedUser = null; 
-  renderUsers(allUsers);
+  renderPaginatedUsers();
 }
 
 
