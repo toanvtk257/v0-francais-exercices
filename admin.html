@@ -1023,6 +1023,8 @@ async function checkAuth() {
             return;
         }
         
+        console.log("[v0] Admin page loaded, user:", currentUser);
+        
         // Update header
         document.getElementById('adminUserName').textContent = currentUser.name;
         document.getElementById('adminUserEmail').textContent = currentUser.email;
@@ -2060,6 +2062,7 @@ async function deleteConversation() {
 // =============================================
 
 function switchTab(tab) {
+  console.log("[v0] switchTab called with tab:", tab);
   const protectedTabs = ['dashboard', 'users', 'registrations', 'messages'];
     
     // Check if tab requires PIN protection BEFORE changing anything
