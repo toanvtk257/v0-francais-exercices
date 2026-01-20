@@ -1257,8 +1257,8 @@ async function loadUsers() {
         container.innerHTML = '<div class="empty-state">Erreur de chargement des utilisateurs</div>';
         document.getElementById('usersPagination').style.display = 'none';
     }
-}
-
+  }
+  
 function renderUsersWithPagination() {
     const totalPages = Math.ceil(filteredUsers.length / USERS_PER_PAGE);
     const startIndex = (currentUsersPage - 1) * USERS_PER_PAGE;
