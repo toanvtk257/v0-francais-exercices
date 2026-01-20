@@ -472,6 +472,39 @@ h1 {
 }
 /* </CHANGE> */
 
+/* Pagination styles */
+#usersPagination button, #registrationsPagination button, #resourcesPagination button, #messagesPagination button {
+  padding: 8px 16px;
+  border: 1px solid #ddd;
+  background: white;
+  border-radius: 6px;
+  cursor: pointer;
+  font-weight: 600;
+  transition: all 0.2s;
+}
+
+#usersPagination button:hover:not(:disabled), 
+#registrationsPagination button:hover:not(:disabled), 
+#resourcesPagination button:hover:not(:disabled),
+#messagesPagination button:hover:not(:disabled) {
+  background: var(--brand);
+  color: white;
+  border-color: var(--brand);
+}
+
+#usersPagination button:disabled, 
+#registrationsPagination button:disabled, 
+#resourcesPagination button:disabled,
+#messagesPagination button:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.page-info {
+  font-weight: 600;
+  color: var(--muted);
+}
+
 /* End of Style updates */
 </style>
 </head>
@@ -599,6 +632,7 @@ h1 {
       <div id="usersList">
         <div class="loading">Chargement des utilisateurs...</div>
       </div>
+      <div id="usersPagination" style="display:none;justify-content:center;align-items:center;gap:16px;margin-top:20px;flex-wrap:wrap"></div>
     </div>
   </div>
 
@@ -615,6 +649,7 @@ h1 {
       <div id="processedRegistrations">
         <div class="loading">Chargement...</div>
       </div>
+      <div id="registrationsPagination" style="display:none;justify-content:center;align-items:center;gap:16px;margin-top:20px;flex-wrap:wrap"></div>
     </div>
   </div>
 
@@ -652,6 +687,7 @@ h1 {
         <button type="submit" class="btn btn-primary">Ajouter</button>
       </form>
       <div id="resourcesList"></div>
+      <div id="resourcesPagination" style="display:none;justify-content:center;align-items:center;gap:16px;margin-top:20px;flex-wrap:wrap"></div>
     </div>
   </div>
 
@@ -948,6 +984,15 @@ let allExercises = [];
 let allUsers = [];
 let currentlyViewedUser = null; // For renderUsers to know which user's info is unmasked
 
+// Pagination variables
+const ITEMS_PER_PAGE = 10;
+let currentUsersPage = 1;
+let currentResourcesPage = 1;
+let currentRegistrationsPage = 1;
+let filteredUsers = [];
+let filteredResources = [];
+let filteredRegistrations = [];
+
 // Helper function to mask text
 function maskText(text) {
   if (!text) return '-';
@@ -1231,17 +1276,80 @@ async function deleteExercise(id) {
 }
 
 async function loadUsers() {
-    const container = document.getElementById('usersList');
+  const container = document.getElementById('usersList');
+  
+  try {
+    const users = await window.SupabaseDB.getAllUsers();
+    allUsers = users.filter(u => u.role === 'student' && u.status === 'approved');
+    filteredUsers = allUsers;
+    currentUsersPage = 1;
+    renderPaginatedUsers();
     
-    try {
-        const users = await window.SupabaseDB.getAllUsers();
-        allUsers = users.filter(u => u.role === 'student' && u.status === 'approved');
-        renderUsers(allUsers);
-        
-    } catch (error) {
-        console.error('Error loading users:', error);
-        container.innerHTML = '<div class="empty-state">Erreur de chargement des utilisateurs</div>';
-    }
+  } catch (error) {
+    console.error('Error loading users:', error);
+    container.innerHTML = '<div class="empty-state">Erreur de chargement des utilisateurs</div>';
+  }
+}
+
+function renderPaginatedUsers() {
+  const container = document.getElementById('usersList');
+  const paginationContainer = document.getElementById('usersPagination');
+  
+  if (filteredUsers.length === 0) {
+    container.innerHTML = '<div class="empty-state">Aucun étudiant trouvé</div>';
+    paginationContainer.style.display = 'none';
+    return;
+  }
+  
+  const totalPages = Math.ceil(filteredUsers.length / ITEMS_PER_PAGE);
+  const startIndex = (currentUsersPage - 1) * ITEMS_PER_PAGE;
+  const endIndex = startIndex + ITEMS_PER_PAGE;
+  const pageUsers = filteredUsers.slice(startIndex, endIndex);
+  
+  renderUsers(pageUsers);
+  
+  if (totalPages > 1) {
+    paginationContainer.style.display = 'flex';
+    paginationContainer.innerHTML = `
+      <button onclick="changeUsersPage(${currentUsersPage - 1})" ${currentUsersPage === 1 ? 'disabled' : ''}>
+        ← Précédent
+      </button>
+      <span class="page-info">Page ${currentUsersPage} sur ${totalPages}</span>
+      <button onclick="changeUsersPage(${currentUsersPage + 1})" ${currentUsersPage === totalPages ? 'disabled' : ''}>
+        Suivant →
+      </button>
+    `;
+  } else {
+    paginationContainer.style.display = 'none';
+  }
+}
+
+function changeUsersPage(newPage) {
+  const totalPages = Math.ceil(filteredUsers.length / ITEMS_PER_PAGE);
+  if (newPage < 1 || newPage > totalPages) return;
+  
+  currentUsersPage = newPage;
+  renderPaginatedUsers();
+  
+  window.scrollTo({ top: 0, behavior: 'smooth' });
+}
+
+function handleUserSearch(event) {
+  const searchTerm = event.target.value.toLowerCase().trim();
+  
+  if (searchTerm === '') {
+    filteredUsers = allUsers;
+  } else {
+    filteredUsers = allUsers.filter(user => {
+      return (user.name && user.name.toLowerCase().includes(searchTerm)) ||
+             (user.email && user.email.toLowerCase().includes(searchTerm)) ||
+             (user.filiere && user.filiere.toLowerCase().includes(searchTerm)) ||
+             (user.zalo && user.zalo.includes(searchTerm));
+    });
+  }
+  
+  currentUsersPage = 1;
+  renderPaginatedUsers();
 }
 
 function renderUsers(users) {
@@ -1428,30 +1536,70 @@ async function loadRegistrations() {
             </table>`;
         }
         
-        // Processed registrations
-        const processedContainer = document.getElementById('processedRegistrations');
-        if (processed.length === 0) {
-            processedContainer.innerHTML = '<div class="empty-state">Aucune demande traitée</div>';
-        } else {
-            processedContainer.innerHTML = `<table>
-                <thead><tr><th>Nom</th><th>Email</th><th>Numéro de téléphone</th><th>Statut</th><th>Date de traitement</th></tr></thead>
-                <tbody>
-                    ${processed.map(r => `
-                        <tr>
-                            <td>${r.name}</td>
-                            <td>${r.email}</td>
-                            <td>${r.zalo || '-'}</td>
-                            <td><span class="chip" style="background:${r.status === 'approved' ? 'var(--success)' : 'var(--error)'};color:#fff">${r.status === 'approved' ? 'Approuvé' : 'Refusé'}</span></td>
-                            <td>${r.processed_at ? new Date(r.processed_at).toLocaleDateString('fr-FR') : '-'}</td>
-                        </tr>
-                    `).join('')}
-                </tbody>
-            </table>`;
-        }
-        
-    } catch (error) {
-        console.error('Error loading registrations:', error);
-    }
+  // Processed registrations
+  filteredRegistrations = processed;
+  currentRegistrationsPage = 1;
+  renderPaginatedRegistrations();
+  
+  } catch (error) {
+    console.error('Error loading registrations:', error);
+  }
+}
+
+function renderPaginatedRegistrations() {
+  const container = document.getElementById('processedRegistrations');
+  const paginationContainer = document.getElementById('registrationsPagination');
+  
+  if (filteredRegistrations.length === 0) {
+    container.innerHTML = '<div class="empty-state">Aucune demande traitée</div>';
+    paginationContainer.style.display = 'none';
+    return;
+  }
+  
+  const totalPages = Math.ceil(filteredRegistrations.length / ITEMS_PER_PAGE);
+  const startIndex = (currentRegistrationsPage - 1) * ITEMS_PER_PAGE;
+  const endIndex = startIndex + ITEMS_PER_PAGE;
+  const pageRegistrations = filteredRegistrations.slice(startIndex, endIndex);
+  
+  container.innerHTML = `<table>
+    <thead><tr><th>Nom</th><th>Email</th><th>Numéro de téléphone</th><th>Statut</th><th>Date de traitement</th></tr></thead>
+    <tbody>
+    ${pageRegistrations.map(r => `
+    <tr>
+    <td>${r.name}</td>
+    <td>${r.email}</td>
+    <td>${r.zalo || '-'}</td>
+    <td><span class="chip" style="background:${r.status === 'approved' ? 'var(--success)' : 'var(--error)'};color:#fff">${r.status === 'approved' ? 'Approuvé' : 'Refusé'}</span></td>
+    <td>${r.processed_at ? new Date(r.processed_at).toLocaleDateString('fr-FR') : '-'}</td>
+    </tr>
+    `).join('')}
+    </tbody>
+    </table>`;
+  
+  if (totalPages > 1) {
+    paginationContainer.style.display = 'flex';
+    paginationContainer.innerHTML = `
+      <button onclick="changeRegistrationsPage(${currentRegistrationsPage - 1})" ${currentRegistrationsPage === 1 ? 'disabled' : ''}>
+        ← Précédent
+      </button>
+      <span class="page-info">Page ${currentRegistrationsPage} sur ${totalPages}</span>
+      <button onclick="changeRegistrationsPage(${currentRegistrationsPage + 1})" ${currentRegistrationsPage === totalPages ? 'disabled' : ''}>
+        Suivant →
+      </button>
+    `;
+  } else {
+    paginationContainer.style.display = 'none';
+  }
+}
+
+function changeRegistrationsPage(newPage) {
+  const totalPages = Math.ceil(filteredRegistrations.length / ITEMS_PER_PAGE);
+  if (newPage < 1 || newPage > totalPages) return;
+  
+  currentRegistrationsPage = newPage;
+  renderPaginatedRegistrations();
+  
+  window.scrollTo({ top: 0, behavior: 'smooth' });
 }
 
 async function approveRegistration(id) {
@@ -1577,37 +1725,76 @@ async function addResource(event) {
 
 
 async function loadResources() {
-    const container = document.getElementById('resourcesList');
+  const container = document.getElementById('resourcesList');
+  
+  try {
+    const resources = await window.SupabaseDB.getResources();
+    filteredResources = resources;
+    currentResourcesPage = 1;
+    renderPaginatedResources();
     
-    try {
-        const resources = await window.SupabaseDB.getResources();
-        
-        if (resources.length === 0) {
-            container.innerHTML = '<div class="empty-state">Aucune ressource</div>';
-            return;
-        }
-        
-        container.innerHTML = `<table>
-            <thead><tr><th>Titre</th><th>Catégorie</th><th>Description</th><th>Actions</th></tr></thead>
-            <tbody>
-                ${resources.map(r => `
-                    <tr>
-                        <td><a href="${r.url}" target="_blank">${r.titre}</a></td>
-                        <td>${r.categorie || '-'}</td>
-                        <td>${r.description || '-'}</td>
-                        <td>
-                            <button class="btn btn-small btn-primary" onclick="editResource('${r.id}')" style="margin-right: 8px;">Modifier</button>
-                            <button class="btn btn-small btn-danger" onclick="deleteResource('${r.id}')">Supprimer</button>
-                        </td>
-                    </tr>
-                `).join('')}
-            </tbody>
-        </table>`;
-        
-    } catch (error) {
-        console.error('Error loading resources:', error);
-        container.innerHTML = '<div class="empty-state">Erreur de chargement</div>';
-    }
+  } catch (error) {
+    console.error('Error loading resources:', error);
+    container.innerHTML = '<div class="empty-state">Erreur de chargement</div>';
+  }
+}
+
+function renderPaginatedResources() {
+  const container = document.getElementById('resourcesList');
+  const paginationContainer = document.getElementById('resourcesPagination');
+  
+  if (filteredResources.length === 0) {
+    container.innerHTML = '<div class="empty-state">Aucune ressource</div>';
+    paginationContainer.style.display = 'none';
+    return;
+  }
+  
+  const totalPages = Math.ceil(filteredResources.length / ITEMS_PER_PAGE);
+  const startIndex = (currentResourcesPage - 1) * ITEMS_PER_PAGE;
+  const endIndex = startIndex + ITEMS_PER_PAGE;
+  const pageResources = filteredResources.slice(startIndex, endIndex);
+  
+  container.innerHTML = `<table>
+    <thead><tr><th>Titre</th><th>Catégorie</th><th>Description</th><th>Actions</th></tr></thead>
+    <tbody>
+    ${pageResources.map(r => `
+    <tr>
+    <td><a href="${r.url}" target="_blank">${r.titre}</a></td>
+    <td>${r.categorie || '-'}</td>
+    <td>${r.description || '-'}</td>
+    <td>
+    <button class="btn btn-small btn-primary" onclick="editResource('${r.id}')" style="margin-right: 8px;">Modifier</button>
+    <button class="btn btn-small btn-danger" onclick="deleteResource('${r.id}')">Supprimer</button>
+    </td>
+    </tr>
+    `).join('')}
+    </tbody>
+    </table>`;
+  
+  if (totalPages > 1) {
+    paginationContainer.style.display = 'flex';
+    paginationContainer.innerHTML = `
+      <button onclick="changeResourcesPage(${currentResourcesPage - 1})" ${currentResourcesPage === 1 ? 'disabled' : ''}>
+        ← Précédent
+      </button>
+      <span class="page-info">Page ${currentResourcesPage} sur ${totalPages}</span>
+      <button onclick="changeResourcesPage(${currentResourcesPage + 1})" ${currentResourcesPage === totalPages ? 'disabled' : ''}>
+        Suivant →
+      </button>
+    `;
+  } else {
+    paginationContainer.style.display = 'none';
+  }
+}
+
+function changeResourcesPage(newPage) {
+  const totalPages = Math.ceil(filteredResources.length / ITEMS_PER_PAGE);
+  if (newPage < 1 || newPage > totalPages) return;
+  
+  currentResourcesPage = newPage;
+  renderPaginatedResources();
+  
+  window.scrollTo({ top: 0, behavior: 'smooth' });
 }
 
 async function deleteResource(id) {
