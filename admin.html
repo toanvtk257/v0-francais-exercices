@@ -1481,11 +1481,11 @@ async function rejectRegistration(id) {
     } catch (error) {
         console.error('Error rejecting registration:', error);
         alert('Erreur lors du refus');
-    }
-}
-
+  }
+  }
+  
 async function deleteRegistration(id, name) {
-    if (!confirm(`Supprimer la demande de ${name}? Cette action est irréversible.`)) return;
+  if (!confirm(`Supprimer la demande de ${name}? Cette action est irréversible.`)) return;
     
     try {
         await window.SupabaseDB.deleteRegistrationRequest(id);
