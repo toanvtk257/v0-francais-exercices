@@ -1421,6 +1421,7 @@ async function loadRegistrations() {
                             <td>
                                 <button class="btn btn-small btn-primary" onclick="approveRegistration('${r.id}')">Approuver</button>
                                 <button class="btn btn-small btn-danger" onclick="rejectRegistration('${r.id}')">Refuser</button>
+                                <button class="btn btn-small btn-danger" onclick="deleteRegistration('${r.id}', '${r.name}')" style="background: #666; margin-left: 4px;">Supprimer</button>
                             </td>
                         </tr>
                     `).join('')}
@@ -1480,6 +1481,19 @@ async function rejectRegistration(id) {
     } catch (error) {
         console.error('Error rejecting registration:', error);
         alert('Erreur lors du refus');
+    }
+}
+
+async function deleteRegistration(id, name) {
+    if (!confirm(`Supprimer la demande de ${name}? Cette action est irréversible.`)) return;
+    
+    try {
+        await window.SupabaseDB.deleteRegistrationRequest(id);
+        alert(`Demande de ${name} supprimée.`);
+        await loadRegistrations();
+    } catch (error) {
+        console.error('Error deleting registration:', error);
+        alert('Erreur lors de la suppression: ' + error.message);
     }
 }
 
