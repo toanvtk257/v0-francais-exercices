@@ -1281,19 +1281,19 @@ function renderUsers(users) {
     `;
 
     groupedByFiliere[filiere].forEach(user => {
-      // Check if this user's info should be unmasked (either currently being viewed or always unmasked)
-      const isInfoUnmasked = currentlyViewedUser === user.id || unmaskedUsers.has(user.id);
+      // Always show unmasked info - no masking
+      const isInfoUnmasked = true;
       
-      const maskedName = isInfoUnmasked ? user.name : maskString(user.name);
-      const maskedEmail = isInfoUnmasked ? user.email : maskString(user.email, 'email');
-      const maskedZalo = isInfoUnmasked ? user.zalo : (user.zalo ? maskString(user.zalo, 'phone') : '-');
+      const maskedName = user.name;
+      const maskedEmail = user.email;
+      const maskedZalo = user.zalo || '-';
       
       const statusBadge = user.suspended 
         ? '<span style="background: #f44336; color: white; padding: 4px 8px; border-radius: 4px; font-size: 0.85rem; margin-left: 8px;">Suspendu</span>'
         : '';
       
-      const viewButtonText = isInfoUnmasked ? '👁️ Masquer les informations' : '👁️ Voir les informations';
-      const viewButtonAction = isInfoUnmasked ? `hideUserInfo('${user.id}')` : `showPinModal('${user.id}')`; // Modified to show modal
+      const viewButtonText = 'Informations visibles';
+      const viewButtonAction = `void(0)`; // No action needed
       
       const suspendButtonText = user.suspended ? '✓ Réactiver' : '⏸ Suspendre';
       const suspendButtonAction = user.suspended ? `unsuspendUser('${user.id}', '${user.name}')` : `suspendUser('${user.id}', '${user.name}')`;
