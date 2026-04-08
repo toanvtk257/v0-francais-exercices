@@ -1288,6 +1288,7 @@ function renderUsers(users) {
       const maskedEmail = user.email;
       const maskedZalo = user.zalo || '-';
       
+      const statusBadge = user.suspended ? ' <span style="background: #c33; color: white; padding: 2px 6px; border-radius: 3px; font-size: 0.75rem; margin-left: 6px;">Suspendu</span>' : '';
       const suspendButtonText = user.suspended ? '✓ Réactiver' : '⏸ Suspendre';
       const suspendButtonAction = user.suspended ? `unsuspendUser('${user.id}', '${user.name}')` : `suspendUser('${user.id}', '${user.name}')`;
       
