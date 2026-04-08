@@ -1288,13 +1288,6 @@ function renderUsers(users) {
       const maskedEmail = user.email;
       const maskedZalo = user.zalo || '-';
       
-      const statusBadge = user.suspended 
-        ? '<span style="background: #f44336; color: white; padding: 4px 8px; border-radius: 4px; font-size: 0.85rem; margin-left: 8px;">Suspendu</span>'
-        : '';
-      
-      const viewButtonText = 'Informations visibles';
-      const viewButtonAction = `void(0)`; // No action needed
-      
       const suspendButtonText = user.suspended ? '✓ Réactiver' : '⏸ Suspendre';
       const suspendButtonAction = user.suspended ? `unsuspendUser('${user.id}', '${user.name}')` : `suspendUser('${user.id}', '${user.name}')`;
       
@@ -1304,7 +1297,6 @@ function renderUsers(users) {
           <td style="padding: 12px;">${maskedEmail}</td>
           <td style="padding: 12px;">${maskedZalo}</td>
           <td style="padding: 12px;">
-            <button onclick="${viewButtonAction}" style="background: ${isInfoUnmasked ? '#666' : '#2b5'}; padding: 6px 12px; border: none; border-radius: 6px; color: white; cursor: pointer; font-size: 0.85rem; margin-right: 8px;">${viewButtonText}</button>
             <button onclick="${suspendButtonAction}" style="background: ${user.suspended ? '#4CAF50' : '#FF9800'}; padding: 6px 12px; border: none; border-radius: 6px; color: white; cursor: pointer; font-size: 0.85rem; margin-right: 8px;">${suspendButtonText}</button>
             <button onclick="resetUserPin('${user.id}', '${user.email}')" style="background: #ff9800; padding: 6px 12px; border: none; border-radius: 6px; color: white; cursor: pointer; font-size: 0.85rem; margin-right: 8px;">Réinitialiser PIN</button>
             <button onclick="deleteUser('${user.id}', '${user.name}')" style="background: #c33; padding: 6px 12px; border: none; border-radius: 6px; color: white; cursor: pointer; font-size: 0.85rem;">Supprimer</button>
