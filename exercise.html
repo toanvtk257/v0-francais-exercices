@@ -519,6 +519,7 @@ async function submitExercise() {
             earnedPoints += correctCount;
             answers[`q_${qIndex}`] = Array.from(inputs).map(i => i.value);
         } else {
+            totalPoints += points;
             const expected = (q.dataset.answer || '').trim().toLowerCase();
             const picked = q.querySelector('input[type="radio"]:checked');
             const userAnswer = picked ? picked.value.trim().toLowerCase() : null;
