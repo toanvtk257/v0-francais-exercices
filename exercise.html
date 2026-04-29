@@ -497,12 +497,14 @@ async function submitExercise() {
     const allQuestions = $$('#questionsContainer .question-section');
     allQuestions.forEach((q) => {
         const points = parseInt(q.dataset.points) || 1;
-        totalPoints += points;
         const qType = q.dataset.type;
         const qIndex = q.dataset.index;
         
         if (qType === 'cloze') {
             const inputs = q.querySelectorAll('.cloze-input');
+            const totalBlanks = inputs.length;
+            // Each blank counts as an individual point for cloze exercises
+            totalPoints += totalBlanks;
             let correctCount = 0;
             
             inputs.forEach(input => {
@@ -514,8 +516,7 @@ async function submitExercise() {
                 }
             });
             
-            const partialPoints = inputs.length > 0 ? Math.round((correctCount / inputs.length) * points) : 0;
-            earnedPoints += partialPoints;
+            earnedPoints += correctCount;
             answers[`q_${qIndex}`] = Array.from(inputs).map(i => i.value);
         } else {
             const expected = (q.dataset.answer || '').trim().toLowerCase();
