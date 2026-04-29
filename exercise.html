@@ -595,7 +595,10 @@ function showCorrection() {
                     const correctionSpan = document.createElement('span');
                     correctionSpan.className = 'cloze-correction';
                     correctionSpan.innerHTML = `<span class="cloze-wrong">${input.value || '(vide)'}</span><span class="cloze-arrow">→</span><span class="cloze-correct">${expected}</span>`;
-                    input.parentNode.replaceChild(correctionSpan, input);
+                    // Hide the input instead of replacing it, so it can be restored on redo
+                    input.style.display = 'none';
+                    input.dataset.hidden = 'true';
+                    input.parentNode.insertBefore(correctionSpan, input.nextSibling);
                 }
             });
         } else {
@@ -661,14 +664,17 @@ function redoExercise() {
         input.disabled = false;
     });
     
-    // Clear all text inputs
+    // Clear all text inputs and restore hidden ones
     $$('.cloze-input, .justif-input').forEach(input => {
         input.value = '';
         input.disabled = false;
+        input.style.display = '';
+        input.style.borderColor = '';
+        input.dataset.hidden = '';
         input.classList.remove('text-green-600', 'text-red-600');
     });
     
-    // Remove correction marks
+    // Remove correction marks (spans inserted next to inputs)
     $$('.correction-check, .correction-x, .correct-answer-display, .explanation-box, .cloze-correction').forEach(el => el.remove());
     $$('.text-green-600, .text-red-600').forEach(el => {
         el.classList.remove('text-green-600', 'text-red-600');
