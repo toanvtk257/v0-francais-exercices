@@ -1,5 +1,4 @@
 import type { VercelRequest, VercelResponse } from "@vercel/node"
-import { Client } from "pg"
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   // Enable CORS
@@ -20,7 +19,6 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     return res.status(405).json({ error: "Method not allowed" })
   }
 
-  let client: Client | null = null
   try {
     const { classId } = req.body
 
@@ -28,63 +26,64 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       return res.status(400).json({ error: "classId is required" })
     }
 
-    const databaseUrl = process.env.DATABASE_URL || process.env.SUPABASE_DB_URL
+    const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
+    const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
 
-    if (!databaseUrl) {
-      console.error("[v0] Database URL missing")
-      return res.status(500).json({ error: "Database not configured" })
+    if (!supabaseUrl || !supabaseKey) {
+      console.error("[v0] Supabase config missing")
+      return res.status(500).json({ error: "Supabase not configured" })
     }
 
-    // Create PostgreSQL client directly - bypasses PostgREST completely
-    client = new Client({
-      connectionString: databaseUrl,
-      ssl: { rejectUnauthorized: false },
+    // Call Supabase RPC via HTTP REST API
+    // Use the REST endpoint directly to call the RPC function
+    const rpcUrl = `${supabaseUrl}/rest/v1/rpc/get_class_members_with_users`
+    
+    console.log("[v0] Calling RPC:", rpcUrl, "with classId:", classId)
+
+    const rpcResponse = await fetch(rpcUrl, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "apikey": supabaseKey,
+        "Authorization": `Bearer ${supabaseKey}`,
+      },
+      body: JSON.stringify({ p_class_id: classId }),
     })
 
-    await client.connect()
+    console.log("[v0] RPC Response status:", rpcResponse.status)
 
-    // Execute raw SQL to fetch members with user data - no relationship ambiguity
-    const query = `
-      SELECT 
-        cm.id,
-        cm.class_id,
-        cm.user_id,
-        cm.created_at,
-        u.name as user_name,
-        u.email as user_email
-      FROM class_memberships cm
-      LEFT JOIN users u ON cm.user_id = u.id
-      WHERE cm.class_id = $1
-      ORDER BY cm.created_at DESC
-    `
+    if (!rpcResponse.ok) {
+      const errorText = await rpcResponse.text()
+      console.error("[v0] RPC error response:", errorText.substring(0, 200))
+      return res.status(500).json({ error: `Database error: ${rpcResponse.status}` })
+    }
 
-    const result = await client.query(query, [classId])
+    const members = await rpcResponse.json()
+    console.log("[v0] RPC returned", Array.isArray(members) ? members.length : 'null', "rows")
 
-    // Transform rows to expected format
-    const members = result.rows.map((row: any) => ({
-      id: row.id,
-      class_id: row.class_id,
-      user_id: row.user_id,
-      created_at: row.created_at,
-      users: row.user_id
-        ? {
-            id: row.user_id,
-            name: row.user_name,
-            email: row.user_email,
-          }
-        : null,
-    }))
+    // Transform the flat rows back to nested format
+    const formattedMembers = Array.isArray(members)
+      ? members.map((row: any) => ({
+          id: row.member_id,
+          class_id: classId,
+          user_id: row.user_id,
+          created_at: row.created_at,
+          users: row.user_id
+            ? {
+                id: row.user_id,
+                name: row.user_name,
+                email: row.user_email,
+              }
+            : null,
+        }))
+      : []
 
-    console.log("[v0] API: Fetched", members.length, "members for class", classId)
-    return res.status(200).json({ members })
+    console.log("[v0] API: Returning", formattedMembers.length, "formatted members")
+    return res.status(200).json({ members: formattedMembers })
   } catch (error) {
-    console.error("[v0] API Exception:", error)
+    console.error("[v0] API Exception:", error instanceof Error ? error.message : String(error))
     return res.status(500).json({
       error: "Server error: " + (error instanceof Error ? error.message : "Unknown error"),
     })
-  } finally {
-    if (client) {
-      await client.end()
-    }
   }
 }
