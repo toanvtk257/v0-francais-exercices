@@ -2295,6 +2295,7 @@ function renderClassesList(classes) {
         </p>
         <div style="display: flex; gap: 8px;">
           <button onclick="viewClassMembers('${cls.id}', '${cls.name}')" style="flex: 1; background: #2196F3; padding: 8px; border: none; border-radius: 6px; color: white; cursor: pointer; font-size: 0.85rem;">Voir les membres</button>
+          <button onclick="openEditClassModal('${cls.id}', '${cls.name}')" style="background: #FF9800; padding: 8px 12px; border: none; border-radius: 6px; color: white; cursor: pointer; font-size: 0.85rem;">Modifier</button>
           <button onclick="deleteClassConfirm('${cls.id}', '${cls.name}')" style="background: #c33; padding: 8px 12px; border: none; border-radius: 6px; color: white; cursor: pointer; font-size: 0.85rem;">Supprimer</button>
         </div>
       </div>
@@ -2336,6 +2337,77 @@ async function deleteClassConfirm(classId, className) {
     alert('Classe supprimée avec succès');
   } catch (error) {
     console.error('[v0] Error deleting class:', error);
+    alert('Erreur: ' + (error.message || 'Une erreur s\'est produite'));
+  }
+}
+
+async function openEditClassModal(classId, currentName) {
+  try {
+    // Create unique ID for this modal instance
+    const modalId = 'edit-class-modal-' + Date.now() + Math.random().toString(36).substr(2, 9);
+    const inputId = 'edit-class-input-' + Date.now() + Math.random().toString(36).substr(2, 9);
+    const saveButtonId = 'save-edit-class-btn-' + Date.now() + Math.random().toString(36).substr(2, 9);
+    const cancelButtonId = 'cancel-edit-class-btn-' + Date.now() + Math.random().toString(36).substr(2, 9);
+
+    // Create modal dialog
+    const modal = document.createElement('div');
+    modal.style.cssText = 'position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.5); display: flex; align-items: center; justify-content: center; z-index: 9999;';
+    
+    modal.innerHTML = `
+      <div style="background: white; padding: 24px; border-radius: 12px; max-width: 400px; box-shadow: 0 10px 40px rgba(0,0,0,0.2);">
+        <h3>Modifier le nom de la classe</h3>
+        <input id="${inputId}" type="text" value="${currentName}" style="width: 100%; padding: 10px; margin: 12px 0; border: 1px solid #ddd; border-radius: 6px; font-size: 1rem; box-sizing: border-box;">
+        <div style="display: flex; gap: 8px; margin-top: 16px;">
+          <button id="${saveButtonId}" style="flex: 1; background: #4CAF50; padding: 10px; border: none; border-radius: 6px; color: white; cursor: pointer;">Enregistrer</button>
+          <button id="${cancelButtonId}" style="flex: 1; background: #999; padding: 10px; border: none; border-radius: 6px; color: white; cursor: pointer;">Annuler</button>
+        </div>
+      </div>
+    `;
+    document.body.appendChild(modal);
+
+    // Add event handlers
+    setTimeout(() => {
+      const input = document.getElementById(inputId);
+      const saveBtn = document.getElementById(saveButtonId);
+      const cancelBtn = document.getElementById(cancelButtonId);
+
+      if (saveBtn) {
+        saveBtn.addEventListener('click', async () => {
+          const newName = input.value.trim();
+          if (!newName) {
+            alert('Le nom de la classe ne peut pas être vide');
+            return;
+          }
+          if (newName === currentName) {
+            modal.remove();
+            return;
+          }
+          try {
+            await window.SupabaseDB.updateClass(classId, newName);
+            await loadClasses();
+            alert('Classe modifiée avec succès');
+            modal.remove();
+          } catch (error) {
+            console.error('[v0] Error updating class:', error);
+            alert('Erreur: ' + (error.message || 'Une erreur s\'est produite'));
+          }
+        });
+      }
+
+      if (cancelBtn) {
+        cancelBtn.addEventListener('click', () => {
+          modal.remove();
+        });
+      }
+
+      // Focus on input
+      if (input) {
+        input.focus();
+        input.select();
+      }
+    }, 0);
+  } catch (error) {
+    console.error('[v0] Error opening edit class modal:', error);
     alert('Erreur: ' + (error.message || 'Une erreur s\'est produite'));
   }
 }
