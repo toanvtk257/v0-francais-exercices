@@ -37,32 +37,46 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
     const supabase = createClient(supabaseUrl, supabaseKey)
 
-    // Execute SQL directly using Supabase
-    const { data, error } = await supabase.rpc("get_class_members_with_users", {
-      p_class_id: classId,
-    })
+    // Execute raw SQL query to bypass PostgREST relationship detection completely
+    const { data: flatData, error } = await supabase.from("class_members_view")
+      .select("*")
+      .eq("class_id", classId)
+      .order("created_at", { ascending: false })
 
     if (error) {
-      console.error("[v0] Error fetching members:", error)
+      console.error("[v0] Error fetching members from view:", error)
       return res.status(500).json({ error: error.message || "Failed to fetch members" })
     }
 
-    // Transform flat data back into the expected format
-    const members = data?.map((row: any) => ({
-      id: row.member_id,
-      class_id: classId,
-      user_id: row.user_id,
-      created_at: row.created_at,
-      users: row.user_id
-        ? {
-            id: row.user_id,
-            name: row.user_name,
-            email: row.user_email,
-          }
-        : null,
-    }))
+    // If we have members, fetch the user data separately
+    let members = []
+    if (flatData && flatData.length > 0) {
+      const userIds = flatData.map((m: any) => m.user_id).filter((id: string) => id)
+      
+      if (userIds.length > 0) {
+        const { data: users, error: usersError } = await supabase
+          .from("users")
+          .select("id, name, email")
+          .in("id", userIds)
 
-    console.log("[v0] Fetched", members?.length || 0, "members for class", classId)
+        if (!usersError && users) {
+          const usersMap: { [key: string]: any } = {}
+          users.forEach(u => {
+            usersMap[u.id] = u
+          })
+
+          members = flatData.map((row: any) => ({
+            id: row.id,
+            class_id: row.class_id,
+            user_id: row.user_id,
+            created_at: row.created_at,
+            users: row.user_id ? usersMap[row.user_id] || null : null,
+          }))
+        }
+      }
+    }
+
+    console.log("[v0] Fetched", members.length, "members for class", classId)
     return res.status(200).json({ members })
   } catch (error) {
     console.error("[v0] API error:", error)
