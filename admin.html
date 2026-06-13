@@ -2369,10 +2369,15 @@ async function viewClassMembers(classId, className) {
     modal.innerHTML = `
       <div style="background: white; padding: 24px; border-radius: 12px; max-width: 600px; max-height: 80vh; overflow-y: auto; box-shadow: 0 10px 40px rgba(0,0,0,0.2);">
         ${html}
-        <button onclick="this.closest('div').parentElement.removeChild(this.closest('div').parentElement)" style="margin-top: 16px; background: #999; padding: 10px 20px; border: none; border-radius: 6px; color: white; cursor: pointer;">Fermer</button>
+        <button style="margin-top: 16px; background: #999; padding: 10px 20px; border: none; border-radius: 6px; color: white; cursor: pointer;">Fermer</button>
       </div>
     `;
     document.body.appendChild(modal);
+    
+    // Add click handler for close button
+    modal.querySelector('button').addEventListener('click', function() {
+      modal.remove();
+    });
   } catch (error) {
     console.error('[v0] Error loading class members:', error);
     alert('Erreur: ' + (error.message || 'Une erreur s\'est produite'));
