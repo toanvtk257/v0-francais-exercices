@@ -2441,13 +2441,27 @@ async function openAddToClassModal(userId, userName) {
     // Create modal dialog
     const modal = document.createElement('div');
     modal.style.cssText = 'position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.5); display: flex; align-items: center; justify-content: center; z-index: 9999;';
+    
+    // Create unique ID for this modal instance
+    const modalId = 'cancel-add-class-btn-' + Date.now() + Math.random().toString(36).substr(2, 9);
+    
     modal.innerHTML = `
       <div style="background: white; padding: 24px; border-radius: 12px; max-width: 400px; box-shadow: 0 10px 40px rgba(0,0,0,0.2);">
         ${html}
-        <button onclick="this.closest('div').style.display='none'; this.closest('div').parentElement.removeChild(this.closest('div'))" style="margin-top: 16px; width: 100%; background: #999; padding: 10px; border: none; border-radius: 6px; color: white; cursor: pointer;">Annuler</button>
+        <button id="${modalId}" style="margin-top: 16px; width: 100%; background: #999; padding: 10px; border: none; border-radius: 6px; color: white; cursor: pointer;">Annuler</button>
       </div>
     `;
     document.body.appendChild(modal);
+    
+    // Add click handler for cancel button with unique ID
+    setTimeout(() => {
+      const cancelBtn = document.getElementById(modalId);
+      if (cancelBtn) {
+        cancelBtn.addEventListener('click', () => {
+          modal.remove();
+        });
+      }
+    }, 0);
   } catch (error) {
     console.error('[v0] Error opening add to class modal:', error);
     alert('Erreur: ' + (error.message || 'Une erreur s\'est produite'));
