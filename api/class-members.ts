@@ -1,5 +1,5 @@
 import type { VercelRequest, VercelResponse } from "@vercel/node"
-import { createClient } from "@supabase/supabase-js"
+import { Client } from "pg"
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   // Enable CORS
@@ -20,6 +20,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     return res.status(405).json({ error: "Method not allowed" })
   }
 
+  let client: Client | null = null
   try {
     const { classId } = req.body
 
@@ -27,33 +28,42 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       return res.status(400).json({ error: "classId is required" })
     }
 
-    const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
-    const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
+    const databaseUrl = process.env.DATABASE_URL || process.env.SUPABASE_DB_URL
 
-    if (!supabaseUrl || !supabaseKey) {
-      console.error("[v0] Supabase configuration missing")
-      return res.status(500).json({ error: "Supabase not configured" })
+    if (!databaseUrl) {
+      console.error("[v0] Database URL missing")
+      return res.status(500).json({ error: "Database not configured" })
     }
 
-    const supabase = createClient(supabaseUrl, supabaseKey)
-
-    // Use RPC with flattened data to completely bypass PostgREST relationship issues
-    const { data: members, error } = await supabase.rpc("get_class_members_with_users", {
-      p_class_id: classId,
+    // Create PostgreSQL client directly - bypasses PostgREST completely
+    client = new Client({
+      connectionString: databaseUrl,
+      ssl: { rejectUnauthorized: false },
     })
 
-    if (error) {
-      console.error("[v0] RPC Error:", error.message)
-      return res.status(500).json({ 
-        error: "Failed to fetch members",
-        details: error.message
-      })
-    }
+    await client.connect()
 
-    // Transform the flat rows back to nested format for compatibility
-    const formattedMembers = members?.map((row: any) => ({
-      id: row.member_id,
-      class_id: classId,
+    // Execute raw SQL to fetch members with user data - no relationship ambiguity
+    const query = `
+      SELECT 
+        cm.id,
+        cm.class_id,
+        cm.user_id,
+        cm.created_at,
+        u.name as user_name,
+        u.email as user_email
+      FROM class_memberships cm
+      LEFT JOIN users u ON cm.user_id = u.id
+      WHERE cm.class_id = $1
+      ORDER BY cm.created_at DESC
+    `
+
+    const result = await client.query(query, [classId])
+
+    // Transform rows to expected format
+    const members = result.rows.map((row: any) => ({
+      id: row.id,
+      class_id: row.class_id,
       user_id: row.user_id,
       created_at: row.created_at,
       users: row.user_id
@@ -63,14 +73,18 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
             email: row.user_email,
           }
         : null,
-    })) || []
+    }))
 
-    console.log("[v0] API: Fetched", formattedMembers.length, "members for class", classId)
-    return res.status(200).json({ members: formattedMembers })
+    console.log("[v0] API: Fetched", members.length, "members for class", classId)
+    return res.status(200).json({ members })
   } catch (error) {
     console.error("[v0] API Exception:", error)
     return res.status(500).json({
       error: "Server error: " + (error instanceof Error ? error.message : "Unknown error"),
     })
+  } finally {
+    if (client) {
+      await client.end()
+    }
   }
 }
