@@ -2366,17 +2366,21 @@ async function viewClassMembers(classId, className) {
     // Create modal dialog
     const modal = document.createElement('div');
     modal.style.cssText = 'position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.5); display: flex; align-items: center; justify-content: center; z-index: 9999;';
+    
+    // Create unique ID for this modal instance to avoid conflicts with multiple modals
+    const modalId = 'close-modal-btn-' + Date.now() + Math.random().toString(36).substr(2, 9);
+    
     modal.innerHTML = `
       <div style="background: white; padding: 24px; border-radius: 12px; max-width: 600px; max-height: 80vh; overflow-y: auto; box-shadow: 0 10px 40px rgba(0,0,0,0.2);">
         ${html}
-        <button id="close-modal-btn" style="margin-top: 16px; background: #999; padding: 10px 20px; border: none; border-radius: 6px; color: white; cursor: pointer;">Fermer</button>
+        <button id="${modalId}" style="margin-top: 16px; background: #999; padding: 10px 20px; border: none; border-radius: 6px; color: white; cursor: pointer;">Fermer</button>
       </div>
     `;
     document.body.appendChild(modal);
     
-    // Add click handler for close button with a small delay to ensure DOM is ready
+    // Add click handler for close button - use the unique ID to target this specific modal's button
     setTimeout(() => {
-      const closeBtn = document.getElementById('close-modal-btn');
+      const closeBtn = document.getElementById(modalId);
       if (closeBtn) {
         closeBtn.addEventListener('click', () => {
           modal.remove();
